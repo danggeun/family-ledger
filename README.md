@@ -1,4 +1,4 @@
-# 용돈기입장
+# 용돈기입장 (v5)
 
 가족용 아이 용돈 통장 앱. 아이폰 홈 화면에 추가해서 씀.
 
@@ -8,7 +8,7 @@
 1. https://supabase.com → New project (이름 아무거나, 리전 Northeast Asia/Seoul)
 2. 왼쪽 **SQL Editor** → `schema.sql` 내용 통째로 붙여넣고 **Run**
 3. 왼쪽 **Authentication → Providers → Anonymous** 를 켬 (Enable anonymous sign-ins)
-4. **Project Settings → API** 에서 `Project URL`과 `anon public` 키를 복사해 `config.js`에 넣음
+4. **Project Settings → API** 에서 `Project URL`과 공개 키를 복사해 `config.js`에 넣음 (없으면 `config.example.js`를 복사해서 만들 것)
 
 `anon` 키는 원래 브라우저에 노출되는 공개 키. 데이터 보호는 RLS(schema.sql)가 함.
 
@@ -37,6 +37,18 @@
 - 백업: 설정 → 내보내기. 가끔 메모 앱에 붙여넣어 두면 됨.
 - `config.js`가 비어 있으면 그 기기에만 저장되는 로컬 모드로 동작 (테스트용).
 
+## 이미 쓰고 있는 경우 (업데이트)
+**`config.js`는 이 압축에 없음** — 기존 것이 그대로 남아야 하니까. 나머지만 덮어쓰고 push.
+단, `schema.sql`에 `skipped` 컬럼이 추가됐으니 SQL Editor에서 한 번 실행:
+```sql
+alter table entries add column if not exists skipped boolean not null default false;
+```
+
+테스트로 넣은 기록만 지우고 싶을 때 (아이 설정·가족 코드는 유지):
+```sql
+delete from entries;
+```
+
 ## 파일
-- `index.html` 앱 전체 · `config.js` Supabase 연결 정보 · `schema.sql` DB 구조(한 번만 실행)
+- `index.html` 앱 전체 · `config.example.js` → `config.js`로 복사해서 Supabase 정보 입력 · `schema.sql` DB 구조
 - `manifest.webmanifest` `sw.js` 아이콘 3개: 홈 화면 앱용
