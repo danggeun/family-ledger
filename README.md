@@ -1,4 +1,4 @@
-# 용돈기입장 (v5)
+# 용돈기입장 (v7)
 
 가족용 아이 용돈 통장 앱. 아이폰 홈 화면에 추가해서 씀.
 
@@ -34,15 +34,18 @@
 ## 알아둘 것
 - Supabase 무료 플랜은 **일주일 이상 요청이 없으면 프로젝트가 일시정지**됨. 매주 앱을 열면 문제없고, 멈추면 대시보드에서 Restore 한 번.
 - 사파리 데이터를 지우면 그 폰의 익명 로그인이 사라짐. 데이터는 서버에 그대로 있으니 **가족 코드로 참여**만 다시 하면 됨. 코드는 다른 폰 설정 화면에 있음.
-- 백업: 설정 → 내보내기. 가끔 메모 앱에 붙여넣어 두면 됨.
+- 설정 맨 아래 **기록 내보내기**: 전체 기록을 텍스트로 뽑음. 다른 데로 옮기거나 보관할 때.
 - `config.js`가 비어 있으면 그 기기에만 저장되는 로컬 모드로 동작 (테스트용).
 
 ## 이미 쓰고 있는 경우 (업데이트)
 **`config.js`는 이 압축에 없음** — 기존 것이 그대로 남아야 하니까. 나머지만 덮어쓰고 push.
-단, `schema.sql`에 `skipped` 컬럼이 추가됐으니 SQL Editor에서 한 번 실행:
-```sql
-alter table entries add column if not exists skipped boolean not null default false;
-```
+v6 → v7은 **DB 변경 없음.** 파일만 덮어쓰면 됨.
+(v5 이하에서 올라오는 거라면 SQL Editor에서 한 번:
+`alter table entries add column if not exists skipped boolean not null default false;`)
+
+아이콘이 바뀌었으므로 폰에서 **홈 화면 앱을 삭제하고 다시 추가**해야 새 아이콘이 나옴.
+지우기 전에 설정에서 **가족 코드를 메모**할 것 — 앱을 지우면 그 폰의 익명 로그인이 사라져서
+재설치 후 "가족 코드로 참여"를 다시 해야 한다. (데이터는 서버에 그대로 있음)
 
 테스트로 넣은 기록만 지우고 싶을 때 (아이 설정·가족 코드는 유지):
 ```sql
@@ -51,4 +54,22 @@ delete from entries;
 
 ## 파일
 - `index.html` 앱 전체 · `config.example.js` → `config.js`로 복사해서 Supabase 정보 입력 · `schema.sql` DB 구조
-- `manifest.webmanifest` `sw.js` 아이콘 3개: 홈 화면 앱용
+- `manifest.webmanifest` `sw.js` — 홈 화면 앱(PWA) 설정
+- `icon-*.png` `apple-touch-icon.png` — 아이콘. **직접 고치지 말 것.** 아래 참고
+- `logo/` — 로고 원본
+
+## 로고 고칠 때
+아이콘 PNG는 전부 `logo/logo.svg` 한 장에서 뽑는다. PNG를 직접 편집하면 다음 빌드에 덮어써짐.
+
+```
+cd logo
+pip install cairosvg pillow numpy
+python build_logo.py     # 비례 수치 → logo.svg, logo-maskable.svg
+python export_icons.py   # SVG → 앱 루트에 PNG 전 크기
+```
+
+`build_logo.py` 위쪽 상수만 바꾸면 됨 (획 두께, 캡하이트, 막대 위치 등). 세로 위치는
+렌더한 픽셀의 무게중심을 재서 자동 보정하므로 손대지 않아도 된다.
+
+- `logo.svg` → `icon-180/192/256/384/512/1024.png`, `apple-touch-icon.png` (manifest `purpose: any`)
+- `logo-maskable.svg` → `icon-maskable-192/512.png` (안드로이드가 80%로 잘라내므로 마크를 더 작게)

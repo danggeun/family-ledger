@@ -9,26 +9,37 @@
 <meta name="apple-mobile-web-app-title" content="용돈기입장">
 <meta name="theme-color" content="#FFFFFF">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 <style>
 :root{
-  --paper:#FCFBF8;
-  --wash:#F5F3EE;
+  --paper:#FDFCFA;
+  --wash:#F3F1EC;
   --ink:#111317;
-  --ink-2:#464A52;
-  --muted:#8A8F98;
-  --faint:#B9BDC4;
-  --hair:#EDEBE5;
-  --hair-2:#F4F2EC;
+  --ink-2:#3E434B;
+  --ink-3:#5D6067;
+  --muted:#767C86;
+  --faint:#9AA0A9;
+  --hair:#E8E5DE;
+  --hair-2:#F1EFE9;
   --in:#1B7A5A;
   --c:#2F6FA8;
+  /* 타입 램프 — 7단계. 본문권(11·12·13·15·17)은 촘촘히, 표시권(28·44)은 약 1.6배씩 */
+  --t1:11px;  /* 뱃지 */
+  --t2:12px;  /* 캡션·라벨·날짜 */
+  --t3:13px;  /* 보조 텍스트 */
+  --t4:15px;  /* 본문 */
+  --t5:17px;  /* 강조·입력·제목 */
+  --t6:28px;  /* 큰 제목 */
+  --t7:44px;  /* 잔액 */
+  /* 4px 간격 격자 */
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:32px;
   --sat:env(safe-area-inset-top,0px); --sab:env(safe-area-inset-bottom,0px);
 }
 *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
 html,body{margin:0; background:var(--paper); color:var(--ink);
   font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Noto Sans KR",system-ui,sans-serif;
-  font-size:15px; line-height:1.45; font-variant-numeric:tabular-nums;
+  font-size:var(--t4); line-height:1.45; font-variant-numeric:tabular-nums;
   -webkit-text-size-adjust:100%; overscroll-behavior-y:none;
   -webkit-font-smoothing:antialiased;}
 button,input{font:inherit; color:inherit}
@@ -39,76 +50,78 @@ input{border:0; background:none; outline:none; min-width:0}
 
 /* ─── 상단: 아이 탭 + 설정 ─── */
 .bar{display:flex; align-items:center; gap:22px; height:46px}
-.bar .k{position:relative; padding:12px 0; font-size:16px; font-weight:600; color:var(--faint);
+.bar .k{position:relative; padding:12px 0; font-size:var(--t5); font-weight:600; color:var(--faint);
   letter-spacing:-.01em; transition:color .15s}
 .bar .k.on{color:var(--ink)}
 .bar .k.on::after{content:""; position:absolute; left:0; right:0; bottom:4px; height:2px;
   border-radius:2px; background:var(--ink)}
 .bar .sp{flex:1}
 .bar .gear{width:38px; height:38px; margin-right:-9px; border-radius:50%;
-  display:flex; align-items:center; justify-content:center; font-size:17px; color:var(--muted)}
+  display:flex; align-items:center; justify-content:center; font-size:var(--t5); color:var(--muted)}
 .bar .gear:active{background:var(--wash)}
 
 /* ─── 잔액 ─── */
-.bal{display:flex; align-items:baseline; gap:5px; padding:16px 0 26px}
-.bal b{font-size:50px; font-weight:700; letter-spacing:-.045em; line-height:1; color:var(--c-mid)}
-.bal i{font-style:normal; font-size:19px; font-weight:600; color:var(--muted)}
+.bal{display:flex; align-items:baseline; gap:5px; padding:var(--s4) 0 var(--s5)}
+.bal b{font-size:var(--t7); font-weight:700; letter-spacing:-.04em; line-height:1; color:var(--c-mid)}
+.bal i{font-style:normal; font-size:var(--t5); font-weight:600; color:var(--muted)}
 
 /* ─── 표 ─── */
 .thead,.row{display:grid; grid-template-columns:44px 1fr 86px 78px; gap:8px; align-items:center}
-.thead{padding:0 2px 10px; border-bottom:1px solid var(--hair-2);
-  font-size:10.5px; font-weight:500; color:var(--faint); letter-spacing:.03em}
+.thead{padding:0 2px var(--s3); border-bottom:1px solid var(--hair);
+  font-size:var(--t2); font-weight:600; color:var(--muted); letter-spacing:.01em}
 .thead span:nth-child(n+3){text-align:right}
 .row{padding:14px 2px; border-bottom:1px solid var(--hair-2); width:100%; text-align:left}
-.row .d{font-size:11.5px; font-weight:500; color:var(--muted)}
-.row .m{font-size:15px; font-weight:500; letter-spacing:-.01em;
+.row .d{font-size:var(--t2); font-weight:500; color:var(--ink-3)}
+.row .m{font-size:var(--t4); font-weight:500; letter-spacing:-.01em;
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .row .m.empty{color:var(--faint)}
-.row .a{text-align:right; font-size:15px; font-weight:600; letter-spacing:-.02em; white-space:nowrap}
+.row .a{text-align:right; font-size:var(--t4); font-weight:600; letter-spacing:-.02em; white-space:nowrap}
 .row .a.in{color:var(--in)}
-.row .t{text-align:right; font-size:13.5px; font-weight:500; color:var(--muted);
-  letter-spacing:-.01em; white-space:nowrap}
-.row.auto .m::after{content:"자동"; font-size:9.5px; font-weight:600; color:var(--faint);
+.row .t{text-align:right; font-size:var(--t3); font-weight:600; color:var(--ink-3);
+  letter-spacing:-.015em; white-space:nowrap}
+.row.auto .m::after{content:"자동"; font-size:var(--t1); font-weight:600; color:var(--muted);
   border:1px solid var(--hair); border-radius:4px; padding:1px 4px; margin-left:6px; vertical-align:2px}
 .row:active{background:var(--wash)}
+.row.open .m{color:var(--muted)}
+.row.open .t{color:var(--muted); font-weight:500}
 
 /* ─── 입력 줄 (통장 맨 윗줄) ─── */
 .entry{display:grid; grid-template-columns:44px 1fr 98px 36px; gap:8px; align-items:center;
   background:#FFFFFF; border-radius:14px; padding:10px 11px; margin:12px -11px 4px;
   box-shadow:0 1px 2px rgba(40,34,24,.05), 0 8px 20px -14px rgba(40,34,24,.28)}
-.entry .dbtn{font-size:11px; font-weight:600; line-height:1.15; color:var(--ink-2);
+.entry .dbtn{font-size:var(--t2); font-weight:600; line-height:1.15; color:var(--ink-2);
   background:var(--wash); border-radius:9px; padding:8px 2px; text-align:center}
 .entry .dbtn:active{background:var(--hair-2)}
-.entry input.memo{font-size:16px; font-weight:500; padding:7px 2px; letter-spacing:-.01em}
+.entry input.memo{font-size:var(--t5); font-weight:500; padding:7px 2px; letter-spacing:-.01em}
 .entry input.memo::placeholder{color:var(--faint); font-weight:400}
 .entry .acell{display:flex; align-items:center; gap:6px; justify-content:flex-end}
 .entry .sign{width:25px; height:25px; border-radius:50%; background:var(--ink); color:#fff;
-  font-size:15px; line-height:1; display:flex; align-items:center; justify-content:center; flex:none}
+  font-size:var(--t5); line-height:1; display:flex; align-items:center; justify-content:center; flex:none}
 .entry .sign.plus{background:var(--in)}
-.entry input.amt{font-size:16px; font-weight:600; text-align:right; width:100%;
+.entry input.amt{font-size:var(--t5); font-weight:600; text-align:right; width:100%;
   padding:7px 0; letter-spacing:-.02em}
 .entry input.amt::placeholder{color:var(--faint); font-weight:400}
 .entry .ok{width:36px; height:36px; border-radius:11px; background:var(--ink); color:#fff;
-  font-size:16px; display:flex; align-items:center; justify-content:center}
+  font-size:var(--t5); display:flex; align-items:center; justify-content:center}
 .entry .ok[disabled]{background:var(--hair); color:var(--faint)}
 .chips{display:flex; gap:6px; padding:10px 0 2px; overflow-x:auto; scrollbar-width:none}
 .chips::-webkit-scrollbar{display:none}
 .chips button, .chips input[type=date]{flex:none; white-space:nowrap}
 .chips button{border:0; border-radius:999px; padding:7px 13px;
-  font-size:13px; font-weight:500; color:var(--ink-2); background:var(--wash)}
+  font-size:var(--t3); font-weight:500; color:var(--ink-2); background:var(--wash)}
 .chips button.on{background:var(--ink); color:#fff; border-color:var(--ink)}
 .chips input[type=date]{border:1px solid var(--hair); border-radius:999px; padding:4px 11px;
-  font-size:16px; background:var(--paper); color:var(--ink-2)}
+  font-size:var(--t5); background:var(--paper); color:var(--ink-2)}
 
 /* ─── 월 구분 ─── */
-.mdiv{display:flex; align-items:baseline; justify-content:space-between; gap:10px; padding:30px 2px 10px}
-.mdiv .mname{font-size:12.5px; font-weight:700; letter-spacing:-.01em}
-.mdiv .msum{font-size:11px; font-weight:500; color:var(--faint); white-space:nowrap}
-.more{width:100%; margin-top:20px; padding:15px; border-radius:13px;
-  border:1px solid var(--hair); font-size:13.5px; font-weight:600; color:var(--ink-2)}
+.mdiv{display:flex; align-items:baseline; justify-content:space-between; gap:10px; padding:var(--s6) 2px var(--s2)}
+.mdiv .mname{font-size:var(--t3); font-weight:700; letter-spacing:-.01em}
+.mdiv .msum{font-size:var(--t2); font-weight:500; color:var(--muted); white-space:nowrap}
+.more{width:100%; margin-top:var(--s5); padding:var(--s4); border-radius:13px;
+  border:1px solid var(--hair); font-size:var(--t3); font-weight:600; color:var(--ink-2)}
 .more:active{background:var(--wash)}
 .empty-msg{white-space:pre-line; padding:56px 16px; text-align:center;
-  color:var(--faint); font-size:14px; line-height:1.8}
+  color:var(--muted); font-size:var(--t4); line-height:1.8}
 
 /* ─── 시트 ─── */
 .dim{position:fixed; inset:0; background:rgba(17,19,23,.32); z-index:30}
@@ -117,19 +130,19 @@ input{border:0; background:none; outline:none; min-width:0}
   box-shadow:0 -8px 40px rgba(17,19,23,.16)}
 .sheet::before{content:""; display:block; width:36px; height:4px; border-radius:2px;
   background:var(--hair); margin:0 auto 14px}
-.sheet h3{margin:0 0 16px; font-size:15px; font-weight:600; text-align:center; color:var(--muted)}
+.sheet h3{margin:0 0 var(--s4); font-size:var(--t3); font-weight:600; text-align:center; color:var(--muted)}
 .f{display:flex; flex-direction:column; gap:12px}
-.f label{font-size:11.5px; font-weight:500; color:var(--muted); display:block; margin-bottom:6px}
+.f label{font-size:var(--t2); font-weight:500; color:var(--muted); display:block; margin-bottom:6px}
 .f .box{border:1px solid var(--hair); border-radius:12px; padding:12px 14px;
   display:flex; align-items:center; gap:8px}
 .f .box:focus-within{border-color:var(--ink)}
-.f .box input{flex:1; font-size:16px; font-weight:500}
+.f .box input{flex:1; font-size:var(--t5); font-weight:500}
 .f .box input.r{text-align:right; font-weight:600; letter-spacing:-.02em}
 .tabs{display:flex; background:var(--wash); border-radius:12px; padding:3px}
-.tabs button{flex:1; padding:10px; border-radius:9px; font-size:14px; font-weight:600; color:var(--muted)}
+.tabs button{flex:1; padding:10px; border-radius:9px; font-size:var(--t4); font-weight:600; color:var(--muted)}
 .tabs button.on{background:var(--paper); color:var(--ink); box-shadow:0 1px 3px rgba(17,19,23,.1)}
 .btns{display:flex; gap:8px; margin-top:6px}
-.btn{flex:1; height:56px; border-radius:15px; font-size:15.5px; font-weight:600;
+.btn{flex:1; height:56px; border-radius:15px; font-size:var(--t4); font-weight:600;
   display:flex; align-items:center; justify-content:center; background:var(--wash); color:var(--ink)}
 .btn.pri{background:var(--ink); color:#fff}
 .btn.danger{flex:0 0 auto; padding:0 18px; color:#B43F35; background:var(--paper); box-shadow:inset 0 0 0 1px var(--hair)}
@@ -138,17 +151,17 @@ input{border:0; background:none; outline:none; min-width:0}
 
 /* ─── 설정 ─── */
 .nav{display:flex; align-items:center; gap:2px; height:46px; margin-bottom:4px}
-.nav .back{width:40px; height:40px; margin-left:-11px; font-size:26px; font-weight:300;
+.nav .back{width:40px; height:40px; margin-left:-11px; font-size:var(--t6); font-weight:300;
   display:flex; align-items:center; justify-content:center; border-radius:50%; color:var(--ink)}
 .nav .back:active{background:var(--wash)}
-.nav h2{margin:0; font-size:17px; font-weight:700; letter-spacing:-.02em}
-.sec-h{font-size:11px; font-weight:600; color:var(--faint); letter-spacing:.06em;
-  margin:32px 0 2px; text-transform:none}
+.nav h2{margin:0; font-size:var(--t5); font-weight:700; letter-spacing:-.02em}
+.sec-h{font-size:var(--t2); font-weight:600; color:var(--muted); letter-spacing:.04em;
+  margin:var(--s6) 0 2px; text-transform:none}
 .srow{display:flex; align-items:center; gap:12px; padding:15px 0;
-  border-bottom:1px solid var(--hair-2); font-size:15px}
+  border-bottom:1px solid var(--hair-2); font-size:var(--t4)}
 .srow .grow{flex:1; min-width:0}
-.srow .val{color:var(--muted); font-size:13.5px; text-align:right}
-.srow input{font-size:16px; font-weight:600; text-align:right; width:110px; letter-spacing:-.02em}
+.srow .val{color:var(--ink-3); font-size:var(--t3); text-align:right}
+.srow input{font-size:var(--t5); font-weight:600; text-align:right; width:110px; letter-spacing:-.02em}
 .srow input.nm{text-align:left; font-weight:500; width:auto; flex:1; letter-spacing:-.01em}
 .dot{width:9px; height:9px; border-radius:50%; flex:none}
 .tog{width:46px; height:28px; border-radius:14px; background:var(--hair); position:relative;
@@ -158,24 +171,28 @@ input{border:0; background:none; outline:none; min-width:0}
   border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.2); transition:left .18s}
 .tog.on::after{left:21px}
 .sub{padding:2px 0 16px; display:flex; flex-wrap:wrap; gap:8px; align-items:center;
-  font-size:13.5px; color:var(--muted); border-bottom:1px solid var(--hair-2)}
+  font-size:var(--t3); color:var(--muted); border-bottom:1px solid var(--hair-2)}
 .sub .dow{display:flex; gap:5px}
 .sub .dow button{width:33px; height:33px; border-radius:50%; border:1px solid var(--hair);
-  font-size:13px; font-weight:500; color:var(--ink-2)}
+  font-size:var(--t3); font-weight:500; color:var(--ink-2)}
 .sub .dow button.on{background:var(--ink); color:#fff; border-color:var(--ink); font-weight:600}
 .sub .box{border:1px solid var(--hair); border-radius:10px; padding:6px 12px;
   display:flex; align-items:center; gap:4px; color:var(--ink)}
-.sub .box input{width:76px; text-align:right; font-size:16px; font-weight:600; letter-spacing:-.02em}
+.sub .box input{width:76px; text-align:right; font-size:var(--t5); font-weight:600; letter-spacing:-.02em}
 .swatch{display:flex; gap:12px}
 .swatch button{width:20px; height:20px; border-radius:50%; position:relative}
 .swatch button.on::after{content:""; position:absolute; inset:-5px; border-radius:50%;
   border:1.5px solid var(--ink)}
-.note{font-size:12.5px; line-height:1.7; color:var(--muted); margin:12px 0 0}
-.link{display:block; width:100%; text-align:left; color:var(--ink); font-size:15px;
+.note{font-size:var(--t3); line-height:1.7; color:var(--muted); margin:var(--s3) 0 0}
+.link{display:block; width:100%; text-align:left; color:var(--ink); font-size:var(--t4);
   font-weight:500; padding:15px 0; border-bottom:1px solid var(--hair-2)}
 .link:active{color:var(--muted)}
-.link.sm{font-size:14.5px; color:var(--ink-2); border-bottom:0; padding:14px 0 0}
-.code{font-family:ui-monospace,Menlo,monospace; font-size:20px; font-weight:600; letter-spacing:.1em}
+.link.sm{font-size:var(--t3); color:var(--ink-2); border-bottom:0; padding:14px 0 0}
+.code{font-family:ui-monospace,Menlo,monospace; font-size:var(--t5); font-weight:600; letter-spacing:.08em}
+.srow .copy{flex:none; font-size:var(--t3); font-weight:600; color:var(--ink-2);
+  background:var(--wash); border-radius:9px; padding:7px 12px; margin-left:var(--s3)}
+.srow .copy:active{background:var(--hair)}
+.link.foot{margin-top:var(--s6); color:var(--ink-2); border-bottom:0}
 .syncdot{width:6px; height:6px; border-radius:50%; background:var(--faint);
   display:inline-block; margin-right:8px; vertical-align:2px}
 .syncdot.on{background:var(--in)}
@@ -186,21 +203,21 @@ input{border:0; background:none; outline:none; min-width:0}
 .start-top{flex:1; display:flex; flex-direction:column; justify-content:center; padding-bottom:20px}
 .start-top .logo{width:62px; height:62px; border-radius:16px; overflow:hidden; margin-bottom:26px}
 .start-top .logo img{width:100%; height:100%; display:block}
-.start-top h2{font-size:30px; font-weight:700; margin:0; letter-spacing:-.035em; line-height:1.25}
-.start-top p{white-space:pre-line; font-size:15px; color:var(--muted); margin:12px 0 0; line-height:1.65}
+.start-top h2{font-size:var(--t6); font-weight:700; margin:0; letter-spacing:-.03em; line-height:1.25}
+.start-top p{white-space:pre-line; font-size:var(--t4); color:var(--muted); margin:var(--s3) 0 0; line-height:1.65}
 .stack{display:flex; flex-direction:column; gap:9px}
 .warn{background:var(--wash); border-radius:14px; padding:15px 16px; margin-bottom:16px}
-.warn b{font-size:14px; font-weight:600; display:block}
-.warn p{margin:6px 0 0; font-size:13px; line-height:1.65; color:var(--muted)}
+.warn b{font-size:var(--t4); font-weight:600; display:block}
+.warn p{margin:6px 0 0; font-size:var(--t3); line-height:1.65; color:var(--muted)}
 .pair{border:1px solid var(--hair); border-radius:13px; padding:11px 14px;
   display:flex; align-items:center; gap:8px}
 .pair:focus-within{border-color:var(--ink)}
-.pair input{flex:1; font-size:16px; font-weight:500}
+.pair input{flex:1; font-size:var(--t5); font-weight:500}
 .pair input.r{flex:0 0 100px; text-align:right; font-weight:600; letter-spacing:-.02em}
-.pair span{font-size:14px; color:var(--muted)}
+.pair span{font-size:var(--t3); color:var(--muted)}
 
 .toast{position:fixed; left:50%; bottom:calc(30px + var(--sab)); transform:translateX(-50%);
-  background:var(--ink); color:#fff; padding:12px 18px; border-radius:12px; font-size:14px;
+  background:var(--ink); color:#fff; padding:12px 18px; border-radius:12px; font-size:var(--t3);
   font-weight:500; z-index:40; opacity:0; transition:opacity .2s; pointer-events:none;
   max-width:88vw; text-align:center}
 .toast.show{opacity:1}
@@ -319,6 +336,7 @@ var S = {
   draft:{date:today(), memo:"", amount:"", sign:-1},
   memoFocus:false, datePick:false, limit:60,
   edit:null,            // 편집 중인 entry
+  editOpen:null,        // 처음 금액 고치는 중
   onboard:{mode:null, names:["첫째","둘째"], opens:["",""], code:""}
 };
 var root = document.getElementById("app");
@@ -381,6 +399,7 @@ function render(){
   else if(S.screen==="settings") root.appendChild(renderSettings());
   else root.appendChild(renderHome());
   if(S.edit) root.appendChild(renderEditSheet());
+  if(S.editOpen) root.appendChild(renderOpenSheet());
 }
 
 /* ── 홈 ── */
@@ -426,6 +445,7 @@ function renderHome(){
   var rows=withTotals(S.sel);
   if(!rows.length){
     wrap.appendChild(el("div","empty-msg","아직 적은 게 없어요.\n위에서 첫 줄을 적어보세요."));
+    wrap.appendChild(openingRow(c));
     return wrap;
   }
   var sums={};
@@ -449,8 +469,21 @@ function renderHome(){
     var more=el("button","more","이전 기록 " + (rows.length - shown.length) + "줄 더 보기");
     more.onclick=function(){ S.limit += 60; render(); };
     wrap.appendChild(more);
+  } else {
+    wrap.appendChild(openingRow(c));   // 기록의 첫 줄이므로 맨 아래
   }
   return wrap;
+}
+
+/* 통장 맨 아래 — 시작할 때 있던 돈. 눌러서 고친다. */
+function openingRow(c){
+  var r=el("button","row open");
+  r.appendChild(el("span","d",""));
+  r.appendChild(el("span","m","처음 금액"));
+  r.appendChild(el("span","a",""));
+  r.appendChild(el("span","t",fmt(c.opening_balance||0)));
+  r.onclick=function(){ S.editOpen={id:c.id, amountStr:String(c.opening_balance||0)}; render(); };
+  return r;
 }
 
 function monthHead(key, sum){
@@ -598,6 +631,32 @@ function renderEditSheet(){
   return frag;
 }
 
+/* ── 처음 금액 시트 ── */
+function renderOpenSheet(){
+  var o=S.editOpen, frag=document.createDocumentFragment();
+  var dim=el("div","dim"); dim.onclick=function(){ S.editOpen=null; render(); }; frag.appendChild(dim);
+  var sh=el("div","sheet"); sh.appendChild(el("h3",null,"처음 금액"));
+  var f=el("div","f");
+  var g=el("div"); g.appendChild(el("label",null,"금액"));
+  var bx=el("div","box");
+  var ai=document.createElement("input"); ai.className="r"; ai.inputMode="numeric";
+  ai.value=Number(o.amountStr||0).toLocaleString("ko-KR");
+  ai.oninput=function(){ o.amountStr=digits(ai.value); ai.value=o.amountStr?Number(o.amountStr).toLocaleString("ko-KR"):""; };
+  bx.appendChild(ai); bx.appendChild(el("span",null,"원")); g.appendChild(bx); f.appendChild(g);
+
+  var btns=el("div","btns");
+  var cancel=el("button","btn","취소"); cancel.onclick=function(){ S.editOpen=null; render(); };
+  var save=el("button","btn pri","저장"); save.onclick=function(){
+    var v=Number(digits(o.amountStr))||0, id=o.id;
+    var c=childOf(id); if(c) c.opening_balance=v;
+    S.editOpen=null; render();
+    store.upsertChild({id:id, opening_balance:v}).catch(function(err){ toast("저장 실패: "+(err.message||err)); reload(); });
+  };
+  btns.appendChild(cancel); btns.appendChild(save); f.appendChild(btns);
+  sh.appendChild(f); frag.appendChild(sh);
+  return frag;
+}
+
 /* ── 설정 ── */
 function renderSettings(){
   var wrap=el("div","screen page");
@@ -670,51 +729,30 @@ function renderSettings(){
     }
   });
   wrap.appendChild(wCard);
-  wrap.appendChild(el("p","note","정한 요일마다 용돈이 저절로 들어가요. 며칠 안 열어봐도 빠진 주는 채워지고요."));
 
-  wrap.appendChild(el("div","sec-h","시작 잔액"));
-  var oCard=el("div","card");
-  S.children.forEach(function(c){
-    var r=el("div","srow"); r.appendChild(el("span","grow",c.name));
-    var ai=document.createElement("input"); ai.inputMode="numeric";
-    ai.value=Number(c.opening_balance||0).toLocaleString("ko-KR");
-    ai.oninput=function(){ var v=digits(ai.value); ai.value=v?Number(v).toLocaleString("ko-KR"):""; };
-    ai.onchange=function(){ var v=Number(digits(ai.value))||0; c.opening_balance=v;
-      store.upsertChild({id:c.id,opening_balance:v}).then(reload).catch(fail); };
-    r.appendChild(ai); r.appendChild(el("span","val","원")); oCard.appendChild(r);
-  });
-  wrap.appendChild(oCard);
-  wrap.appendChild(el("p","note","종이에 적어두셨던 지금 총액이에요."));
-
-  wrap.appendChild(el("div","sec-h","다른 폰이랑 같이 보기"));
+  wrap.appendChild(el("div","sec-h","동기화"));
   if(store.kind==="supabase"){
     var cCard=el("div","card"), cr=el("div","srow");
+    cr.appendChild(el("span","grow","가족 코드"));
     cr.appendChild(el("span","code",S.family?S.family.code:"—"));
-    var cp=el("button","link sm","복사"); cp.style.width="auto"; cp.style.marginLeft="auto";
+    var cp=el("button","copy","복사");
     cp.onclick=function(){
-      var t=S.family.code;
+      var t=S.family?S.family.code:"";
       if(navigator.clipboard) navigator.clipboard.writeText(t).then(function(){ toast("복사했어요"); }, function(){ toast(t); });
       else toast(t);
     };
     cr.appendChild(cp); cCard.appendChild(cr); wrap.appendChild(cCard);
-    wrap.appendChild(el("p","note","다른 폰에서 이 코드를 넣으면 같은 내용이 보여요. 양쪽에서 다 적을 수 있고요."));
     var st=el("p","note"); st.appendChild(el("span","syncdot on"));
-    st.appendChild(document.createTextNode("두 폰이 같이 보는 중")); wrap.appendChild(st);
+    st.appendChild(document.createTextNode("연결됨. 다른 기기에서 이 코드로 참여하면 같은 기록이 보여요."));
+    wrap.appendChild(st);
   } else {
     var st2=el("p","note"); st2.appendChild(el("span","syncdot"));
-    st2.appendChild(document.createTextNode("지금은 이 폰에만 저장돼요."));
+    st2.appendChild(document.createTextNode("연결 안 됨. 이 기기에만 저장돼요."));
     wrap.appendChild(st2);
   }
 
-  wrap.appendChild(el("div","sec-h","내보내기"));
-  var ex=el("button","link","전체 기록을 글로 내보내기"); ex.onclick=exportCSV; wrap.appendChild(ex);
-  wrap.appendChild(el("p","note","가끔 메모 앱이나 카톡 나에게 보내기에 붙여넣어 두면 안심이에요."));
-
-  if(!window.navigator.standalone){
-    wrap.appendChild(el("div","sec-h","홈 화면에 추가"));
-    wrap.appendChild(el("p","note","사파리 아래 공유 버튼에서 홈 화면에 추가를 누르면 앱처럼 열려요."));
-  }
-  wrap.appendChild(el("p","note","v5"));
+  var ex=el("button","link foot","기록 내보내기"); ex.onclick=exportCSV; wrap.appendChild(ex);
+  wrap.appendChild(el("p","note","v7"));
   return wrap;
   function fail(err){ toast("저장 실패: "+(err.message||err)); }
 }
@@ -734,7 +772,7 @@ function renderOnboard(){
   var o=S.onboard, wrap=el("div","start");
   var top=el("div","start-top");
   var logo=el("div","logo"); var img=document.createElement("img");
-  img.src="icon-192.png"; img.alt=""; logo.appendChild(img); top.appendChild(logo);
+  img.src="icon-256.png"; img.alt=""; logo.appendChild(img); top.appendChild(logo);
   top.appendChild(el("h2",null,"용돈기입장"));
   var body=el("div","start-body");
   if(!o.mode){

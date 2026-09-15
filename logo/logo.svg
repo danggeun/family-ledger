@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <title>용돈기입장</title>
+  <defs>
+    <clipPath id="cut"><rect x="0" y="279.79" width="1024" height="744.21"/></clipPath>
+  </defs>
+  <rect width="1024" height="1024" fill="#14161A"/>
+  <path d="M 224.52 212.79 L 384.20 716.43 L 512.00 336.56 L 639.80 716.43 L 799.48 212.79" fill="none" stroke="#F6F5F2" stroke-width="70.29"
+        stroke-linejoin="round" stroke-linecap="butt" clip-path="url(#cut)"/>
+  <g fill="#F6F5F2">
+    <rect x="189.85" y="445.29" width="644.30" height="53.25" rx="26.62"/>
+    <rect x="189.85" y="554.45" width="644.30" height="53.25" rx="26.62"/>
+  </g>
+</svg>
