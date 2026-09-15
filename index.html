@@ -52,9 +52,9 @@ input{border:0; background:none; outline:none; min-width:0}
 .bar{display:flex; align-items:center; gap:22px; height:46px}
 .bar .k{position:relative; padding:12px 0; font-size:var(--t5); font-weight:600; color:var(--faint);
   letter-spacing:-.01em; transition:color .15s}
-.bar .k.on{color:var(--ink)}
-.bar .k.on::after{content:""; position:absolute; left:0; right:0; bottom:4px; height:2px;
-  border-radius:2px; background:var(--ink)}
+.bar .k.on{color:var(--c-mid)}
+.bar .k.on::after{content:""; position:absolute; left:0; right:0; bottom:4px; height:3px;
+  border-radius:2px; background:var(--c)}
 .bar .sp{flex:1}
 .bar .gear{width:38px; height:38px; margin-right:-9px; border-radius:50%;
   display:flex; align-items:center; justify-content:center; font-size:var(--t5); color:var(--muted)}
@@ -62,7 +62,7 @@ input{border:0; background:none; outline:none; min-width:0}
 
 /* ─── 잔액 ─── */
 .bal{display:flex; align-items:baseline; gap:5px; padding:var(--s4) 0 var(--s5)}
-.bal b{font-size:var(--t7); font-weight:700; letter-spacing:-.04em; line-height:1; color:var(--c-mid)}
+.bal b{font-size:var(--t7); font-weight:700; letter-spacing:-.04em; line-height:1; color:var(--ink)}
 .bal i{font-style:normal; font-size:var(--t5); font-weight:600; color:var(--muted)}
 
 /* ─── 표 ─── */
@@ -179,7 +179,7 @@ input{border:0; background:none; outline:none; min-width:0}
 .sub .box{border:1px solid var(--hair); border-radius:10px; padding:6px 12px;
   display:flex; align-items:center; gap:4px; color:var(--ink)}
 .sub .box input{width:76px; text-align:right; font-size:var(--t5); font-weight:600; letter-spacing:-.02em}
-.swatch{display:flex; gap:12px}
+.swatch{display:flex; gap:10px}
 .swatch button{width:20px; height:20px; border-radius:50%; position:relative}
 .swatch button.on::after{content:""; position:absolute; inset:-5px; border-radius:50%;
   border:1.5px solid var(--ink)}
@@ -192,7 +192,14 @@ input{border:0; background:none; outline:none; min-width:0}
 .srow .copy{flex:none; font-size:var(--t3); font-weight:600; color:var(--ink-2);
   background:var(--wash); border-radius:9px; padding:7px 12px; margin-left:var(--s3)}
 .srow .copy:active{background:var(--hair)}
-.link.foot{margin-top:var(--s6); color:var(--ink-2); border-bottom:0}
+.srow .kmore{flex:none; width:30px; height:30px; margin-right:-6px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  font-size:var(--t4); color:var(--faint); letter-spacing:.06em}
+.srow .kmore:active{background:var(--wash)}
+button.srow{width:100%; text-align:left}
+.srow.tap:active{background:var(--wash)}
+.srow .chev{flex:none; font-size:var(--t5); color:var(--faint); line-height:1; margin-left:var(--s2)}
+.ver{text-align:right; font-size:var(--t2); color:var(--faint); margin:var(--s6) 0 0}
 .syncdot{width:6px; height:6px; border-radius:50%; background:var(--faint);
   display:inline-block; margin-right:8px; vertical-align:2px}
 .syncdot.on{background:var(--in)}
@@ -275,6 +282,11 @@ LocalStore.prototype = {
   addEntriesIgnoreDup: function(rows){ var self=this, n=0; rows.forEach(function(r){ var dup=self.db.entries.some(function(x){return x.child_id===r.child_id && x.auto_key && x.auto_key===r.auto_key;}); if(!dup){ r.id=uid(); r.created_at=new Date().toISOString(); r.updated_at=r.created_at; self.db.entries.push(r); n++; } }); this.save(); return Promise.resolve(n); },
   updateEntry: function(id, patch){ var e=this.db.entries.find(function(x){return x.id===id;}); if(e){ Object.assign(e,patch); e.updated_at=new Date().toISOString(); } this.save(); return Promise.resolve(); },
   deleteEntry: function(id){ this.db.entries=this.db.entries.filter(function(x){return x.id!==id;}); this.save(); return Promise.resolve(); },
+  deleteChild: function(id){
+    this.db.children=this.db.children.filter(function(x){return x.id!==id;});
+    this.db.entries=this.db.entries.filter(function(x){return x.child_id!==id;});
+    this.save(); return Promise.resolve();
+  },
   subscribe: function(){ }
 };
 
@@ -318,6 +330,7 @@ SupaStore.prototype = {
   addEntriesIgnoreDup: function(rows){ var fid=this.familyId; rows.forEach(function(r){ r.family_id=fid; }); return this.sb.from("entries").upsert(rows,{onConflict:"child_id,auto_key", ignoreDuplicates:true}).select().then(function(r){ if(r.error) throw r.error; return (r.data||[]).length; }); },
   updateEntry: function(id, patch){ patch.updated_at=new Date().toISOString(); return this.sb.from("entries").update(patch).eq("id",id).then(function(r){ if(r.error) throw r.error; }); },
   deleteEntry: function(id){ return this.sb.from("entries").delete().eq("id",id).then(function(r){ if(r.error) throw r.error; }); },
+  deleteChild: function(id){ return this.sb.from("children").delete().eq("id",id).then(function(r){ if(r.error) throw r.error; }); },   // entries 는 on delete cascade
   subscribe: function(cb){
     var fid=this.familyId;
     this.sb.channel("fam-"+fid)
@@ -337,6 +350,7 @@ var S = {
   memoFocus:false, datePick:false, limit:60,
   edit:null,            // 편집 중인 entry
   editOpen:null,        // 처음 금액 고치는 중
+  editKid:null,         // 아이 지우는 중
   onboard:{mode:null, names:["첫째","둘째"], opens:["",""], code:""}
 };
 var root = document.getElementById("app");
@@ -400,6 +414,7 @@ function render(){
   else root.appendChild(renderHome());
   if(S.edit) root.appendChild(renderEditSheet());
   if(S.editOpen) root.appendChild(renderOpenSheet());
+  if(S.editKid) root.appendChild(renderKidSheet());
 }
 
 /* ── 홈 ── */
@@ -476,9 +491,14 @@ function renderHome(){
 }
 
 /* 통장 맨 아래 — 시작할 때 있던 돈. 눌러서 고친다. */
+function ledgerStart(c){           // 이 통장이 시작된 날 (아이 등록일과 가장 이른 기록 중 빠른 쪽)
+  var d=(c.created_at||"").slice(0,10) || today();
+  entriesFor(c.id).forEach(function(e){ if(e.entry_date < d) d=e.entry_date; });
+  return d;
+}
 function openingRow(c){
   var r=el("button","row open");
-  r.appendChild(el("span","d",""));
+  r.appendChild(el("span","d",shortDate(ledgerStart(c))));
   r.appendChild(el("span","m","처음 금액"));
   r.appendChild(el("span","a",""));
   r.appendChild(el("span","t",fmt(c.opening_balance||0)));
@@ -631,6 +651,33 @@ function renderEditSheet(){
   return frag;
 }
 
+/* ── 아이 지우기 시트 ── */
+function renderKidSheet(){
+  var k=S.editKid, c=childOf(k.id);
+  if(!c){ S.editKid=null; return document.createDocumentFragment(); }
+  var frag=document.createDocumentFragment();
+  var dim=el("div","dim"); dim.onclick=function(){ S.editKid=null; render(); }; frag.appendChild(dim);
+  var sh=el("div","sheet"); sh.appendChild(el("h3",null,c.name));
+  var f=el("div","f");
+  var n=entriesFor(c.id).length;
+  f.appendChild(el("p","note", n ? "적어둔 기록 "+n+"줄도 함께 지워져요." : "적어둔 기록은 없어요."));
+  var btns=el("div","btns");
+  var del=el("button","btn danger"+(k.arm?" arm":""), k.arm?"정말 지우기":"지우기");
+  del.onclick=function(){
+    if(!k.arm){ k.arm=true; render(); return; }
+    var id=c.id; S.editKid=null;
+    S.children=S.children.filter(function(x){return x.id!==id;});
+    S.entries=S.entries.filter(function(e){return e.child_id!==id;});
+    if(S.sel===id){ S.sel=S.children[0]?S.children[0].id:null; lsSet("yd_sel",S.sel||""); }
+    S.limit=60; render();
+    store.deleteChild(id).catch(function(err){ toast("지우기 실패: "+(err.message||err)); reload(); });
+  };
+  var cancel=el("button","btn","취소"); cancel.onclick=function(){ S.editKid=null; render(); };
+  btns.appendChild(del); btns.appendChild(cancel); f.appendChild(btns);
+  sh.appendChild(f); frag.appendChild(sh);
+  return frag;
+}
+
 /* ── 처음 금액 시트 ── */
 function renderOpenSheet(){
   var o=S.editOpen, frag=document.createDocumentFragment();
@@ -680,7 +727,13 @@ function renderSettings(){
       b.onclick=function(){ c.color=k; store.upsertChild({id:c.id,color:k}).then(render).catch(fail); };
       sw.appendChild(b);
     });
-    r.appendChild(sw); kidCard.appendChild(r);
+    r.appendChild(sw);
+    if(S.children.length>1){
+      var mo=el("button","kmore","\u22EF"); mo.setAttribute("aria-label",c.name+" 지우기");
+      mo.onclick=function(){ S.editKid={id:c.id, arm:false}; render(); };
+      r.appendChild(mo);
+    }
+    kidCard.appendChild(r);
   });
   wrap.appendChild(kidCard);
   if(S.children.length<4){
@@ -751,8 +804,14 @@ function renderSettings(){
     wrap.appendChild(st2);
   }
 
-  var ex=el("button","link foot","기록 내보내기"); ex.onclick=exportCSV; wrap.appendChild(ex);
-  wrap.appendChild(el("p","note","v7"));
+  wrap.appendChild(el("div","sec-h","기록"));
+  var eCard=el("div","card"), er=el("button","srow tap");
+  er.appendChild(el("span","grow","내보내기"));
+  er.appendChild(el("span","chev","\u203A"));
+  er.onclick=exportCSV;
+  eCard.appendChild(er); wrap.appendChild(eCard);
+
+  wrap.appendChild(el("p","ver","v9"));
   return wrap;
   function fail(err){ toast("저장 실패: "+(err.message||err)); }
 }

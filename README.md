@@ -1,4 +1,4 @@
-# 용돈기입장 (v7)
+# 용돈기입장 (v9)
 
 가족용 아이 용돈 통장 앱. 아이폰 홈 화면에 추가해서 씀.
 
@@ -39,7 +39,7 @@
 
 ## 이미 쓰고 있는 경우 (업데이트)
 **`config.js`는 이 압축에 없음** — 기존 것이 그대로 남아야 하니까. 나머지만 덮어쓰고 push.
-v6 → v7은 **DB 변경 없음.** 파일만 덮어쓰면 됨.
+v6 → v9는 **DB 변경 없음.** 파일만 덮어쓰면 됨.
 (v5 이하에서 올라오는 거라면 SQL Editor에서 한 번:
 `alter table entries add column if not exists skipped boolean not null default false;`)
 
