@@ -61,6 +61,24 @@ input{border:0; background:none; outline:none; min-width:0}
 .bar .gear:active{background:var(--wash)}
 
 /* ─── 잔액 ─── */
+/* ─── 아이에게 보여주기 (v14) — 로고의 세계로 들어가는 화면. 배경·돼지·돈 모두 로고 타일과 같은 문법 ─── */
+.balbtn{display:flex; align-items:baseline; gap:5px; margin-left:-6px; padding:0 8px 0 6px; border-radius:12px}
+.balbtn:active{background:var(--wash)}
+.balbtn .pig{align-self:center; width:31px; height:28px; margin-left:8px; object-fit:contain}
+.kid{position:fixed; inset:0; z-index:60; background:#FDF6E7; color:#2B1D14; overflow:auto;
+  display:flex; flex-direction:column; align-items:center; padding:calc(var(--sat) + 64px) 24px calc(32px + var(--sab))}
+.kid .x{position:absolute; top:calc(var(--sat) + 10px); right:14px; width:40px; height:40px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center; font-size:var(--t6); font-weight:300; color:#B9AB96}
+.kid .pig{width:200px; height:auto; flex:none}
+.kid .kn{font-size:var(--t5); font-weight:700; color:var(--c-mid); margin-top:6px}
+.kid .ka{display:flex; align-items:baseline; gap:5px; margin-top:2px}
+.kid .ka b{font-size:var(--t7); font-weight:800; letter-spacing:-.04em; line-height:1.05}
+.kid .ka i{font-style:normal; font-size:var(--t5); font-weight:600; color:#8C7B66}
+.money{display:flex; flex-direction:column; gap:var(--s4); align-items:flex-start; margin-top:var(--s5)}
+.money .row{display:flex; align-items:center; padding:0; border:0; background:none}
+.money .st{position:relative}
+.money .st svg{position:absolute; left:0; top:0; display:block}
+.money .xn{margin-left:var(--s2); font-weight:700; font-size:var(--t4); color:#8C7B66}
 .bal{display:flex; align-items:baseline; gap:5px; padding:var(--s4) 0 var(--s5)}
 .bal b{font-size:var(--t7); font-weight:700; letter-spacing:-.04em; line-height:1; color:var(--ink)}
 .bal i{font-style:normal; font-size:var(--t5); font-weight:600; color:var(--muted)}
@@ -150,6 +168,8 @@ input{border:0; background:none; outline:none; min-width:0}
 .btn[disabled]{opacity:.4}
 
 /* ─── 설정 ─── */
+.page{touch-action:pan-y; will-change:transform}          /* 세로 스크롤은 브라우저가, 왼쪽 가장자리 가로 끌기는 우리가 */
+.page.drag{box-shadow:-6px 0 22px rgba(0,0,0,.10)}
 .nav{display:flex; align-items:center; gap:2px; height:46px; margin-bottom:4px}
 .nav .back{width:40px; height:40px; margin-left:-11px; font-size:var(--t6); font-weight:300;
   display:flex; align-items:center; justify-content:center; border-radius:50%; color:var(--ink)}
@@ -164,21 +184,10 @@ input{border:0; background:none; outline:none; min-width:0}
 .srow input{font-size:var(--t5); font-weight:600; text-align:right; width:110px; letter-spacing:-.02em}
 .srow input.nm{text-align:left; font-weight:500; width:auto; flex:1; letter-spacing:-.01em}
 .dot{width:9px; height:9px; border-radius:50%; flex:none}
-.tog{width:46px; height:28px; border-radius:14px; background:var(--hair); position:relative;
-  flex:none; transition:background .18s}
-.tog.on{background:var(--ink)}
-.tog::after{content:""; position:absolute; top:3px; left:3px; width:22px; height:22px;
-  border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.2); transition:left .18s}
-.tog.on::after{left:21px}
-.sub{padding:2px 0 16px; display:flex; flex-wrap:wrap; gap:8px; align-items:center;
-  font-size:var(--t3); color:var(--muted); border-bottom:1px solid var(--hair-2)}
-.sub .dow{display:flex; gap:5px}
-.sub .dow button{width:33px; height:33px; border-radius:50%; border:1px solid var(--hair);
-  font-size:var(--t3); font-weight:500; color:var(--ink-2)}
-.sub .dow button.on{background:var(--ink); color:#fff; border-color:var(--ink); font-weight:600}
-.sub .box{border:1px solid var(--hair); border-radius:10px; padding:6px 12px;
-  display:flex; align-items:center; gap:4px; color:var(--ink)}
-.sub .box input{width:76px; text-align:right; font-size:var(--t5); font-weight:600; letter-spacing:-.02em}
+.f .dow{display:flex; gap:6px}
+.f .dow button{flex:1; height:42px; border-radius:11px; border:1px solid var(--hair); font-size:var(--t4); font-weight:500; color:var(--ink-2)}
+.f .dow button.on{background:var(--ink); color:#fff; border-color:var(--ink); font-weight:600}
+.srow .val.off{color:var(--faint)}
 .swatch{display:flex; gap:10px}
 .swatch button{width:20px; height:20px; border-radius:50%; position:relative}
 .swatch button.on::after{content:""; position:absolute; inset:-5px; border-radius:50%;
@@ -240,12 +249,14 @@ button.srow{width:100%; text-align:left}
 "use strict";
 
 /* ══════════════════════ 유틸 ══════════════════════ */
+/* hex = 탭 밑줄·점(면), mid = 이름 글자(글자 대비용으로 어둡게). 키를 지우지 말 것 — 그 색을 쓰던 아이가 파랑으로 튄다 */
 var COLORS = {
   blue:   {hex:"#2F6FA8", mid:"#234A6E"},
-  apricot:{hex:"#D9743C", mid:"#894D2D"},
   green:  {hex:"#3F8F5B", mid:"#2D5D40"},
-  purple: {hex:"#7A5FB0", mid:"#504173"},
-  pink:   {hex:"#C13F79", mid:"#7B2D52"}
+  yellow: {hex:"#F0B400", mid:"#7A5A0E"},   // 샛노랑(#FFC800)은 3px 밑줄로는 크림 배경에서 안 보여서 한 단계 내림
+  apricot:{hex:"#D9743C", mid:"#894D2D"},
+  pink:   {hex:"#E8488C", mid:"#8E2A55"},   // v12까지는 #C13F79 — 자주에 가까웠음
+  purple: {hex:"#7A5FB0", mid:"#504173"}
 };
 var DOW = ["일","월","화","수","목","금","토"];
 function pad(n){ return (n<10?"0":"")+n; }
@@ -373,6 +384,50 @@ function recentMemos(cid){
   return out.slice(0,4);
 }
 
+/* ══════════════════════ 아이에게 보여주기 — 돈 그림 (v14) ══════════════════════ */
+// 로고의 동전과 같은 문법: 외곽선 없음, 안쪽에 한 톤 밝은 면, 왼쪽 위 하이라이트. 지폐 크기는 실제 원화처럼 5만>1만>5천>1천
+var NOTE={50000:{w:118,h:54,c:"#F6C443",i:"#FBD86A",t:"#6B4A00",l:"5만"}, 10000:{w:110,h:50,c:"#7CC48E",i:"#A3D8B0",t:"#1F5A31",l:"1만"},
+          5000:{w:102,h:46,c:"#F4A072",i:"#F9BE9B",t:"#7A3612",l:"5천"},   1000:{w:94,h:43,c:"#86B7E8",i:"#ADCDF1",t:"#1E4A76",l:"1천"}};
+var COIN={500:{d:56,c:"#C8CCD1",i:"#DEE1E5",t:"#3B4046"}, 100:{d:50,c:"#C8CCD1",i:"#DEE1E5",t:"#3B4046"},
+          50:{d:42,c:"#C8CCD1",i:"#DEE1E5",t:"#3B4046"},   10:{d:36,c:"#D9A377",i:"#E8BD97",t:"#5C3A1B"}};
+var KID_FONT="-apple-system,'Apple SD Gothic Neo','Noto Sans KR',sans-serif";
+function noteSvg(v){ var d=NOTE[v], r=Math.round(d.h*.18), n=4;
+  return '<svg width="'+d.w+'" height="'+d.h+'" viewBox="0 0 '+d.w+' '+d.h+'">'+
+    '<rect x="1" y="1" width="'+(d.w-2)+'" height="'+(d.h-2)+'" rx="'+r+'" fill="'+d.c+'" stroke="#FDF6E7" stroke-width="2"/>'+
+    '<rect x="'+(n+1)+'" y="'+(n+1)+'" width="'+(d.w-2*n-2)+'" height="'+(d.h-2*n-2)+'" rx="'+(r-2)+'" fill="'+d.i+'"/>'+
+    '<circle cx="'+(d.h*.5+2)+'" cy="'+(d.h/2)+'" r="'+(d.h*.26)+'" fill="'+d.c+'"/>'+
+    '<text x="'+(d.w*.63)+'" y="'+(d.h/2)+'" text-anchor="middle" dominant-baseline="central" font-family="'+KID_FONT+'" font-weight="800" font-size="'+Math.round(d.h*.42)+'" fill="'+d.t+'">'+d.l+'</text></svg>'; }
+function coinSvg(v){ var d=COIN[v], R=d.d/2;
+  return '<svg width="'+d.d+'" height="'+d.d+'" viewBox="0 0 '+d.d+' '+d.d+'">'+
+    '<circle cx="'+R+'" cy="'+R+'" r="'+(R-1)+'" fill="'+d.c+'" stroke="#FDF6E7" stroke-width="2"/>'+
+    '<circle cx="'+R+'" cy="'+R+'" r="'+(R-5)+'" fill="'+d.i+'"/>'+
+    '<path d="M '+(R*.55)+' '+(R*.62)+' A '+(R*.62)+' '+(R*.62)+' 0 0 1 '+(R*.9)+' '+(R*.42)+'" stroke="#fff" stroke-opacity=".75" stroke-width="'+Math.max(2,R*.14)+'" stroke-linecap="round" fill="none"/>'+
+    '<text x="'+R+'" y="'+(R+1)+'" text-anchor="middle" dominant-baseline="central" font-family="'+KID_FONT+'" font-weight="800" font-size="'+Math.round(R*.62)+'" fill="'+d.t+'">'+v+'</text></svg>'; }
+function splitWon(n){ var out=[]; n=Math.max(0,Math.round(n||0));
+  [50000,10000,5000,1000,500,100,50,10].forEach(function(v){ var c=Math.floor(n/v); if(c){ out.push([v,c]); n-=c*v; } }); return out; }
+function moneyRows(n){
+  var box=el("div","money");
+  splitWon(n).forEach(function(p){ var v=p[0], c=p[1], isN=v>=1000, d=isN?NOTE[v]:COIN[v], w=isN?d.w:d.d, h=isN?d.h:d.d;
+    var step=isN?Math.round(w*.30):w+6, show=Math.min(c,5);        // 지폐는 부채꼴로 겹치고, 동전은 나란히
+    var row=el("div","row"), st=el("div","st"); st.style.width=(w+step*(show-1))+"px"; st.style.height=h+"px";
+    var html=""; for(var i=0;i<show;i++) html+='<div style="position:absolute;left:'+(i*step)+'px;top:0">'+(isN?noteSvg(v):coinSvg(v))+'</div>';
+    st.innerHTML=html; row.appendChild(st);
+    if(c>show) row.appendChild(el("span","xn","\u00d7"+c));          // 5만원권만 여기 올 수 있다 (탐욕 분해)
+    box.appendChild(row); });
+  return box;
+}
+function renderKidView(){
+  var c=childOf(S.kidView), col=COLORS[(c||{}).color]||COLORS.blue;
+  var v=el("div","kid"); v.style.setProperty("--c-mid",col.mid);
+  v.onclick=function(){ S.kidView=null; render(); };
+  var x=el("button","x","\u2715"); x.setAttribute("aria-label","닫기"); v.appendChild(x);
+  var pig=document.createElement("img"); pig.className="pig"; pig.src="logo-pig.png"; pig.alt=""; v.appendChild(pig);
+  v.appendChild(el("div","kn",c?c.name:""));
+  var ka=el("div","ka"); ka.appendChild(el("b",null,fmt(balanceOf(S.kidView)))); ka.appendChild(el("i",null,"원")); v.appendChild(ka);
+  v.appendChild(moneyRows(balanceOf(S.kidView)));
+  return v;
+}
+
 /* ══════════════════════ 자동 입금 ══════════════════════ */
 function ensureAllowances(){
   var t=today(), rows=[];
@@ -415,6 +470,8 @@ function render(){
   if(S.edit) root.appendChild(renderEditSheet());
   if(S.editOpen) root.appendChild(renderOpenSheet());
   if(S.editKid) root.appendChild(renderKidSheet());
+  if(S.editWeek) root.appendChild(renderWeekSheet());
+  if(S.kidView) root.appendChild(renderKidView());
 }
 
 /* ── 홈 ── */
@@ -447,9 +504,12 @@ function renderHome(){
   }
 
   var bal=el("div","bal");
-  bal.appendChild(el("b",null, fmt(balanceOf(c.id))));
-  bal.appendChild(el("i",null,"원"));
-  wrap.appendChild(bal);
+  var bb=el("button","balbtn"); bb.setAttribute("aria-label","돼지저금통 열어보기");   // 아이에게 보여주는 화면
+  bb.appendChild(el("b",null, fmt(balanceOf(c.id))));
+  bb.appendChild(el("i",null,"원"));
+  var pig=document.createElement("img"); pig.className="pig"; pig.src="logo-pig-sm.png"; pig.alt=""; bb.appendChild(pig);
+  bb.onclick=function(){ S.kidView=c.id; render(); };
+  bal.appendChild(bb); wrap.appendChild(bal);
 
   var head=el("div","thead");
   ["날짜","용도","금액","총액"].forEach(function(h){ head.appendChild(el("span",null,h)); });
@@ -651,6 +711,42 @@ function renderEditSheet(){
   return frag;
 }
 
+/* ── 매주 용돈 시트 ── */
+function renderWeekSheet(){
+  var w=S.editWeek, c=childOf(w.id), frag=document.createDocumentFragment();
+  var close=function(){ S.editWeek=null; render(); };
+  var dim=el("div","dim"); dim.onclick=close; frag.appendChild(dim);
+  var sh=el("div","sheet"); sh.appendChild(el("h3",null,(c?c.name:"")+" · 매주 용돈"));
+  var f=el("div","f");
+  var seg=el("div","tabs");
+  [["안 함",false],["매주",true]].forEach(function(p){ var b=el("button",w.on===p[1]?"on":"",p[0]); b.onclick=function(){ w.on=p[1]; render(); }; seg.appendChild(b); });
+  f.appendChild(seg);
+  if(w.on){
+    var g1=el("div"); g1.appendChild(el("label",null,"요일"));
+    var dow=el("div","dow");
+    DOW.forEach(function(nm,i){ var b=el("button",i===w.dow?"on":"",nm); b.onclick=function(){ w.dow=i; render(); }; dow.appendChild(b); });
+    g1.appendChild(dow); f.appendChild(g1);
+    var g2=el("div"); g2.appendChild(el("label",null,"금액"));
+    var bx=el("div","box"); var ai=document.createElement("input"); ai.className="r"; ai.inputMode="numeric"; ai.placeholder="0";
+    ai.value=w.amountStr?Number(w.amountStr).toLocaleString("ko-KR"):"";
+    ai.oninput=function(){ w.amountStr=digits(ai.value); ai.value=w.amountStr?Number(w.amountStr).toLocaleString("ko-KR"):""; };
+    bx.appendChild(ai); bx.appendChild(el("span",null,"원")); g2.appendChild(bx); f.appendChild(g2);
+  }
+  var btns=el("div","btns");
+  var cancel=el("button","btn","취소"); cancel.onclick=close;
+  var save=el("button","btn pri","저장"); save.onclick=function(){
+    var v=Number(w.amountStr)||0;
+    if(w.on && !(v>0)){ toast("금액을 넣어주세요"); return; }
+    var patch={id:w.id, weekly_on:w.on, weekly_dow:w.dow, weekly_amount:v};
+    if(w.on && (!c.weekly_on || c.weekly_dow!==w.dow)) patch.weekly_start=today();   // 켜거나 요일을 바꾸면 오늘부터
+    Object.assign(c, patch); S.editWeek=null; render();
+    store.upsertChild(patch).then(reload).catch(function(err){ toast("저장 실패: "+(err.message||err)); reload(); });
+  };
+  btns.appendChild(cancel); btns.appendChild(save); f.appendChild(btns);
+  sh.appendChild(f); frag.appendChild(sh);
+  return frag;
+}
+
 /* ── 아이 지우기 시트 ── */
 function renderKidSheet(){
   var k=S.editKid, c=childOf(k.id);
@@ -704,12 +800,43 @@ function renderOpenSheet(){
   return frag;
 }
 
+/* ── 왼쪽 가장자리 스와이프로 뒤로 (홈화면 앱엔 사파리 제스처가 없어서 직접) ── */
+function edgeSwipe(node, onBack){
+  var x0=0, y0=0, dx=0, t0=0, on=false, go=false;
+  node.addEventListener("touchstart", function(e){
+    var t=e.touches[0]; on = e.touches.length===1 && t.clientX<=32;
+    if(!on) return;
+    x0=t.clientX; y0=t.clientY; dx=0; go=false; t0=e.timeStamp; node.style.transition="none";
+  }, {passive:true});
+  node.addEventListener("touchmove", function(e){
+    if(!on) return;
+    var t=e.touches[0], mx=t.clientX-x0, my=t.clientY-y0;
+    if(!go){
+      if(Math.abs(mx)<8 && Math.abs(my)<8) return;                  // 아직 방향 모름
+      if(Math.abs(my)>Math.abs(mx)){ on=false; return; }             // 세로면 스크롤에 양보
+      go=true; node.classList.add("drag");
+    }
+    e.preventDefault();
+    dx=Math.max(0,mx); node.style.transform="translateX("+dx+"px)";
+  }, {passive:false});
+  function end(e){
+    if(!on) return; on=false;
+    if(!go) return;
+    var fast = dx>60 && (dx/(e.timeStamp-t0))>0.45;                 // 짧게 튕겨도 나가짐
+    node.style.transition="transform .2s ease-out";
+    if(fast || dx>node.clientWidth*0.35){ node.style.transform="translateX(100%)"; setTimeout(onBack,170); }
+    else { node.style.transform=""; node.classList.remove("drag"); }
+  }
+  node.addEventListener("touchend", end); node.addEventListener("touchcancel", end);
+}
+
 /* ── 설정 ── */
+function leaveSettings(){ S.screen="home"; render(); }
 function renderSettings(){
-  var wrap=el("div","screen page");
+  var wrap=el("div","screen page"); edgeSwipe(wrap, leaveSettings);
   var nav=el("div","nav");
   var back=el("button","back","\u2039"); back.setAttribute("aria-label","뒤로");
-  back.onclick=function(){ S.screen="home"; render(); };
+  back.onclick=leaveSettings;
   nav.appendChild(back); nav.appendChild(el("h2",null,"설정")); wrap.appendChild(nav);
 
   wrap.appendChild(el("div","sec-h","아이"));
@@ -747,39 +874,15 @@ function renderSettings(){
   }
 
   wrap.appendChild(el("div","sec-h","매주 용돈"));
+  // 한 아이에 한 줄. 값은 요약("토요일 · 3,000원")으로 보여주고, 고치는 건 시트에서 — 설정 앱들이 하는 방식
   var wCard=el("div","card");
   S.children.forEach(function(c){
-    var r=el("div","srow"); r.appendChild(el("span","grow",c.name));
-    var tg=el("button","tog"+(c.weekly_on?" on":"")); tg.setAttribute("aria-label","자동 넣기");
-    tg.onclick=function(){
-      c.weekly_on=!c.weekly_on;
-      var patch={id:c.id, weekly_on:c.weekly_on};
-      if(c.weekly_on){
-        c.weekly_start=today(); patch.weekly_start=c.weekly_start;
-        if(c.weekly_dow==null){ c.weekly_dow=6; patch.weekly_dow=6; }
-      }
-      store.upsertChild(patch).then(reload).catch(fail);
-    };
-    r.appendChild(tg); wCard.appendChild(r);
-    if(c.weekly_on){
-      var sub=el("div","sub"); sub.appendChild(el("span",null,"매주"));
-      var dow=el("div","dow");
-      DOW.forEach(function(nm,i){
-        var b=el("button",i===c.weekly_dow?"on":"",nm);
-        b.onclick=function(){ c.weekly_dow=i; c.weekly_start=today();
-          store.upsertChild({id:c.id,weekly_dow:i,weekly_start:c.weekly_start}).then(reload).catch(fail); };
-        dow.appendChild(b);
-      });
-      sub.appendChild(dow);
-      var bx=el("div","box");
-      var ai=document.createElement("input"); ai.inputMode="numeric"; ai.placeholder="0";
-      ai.value=c.weekly_amount?Number(c.weekly_amount).toLocaleString("ko-KR"):"";
-      ai.oninput=function(){ var v=digits(ai.value); ai.value=v?Number(v).toLocaleString("ko-KR"):""; };
-      ai.onchange=function(){ var v=Number(digits(ai.value))||0; c.weekly_amount=v;
-        store.upsertChild({id:c.id,weekly_amount:v}).then(reload).catch(fail); };
-      bx.appendChild(ai); bx.appendChild(el("span",null,"원")); sub.appendChild(bx);
-      wCard.appendChild(sub);
-    }
+    var r=el("button","srow tap"); r.appendChild(el("span","grow",c.name));
+    var on=c.weekly_on && c.weekly_dow!=null && c.weekly_amount>0;
+    var v=el("span","val", on ? DOW[c.weekly_dow]+"요일 · "+fmt(c.weekly_amount)+"원" : "안 함"); if(!on) v.classList.add("off");
+    r.appendChild(v); r.appendChild(el("span","chev","\u203A"));
+    r.onclick=function(){ S.editWeek={id:c.id, on:!!c.weekly_on, dow:c.weekly_dow==null?6:c.weekly_dow, amountStr:String(c.weekly_amount||"")}; render(); };
+    wCard.appendChild(r);
   });
   wrap.appendChild(wCard);
 
@@ -811,7 +914,7 @@ function renderSettings(){
   er.onclick=exportCSV;
   eCard.appendChild(er); wrap.appendChild(eCard);
 
-  wrap.appendChild(el("p","ver","v12"));
+  wrap.appendChild(el("p","ver","v14"));
   return wrap;
   function fail(err){ toast("저장 실패: "+(err.message||err)); }
 }

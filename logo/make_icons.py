@@ -44,4 +44,16 @@ for s in (192, 512):
     save(mk.resize((s, s), Image.LANCZOS), "icon-maskable-%d.png" % s)
 
 save(rounded(master.resize((256, 256), Image.LANCZOS)), "logo-mark.png")
+
+# 아이 화면용 돼지 — 타일 여백을 잘라내고 600px로 (배경이 크림 #FDF6E7 단색이라 화면 배경과 그대로 이어진다)
+save(master.crop((170, 110, 930, 910)).resize((570, 600), Image.LANCZOS), "logo-pig.png")
+
+# 잔액 옆 작은 돼지 — 종이색(#FDFCFA) 위에 놓이므로 크림 배경과 그림자를 투명하게 뺀다
+import numpy as np
+face = master.crop((190, 320, 840, 900)).convert("RGB")
+a = np.asarray(face).astype(int); dist = np.sqrt(((a - np.array(CREAM)) ** 2).sum(axis=2))
+alpha = np.clip((dist - 30) / 25, 0, 1)                    # 크림·그림자(거리 ~34)는 0, 분홍·검정은 1
+out = Image.fromarray(np.dstack([a.astype("uint8"), (alpha * 255).astype("uint8")]), "RGBA")
+out = out.resize((112, 100), Image.LANCZOS)
+out.save(os.path.join(OUT, "logo-pig-sm.png"), optimize=True); print("  logo-pig-sm.png", os.path.getsize(os.path.join(OUT, "logo-pig-sm.png")) // 1024, "KB")
 print("done")

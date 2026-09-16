@@ -1,4 +1,4 @@
-# 용돈기입장 (v12)
+# 용돈기입장 (v14)
 
 가족용 아이 용돈 통장 앱. 아이폰 홈 화면에 추가해서 씀.
 
@@ -39,11 +39,14 @@
 
 ## 이미 쓰고 있는 경우 (업데이트)
 **`config.js`는 이 압축에 없음** — 기존 것이 그대로 남아야 하니까. 나머지만 덮어쓰고 push.
-v6 → v12는 **DB 변경 없음.** 파일만 덮어쓰면 됨.
+v6 → v14는 **DB 변경 없음.** 파일만 덮어쓰면 됨.
 (v5 이하에서 올라오는 거라면 SQL Editor에서 한 번:
 `alter table entries add column if not exists skipped boolean not null default false;`)
 
-아이콘이 바뀌었으므로 폰에서 **홈 화면 앱을 삭제하고 다시 추가**해야 새 아이콘이 나옴.
+v12 → v14는 아이콘 그대로라 재설치 필요 없음. 앱을 두 번 열면 새 버전(설정 맨 아래 v14).
+올릴 파일: `index.html` `sw.js` `logo-pig.png` `logo-pig-sm.png` (+ `README.md`, `logo/make_icons.py`).
+
+아이콘이 바뀐 버전(v12)으로 올릴 때는 폰에서 **홈 화면 앱을 삭제하고 다시 추가**해야 새 아이콘이 나옴.
 지우기 전에 설정에서 **가족 코드를 메모**할 것 — 앱을 지우면 그 폰의 익명 로그인이 사라져서
 재설치 후 "가족 코드로 참여"를 다시 해야 한다. (데이터는 서버에 그대로 있음)
 
@@ -59,17 +62,20 @@ delete from entries;
 - `logo/` — 로고 원본
 
 ## 로고 고칠 때
-아이콘 PNG는 전부 `logo/logo.svg` 한 장에서 뽑는다. PNG를 직접 편집하면 다음 빌드에 덮어써짐.
+아이콘 PNG는 전부 `logo/logo-master.png`(1024 정사각) 한 장에서 뽑는다.
+PNG를 직접 편집하면 다음 빌드에 덮어써짐.
 
 ```
 cd logo
-pip install cairosvg pillow numpy
-python build_logo.py     # 비례 수치 → logo.svg, logo-maskable.svg
-python export_icons.py   # SVG → 앱 루트에 PNG 전 크기
+pip install pillow numpy
+python make_icons.py
 ```
 
-`build_logo.py` 위쪽 상수만 바꾸면 됨 (획 두께, 캡하이트, 막대 위치 등). 세로 위치는
-렌더한 픽셀의 무게중심을 재서 자동 보정하므로 손대지 않아도 된다.
+로고를 바꾸려면 새 그림을 1024 정사각(크림 배경 #FDF6E7)으로 만들어 `logo-master.png`를 교체하고
+스크립트를 다시 돌리면 끝. 만들어지는 것:
 
-- `logo.svg` → `icon-180/192/256/384/512/1024.png`, `apple-touch-icon.png` (manifest `purpose: any`)
-- `logo-maskable.svg` → `icon-maskable-192/512.png` (안드로이드가 80%로 잘라내므로 마크를 더 작게)
+- `icon-192/512.png`, `apple-touch-icon.png` — 홈 화면 아이콘 (iOS는 manifest를 안 보므로 apple-touch-icon이 따로 필요)
+- `icon-maskable-192/512.png` — 안드로이드가 80% 원으로 잘라내므로 전체를 0.84배로 줄인 것
+- `logo-mark.png` — 시작 화면용, 모서리 둥근 타일
+- `logo-pig.png` — 아이 화면(잔액 누르면 뜨는 돼지저금통 화면)용. 배경이 크림 단색이라 화면 배경과 그대로 이어진다
+- `logo-pig-sm.png` — 잔액 옆 작은 돼지. 종이색 위에 놓이므로 배경을 투명하게 뺀 것
