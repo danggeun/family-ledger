@@ -208,7 +208,7 @@ button.srow{width:100%; text-align:left}
 .start{min-height:100dvh; display:flex; flex-direction:column;
   padding:calc(var(--sat) + 8px) 22px calc(30px + var(--sab))}
 .start-top{flex:1; display:flex; flex-direction:column; justify-content:center; padding-bottom:20px}
-.start-top .logo{width:62px; height:62px; border-radius:16px; overflow:hidden; margin-bottom:26px}
+.start-top .logo{width:88px; height:88px; margin-bottom:var(--s3)}
 .start-top .logo img{width:100%; height:100%; display:block}
 .start-top h2{font-size:var(--t6); font-weight:700; margin:0; letter-spacing:-.03em; line-height:1.25}
 .start-top p{white-space:pre-line; font-size:var(--t4); color:var(--muted); margin:var(--s3) 0 0; line-height:1.65}
@@ -811,7 +811,7 @@ function renderSettings(){
   er.onclick=exportCSV;
   eCard.appendChild(er); wrap.appendChild(eCard);
 
-  wrap.appendChild(el("p","ver","v9"));
+  wrap.appendChild(el("p","ver","v12"));
   return wrap;
   function fail(err){ toast("저장 실패: "+(err.message||err)); }
 }
@@ -831,7 +831,7 @@ function renderOnboard(){
   var o=S.onboard, wrap=el("div","start");
   var top=el("div","start-top");
   var logo=el("div","logo"); var img=document.createElement("img");
-  img.src="icon-256.png"; img.alt=""; logo.appendChild(img); top.appendChild(logo);
+  img.src="logo-mark.png"; img.alt=""; logo.appendChild(img); top.appendChild(logo);
   top.appendChild(el("h2",null,"용돈기입장"));
   var body=el("div","start-body");
   if(!o.mode){
