@@ -1,0 +1,14 @@
+{
+  "name": "family-ledger",
+  "version": "1.0.0",
+  "private": true,
+  "license": "MIT",
+  "description": "아이 용돈 통장을 가족이 함께 적는 웹 앱 (PWA)",
+  "scripts": {
+    "test": "node tests/run.js",
+    "icons": "cd logo && python make_icons.py"
+  },
+  "devDependencies": {
+    "playwright": "^1.47.0"
+  }
+}

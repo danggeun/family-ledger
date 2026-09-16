@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """logo-master.png(1024 크림 정사각) → 앱 아이콘 전 크기.
-   실행:  cd logo && python make_icons.py      (필요: pillow)
+   실행:  cd logo && python make_icons.py      (필요: pillow, numpy)
 
    원본은 이 마스터 PNG 한 장뿐이다. 크기마다 따로 만들지 말 것.
    로고를 바꾸려면 새 그림을 1024 정사각 크림 배경으로 만들어
@@ -46,7 +46,9 @@ for s in (192, 512):
 save(rounded(master.resize((256, 256), Image.LANCZOS)), "logo-mark.png")
 
 # 아이 화면용 돼지 — 타일 여백을 잘라내고 600px로 (배경이 크림 #FDF6E7 단색이라 화면 배경과 그대로 이어진다)
-save(master.crop((170, 110, 930, 910)).resize((570, 600), Image.LANCZOS), "logo-pig.png")
+# 돼지 몸통(외곽선) 가로 중심이 x=508.5. 하트가 오른쪽에 있어서 그림 전체를 자르면 돼지가 왼쪽으로 치우친다 —
+# 크롭을 돼지 중심에 대칭으로 잡아야(86..930) 화면 가운데 정렬했을 때 코가 이름·숫자와 한 줄에 선다
+save(master.crop((86, 110, 930, 910)).resize((600, 569), Image.LANCZOS), "logo-pig.png")
 
 # 잔액 옆 작은 돼지 — 종이색(#FDFCFA) 위에 놓이므로 크림 배경과 그림자를 투명하게 뺀다
 import numpy as np
