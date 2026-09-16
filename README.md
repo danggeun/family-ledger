@@ -106,7 +106,7 @@ npm run icons
 ```
 
 홈 화면 아이콘(`icon-192/512`, `apple-touch-icon`), 안드로이드용 maskable(안전 영역에 맞춰 0.84배),
-시작 화면용 `logo-mark`, 아이 화면용 `logo-pig`, 잔액 옆 `logo-pig-sm`(배경 투명)이 생성됩니다.
+아이 화면용 `logo-pig`, 배경 투명 판 `logo-pig-t`(시작 화면)와 `logo-pig-sm`(잔액 옆)이 생성됩니다.
 
 ### 설계 메모
 - 글자 크기는 7단계(`--t1`~`--t7`), 간격은 4px 격자(`--s1`~`--s6`)만 씁니다. 입력칸은 16px 이상 (iOS 확대 방지)
