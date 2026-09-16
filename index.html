@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
 <title>용돈기입장</title>
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="용돈기입장">
@@ -11,6 +12,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="apple-touch-startup-image" href="splash.png">
 <style>
 :root{
   --paper:#FDFCFA;
@@ -249,7 +251,7 @@ button.srow{width:100%; text-align:left}
 "use strict";
 
 /* ══════════════════════ 유틸 ══════════════════════ */
-var APP_VERSION = "1.0.0";   // 올릴 때 sw.js 의 CACHE 도 같이
+var APP_VERSION = "1.0.2";   // 올릴 때 sw.js 의 CACHE 도 같이
 
 /* hex = 탭 밑줄·점(면), mid = 이름 글자(글자 대비용으로 어둡게). 키를 지우지 말 것 — 그 색을 쓰던 아이가 파랑으로 튄다 */
 var COLORS = {
@@ -423,7 +425,7 @@ function moneyRows(n){
 function renderKidView(){
   var c=childOf(S.kidView), col=COLORS[(c||{}).color]||COLORS.blue;
   var v=el("div","kid"); v.style.setProperty("--c-mid",col.mid);
-  v.onclick=function(){ S.kidView=null; render(); };
+  v.onclick=navBack;
   var x=el("button","x","\u2715"); x.setAttribute("aria-label","닫기"); v.appendChild(x);
   var pig=document.createElement("img"); pig.className="pig"; pig.src="logo-pig.png"; pig.alt=""; v.appendChild(pig);
   v.appendChild(el("div","kn",c?c.name:""));
@@ -498,7 +500,7 @@ function renderHome(){
   }
   bar.appendChild(el("div","sp"));
   var gear=el("button","gear","\u2699"); gear.setAttribute("aria-label","설정");
-  gear.onclick=function(){ S.screen="settings"; render(); };
+  gear.onclick=function(){ navOpen("settings", function(){ S.screen="settings"; }); };
   bar.appendChild(gear);
   wrap.appendChild(bar);
 
@@ -512,7 +514,7 @@ function renderHome(){
   bb.appendChild(el("b",null, fmt(balanceOf(c.id))));
   bb.appendChild(el("i",null,"원"));
   var pig=document.createElement("img"); pig.className="pig"; pig.src="logo-pig-sm.png"; pig.alt=""; bb.appendChild(pig);
-  bb.onclick=function(){ S.kidView=c.id; render(); };
+  bb.onclick=function(){ navOpen("kidView", function(){ S.kidView=c.id; }); };
   bal.appendChild(bb); wrap.appendChild(bal);
 
   var head=el("div","thead");
@@ -541,7 +543,7 @@ function renderHome(){
     r.appendChild(el("span","m"+(e.memo?"":" empty"), e.memo||"—"));
     r.appendChild(el("span","a"+(e.amount>0?" in":""), fmtSigned(e.amount)));
     r.appendChild(el("span","t",fmt(e.total)));
-    r.onclick=function(){ S.edit=Object.assign({}, e, {amountStr:String(Math.abs(e.amount)), sign:e.amount>0?1:-1, arm:false}); render(); };
+    r.onclick=function(){ navOpen("edit", function(){ S.edit=Object.assign({}, e, {amountStr:String(Math.abs(e.amount)), sign:e.amount>0?1:-1, arm:false}); }); };
     wrap.appendChild(r);
   });
   if(rows.length > shown.length){
@@ -566,7 +568,7 @@ function openingRow(c){
   r.appendChild(el("span","m","처음 금액"));
   r.appendChild(el("span","a",""));
   r.appendChild(el("span","t",fmt(c.opening_balance||0)));
-  r.onclick=function(){ S.editOpen={id:c.id, amountStr:String(c.opening_balance||0)}; render(); };
+  r.onclick=function(){ navOpen("editOpen", function(){ S.editOpen={id:c.id, amountStr:String(c.opening_balance||0)}; }); };
   return r;
 }
 
@@ -667,7 +669,7 @@ function submitNew(){
 /* ── 편집 시트 ── */
 function renderEditSheet(){
   var e=S.edit, frag=document.createDocumentFragment();
-  var dim=el("div","dim"); dim.onclick=function(){ S.edit=null; render(); }; frag.appendChild(dim);
+  var dim=el("div","dim"); dim.onclick=navBack; frag.appendChild(dim);
   var sh=el("div","sheet"); sh.appendChild(el("h3",null,e.auto_key?"자동 용돈 고치기":"고치기"));
   var f=el("div","f");
 
@@ -691,7 +693,7 @@ function renderEditSheet(){
   var del=el("button","btn danger"+(e.arm?" arm":""), e.arm?(isAuto?"정말 건너뛰기":"정말 삭제"):(isAuto?"이번 주 건너뛰기":"삭제"));
   del.onclick=function(){
     if(!e.arm){ e.arm=true; render(); return; }
-    var id=e.id; S.edit=null;
+    var id=e.id; navBack();
     if(isAuto){
       // 자동 줄은 지우면 다시 생기므로, 남겨두고 숨긴다
       var t=S.entries.find(function(x){return x.id===id;}); if(t) t.skipped=true; render();
@@ -701,11 +703,11 @@ function renderEditSheet(){
       store.deleteEntry(id).catch(function(err){ toast("삭제 실패: "+(err.message||err)); reload(); });
     }
   };
-  var cancel=el("button","btn","취소"); cancel.onclick=function(){ S.edit=null; render(); };
+  var cancel=el("button","btn","취소"); cancel.onclick=navBack;
   var save=el("button","btn pri","저장"); save.onclick=function(){
     var n=Number(e.amountStr); if(!(n>0)){ toast("금액을 넣어주세요"); return; }
     var patch={entry_date:e.entry_date, memo:(e.memo||"").trim(), amount:e.sign*n};
-    var id=e.id; S.edit=null;
+    var id=e.id; navBack();
     var t=S.entries.find(function(x){return x.id===id;}); if(t) Object.assign(t,patch);
     render();
     store.updateEntry(id,patch).catch(function(err){ toast("저장 실패: "+(err.message||err)); reload(); });
@@ -718,7 +720,7 @@ function renderEditSheet(){
 /* ── 매주 용돈 시트 ── */
 function renderWeekSheet(){
   var w=S.editWeek, c=childOf(w.id), frag=document.createDocumentFragment();
-  var close=function(){ S.editWeek=null; render(); };
+  var close=navBack;
   var dim=el("div","dim"); dim.onclick=close; frag.appendChild(dim);
   var sh=el("div","sheet"); sh.appendChild(el("h3",null,(c?c.name:"")+" · 매주 용돈"));
   var f=el("div","f");
@@ -743,7 +745,7 @@ function renderWeekSheet(){
     if(w.on && !(v>0)){ toast("금액을 넣어주세요"); return; }
     var patch={id:w.id, weekly_on:w.on, weekly_dow:w.dow, weekly_amount:v};
     if(w.on && (!c.weekly_on || c.weekly_dow!==w.dow)) patch.weekly_start=today();   // 켜거나 요일을 바꾸면 오늘부터
-    Object.assign(c, patch); S.editWeek=null; render();
+    Object.assign(c, patch); navBack();
     store.upsertChild(patch).then(reload).catch(function(err){ toast("저장 실패: "+(err.message||err)); reload(); });
   };
   btns.appendChild(cancel); btns.appendChild(save); f.appendChild(btns);
@@ -754,9 +756,9 @@ function renderWeekSheet(){
 /* ── 아이 지우기 시트 ── */
 function renderKidSheet(){
   var k=S.editKid, c=childOf(k.id);
-  if(!c){ S.editKid=null; return document.createDocumentFragment(); }
+  if(!c) return document.createDocumentFragment();   // 지워진 직후 한 프레임. 닫는 건 navCloseTop 이 한다
   var frag=document.createDocumentFragment();
-  var dim=el("div","dim"); dim.onclick=function(){ S.editKid=null; render(); }; frag.appendChild(dim);
+  var dim=el("div","dim"); dim.onclick=navBack; frag.appendChild(dim);
   var sh=el("div","sheet"); sh.appendChild(el("h3",null,c.name));
   var f=el("div","f");
   var n=entriesFor(c.id).length;
@@ -765,14 +767,14 @@ function renderKidSheet(){
   var del=el("button","btn danger"+(k.arm?" arm":""), k.arm?"정말 지우기":"지우기");
   del.onclick=function(){
     if(!k.arm){ k.arm=true; render(); return; }
-    var id=c.id; S.editKid=null;
+    var id=c.id; navBack();
     S.children=S.children.filter(function(x){return x.id!==id;});
     S.entries=S.entries.filter(function(e){return e.child_id!==id;});
     if(S.sel===id){ S.sel=S.children[0]?S.children[0].id:null; lsSet("yd_sel",S.sel||""); }
     S.limit=60; render();
     store.deleteChild(id).catch(function(err){ toast("지우기 실패: "+(err.message||err)); reload(); });
   };
-  var cancel=el("button","btn","취소"); cancel.onclick=function(){ S.editKid=null; render(); };
+  var cancel=el("button","btn","취소"); cancel.onclick=navBack;
   btns.appendChild(del); btns.appendChild(cancel); f.appendChild(btns);
   sh.appendChild(f); frag.appendChild(sh);
   return frag;
@@ -781,7 +783,7 @@ function renderKidSheet(){
 /* ── 처음 금액 시트 ── */
 function renderOpenSheet(){
   var o=S.editOpen, frag=document.createDocumentFragment();
-  var dim=el("div","dim"); dim.onclick=function(){ S.editOpen=null; render(); }; frag.appendChild(dim);
+  var dim=el("div","dim"); dim.onclick=navBack; frag.appendChild(dim);
   var sh=el("div","sheet"); sh.appendChild(el("h3",null,"처음 금액"));
   var f=el("div","f");
   var g=el("div"); g.appendChild(el("label",null,"금액"));
@@ -792,17 +794,30 @@ function renderOpenSheet(){
   bx.appendChild(ai); bx.appendChild(el("span",null,"원")); g.appendChild(bx); f.appendChild(g);
 
   var btns=el("div","btns");
-  var cancel=el("button","btn","취소"); cancel.onclick=function(){ S.editOpen=null; render(); };
+  var cancel=el("button","btn","취소"); cancel.onclick=navBack;
   var save=el("button","btn pri","저장"); save.onclick=function(){
     var v=Number(digits(o.amountStr))||0, id=o.id;
     var c=childOf(id); if(c) c.opening_balance=v;
-    S.editOpen=null; render();
+    navBack();
     store.upsertChild({id:id, opening_balance:v}).catch(function(err){ toast("저장 실패: "+(err.message||err)); reload(); });
   };
   btns.appendChild(cancel); btns.appendChild(save); f.appendChild(btns);
   sh.appendChild(f); frag.appendChild(sh);
   return frag;
 }
+
+/* ── 뒤로 가기 ──────────────────────────────────────
+   안드로이드 뒤로 가기 버튼·제스처가 앱을 끄지 않고 화면을 닫게 한다.
+   화면을 열 때 방문 기록을 하나 쌓고(navOpen), 닫는 건 전부 navBack() → popstate 한 곳에서 처리한다.
+   iOS 홈 화면 앱은 뒤로 가기가 없어서 스와이프(edgeSwipe)가 대신한다. */
+var navStack = [];                       // 열려 있는 화면들. 방문 기록 한 칸 = 이 배열 한 칸
+function navOpen(key, open){ open(); navStack.push(key); try{ history.pushState({d:navStack.length}, ""); }catch(e){} render(); }
+function navBack(){ if(navStack.length) history.back(); }   // 닫는 건 popstate 한 곳에서
+function navCloseTop(){
+  var k=navStack.pop(); if(!k) return;
+  if(k==="settings") S.screen="home"; else S[k]=null;       // 자기가 연 것만 닫는다
+}
+window.addEventListener("popstate", function(){ navCloseTop(); render(); });
 
 /* ── 왼쪽 가장자리 스와이프로 뒤로 (홈화면 앱엔 사파리 제스처가 없어서 직접) ── */
 function edgeSwipe(node, onBack){
@@ -835,7 +850,7 @@ function edgeSwipe(node, onBack){
 }
 
 /* ── 설정 ── */
-function leaveSettings(){ S.screen="home"; render(); }
+function leaveSettings(){ navBack(); }
 function renderSettings(){
   var wrap=el("div","screen page"); edgeSwipe(wrap, leaveSettings);
   var nav=el("div","nav");
@@ -861,7 +876,7 @@ function renderSettings(){
     r.appendChild(sw);
     if(S.children.length>1){
       var mo=el("button","kmore","\u22EF"); mo.setAttribute("aria-label",c.name+" 지우기");
-      mo.onclick=function(){ S.editKid={id:c.id, arm:false}; render(); };
+      mo.onclick=function(){ navOpen("editKid", function(){ S.editKid={id:c.id, arm:false}; }); };
       r.appendChild(mo);
     }
     kidCard.appendChild(r);
@@ -885,7 +900,7 @@ function renderSettings(){
     var on=c.weekly_on && c.weekly_dow!=null && c.weekly_amount>0;
     var v=el("span","val", on ? DOW[c.weekly_dow]+"요일 · "+fmt(c.weekly_amount)+"원" : "안 함"); if(!on) v.classList.add("off");
     r.appendChild(v); r.appendChild(el("span","chev","\u203A"));
-    r.onclick=function(){ S.editWeek={id:c.id, on:!!c.weekly_on, dow:c.weekly_dow==null?6:c.weekly_dow, amountStr:String(c.weekly_amount||"")}; render(); };
+    r.onclick=function(){ navOpen("editWeek", function(){ S.editWeek={id:c.id, on:!!c.weekly_on, dow:c.weekly_dow==null?6:c.weekly_dow, amountStr:String(c.weekly_amount||"")}; }); };
     wCard.appendChild(r);
   });
   wrap.appendChild(wCard);

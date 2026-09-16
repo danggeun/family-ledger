@@ -21,7 +21,7 @@ def save(im, name):
        평평해야 할 면에 미세한 얼룩이 있고, 그대로 PNG로 넣으면 파일이 4배 커진다."""
     if im.mode == "RGB":
         im = im.filter(ImageFilter.MedianFilter(3)).quantize(
-                colors=128, method=Image.MEDIANCUT, dither=Image.NONE)
+                colors=64, method=Image.MEDIANCUT, dither=Image.NONE)
     im.save(os.path.join(OUT, name), optimize=True)
     kb = os.path.getsize(os.path.join(OUT, name)) // 1024
     print(" ", name, f"{kb}KB")
@@ -59,5 +59,13 @@ def transparent(box, size, name):
     out = Image.fromarray(np.dstack([a.astype("uint8"), (alpha * 255).astype("uint8")]), "RGBA").resize(size, Image.LANCZOS)
     out.save(os.path.join(OUT, name), optimize=True); print(" ", name, os.path.getsize(os.path.join(OUT, name)) // 1024, "KB")
 transparent((86, 110, 930, 910), (422, 400), "logo-pig-t.png")     # 시작 화면 (동전·하트 포함, 돼지 중심 대칭)
+
+# iOS 실행 화면(홈 화면 앱을 열 때 잠깐 뜨는 화면). iOS 는 manifest 를 안 보고 이 이미지를 쓴다.
+# 기기별 크기를 다 만드는 대신 한 장으로 둔다 — 크림 단색 바탕에 돼지가 가운데라 어떤 비율로 잘려도 멀쩡하다.
+sp = Image.new("RGB", (1320, 2868), CREAM)
+pig = master.crop((86, 110, 930, 910))
+pw = int(1320 * 0.34); ph = int(pw * pig.height / pig.width)
+sp.paste(pig.resize((pw, ph), Image.LANCZOS), ((1320 - pw) // 2, (2868 - ph) // 2))
+save(sp, "splash.png")
 transparent((190, 320, 840, 900), (112, 100), "logo-pig-sm.png")   # 잔액 옆
 print("done")
