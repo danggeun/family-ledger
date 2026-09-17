@@ -23,7 +23,7 @@ await p.click('.gear'); await p.waitForTimeout(250);
 const rowTxt=async(i)=>p.$eval('.srow.tap >> nth='+i, e=>e.textContent);
 T('요약 행: 켜진 아이', /토요일 · 3,000원/.test(await rowTxt(0)));
 T('요약 행: 꺼진 아이 "안 함"', /안 함/.test(await rowTxt(1)));
-T('인라인 입력칸 없음(설정이 길어지지 않음)', (await p.$$('.srow input[inputmode=numeric]')).length===0 && (await p.$$('.tog')).length===0 && (await p.$$('.srow.tap')).length===3);
+T('인라인 입력칸 없음(설정이 길어지지 않음)', (await p.$$('.srow input[inputmode=numeric]')).length===0 && (await p.$$('.tog')).length===0 && (await p.$$('.srow.tap')).length>=3);
 await p.click('.srow.tap >> nth=0'); await p.waitForTimeout(300);
 T('시트 열림', !!(await p.$('.sheet')) && /서윤 · 매주 용돈/.test(await p.textContent('.sheet h3')));
 T('요일·금액 칸 있음', (await p.$$('.sheet .dow button')).length===7 && !!(await p.$('.sheet .box input')));
@@ -46,13 +46,13 @@ T('끄면 "안 함"', /안 함/.test(await rowTxt(0)) && await p.evaluate(()=>JS
 
 // ── 2. 색 ──
 const sw=await p.$$eval('.srow .swatch button',es=>es.slice(0,6).map(e=>e.style.backgroundColor));
-T('6색 순서', sw.join('|')==='rgb(47, 111, 168)|rgb(63, 143, 91)|rgb(240, 180, 0)|rgb(217, 116, 60)|rgb(232, 72, 140)|rgb(122, 95, 176)');
-T('핑크 #E8488C', sw[4]==='rgb(232, 72, 140)');
-T('노랑 #F0B400', sw[2]==='rgb(240, 180, 0)');
+T('6색 순서', sw.join('|')==='rgb(30, 136, 229)|rgb(29, 185, 84)|rgb(255, 196, 0)|rgb(255, 122, 26)|rgb(255, 61, 143)|rgb(139, 79, 232)');
+T('핑크 #FF3D8F', sw[4]==='rgb(255, 61, 143)');
+T('노랑 #FFC400', sw[2]==='rgb(255, 196, 0)');
 T('색칩 6개', (await p.$$('.swatch button')).length===12);   // 아이 2명 × 6
 await p.click('.nav .back'); await p.waitForTimeout(300);
 await p.click('.bar .k:nth-child(2)'); await p.waitForTimeout(200);
-T('노랑 아이 탭 밑줄', await p.$eval('.bar .k.on',e=>getComputedStyle(e,'::after').backgroundColor==='rgb(240, 180, 0)'));
+T('노랑 아이 탭 밑줄', await p.$eval('.bar .k.on',e=>getComputedStyle(e,'::after').backgroundColor==='rgb(255, 196, 0)'));
 
 // ── 3. 엣지 스와이프 ──
 await p.click('.gear'); await p.waitForTimeout(250);

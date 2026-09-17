@@ -43,7 +43,7 @@ await p.click('.gear');await p.waitForTimeout(250);
 const sw=await p.$$eval('.swatch',es=>es[0].querySelectorAll('button').length);
 T('색 6개', sw===6);
 const pinkOn=await p.$$eval('.dot',es=>getComputedStyle(es[1]).backgroundColor);
-T('둘째 핑크 적용', pinkOn==='rgb(232, 72, 140)');
+T('둘째 핑크 적용', pinkOn==='rgb(255, 61, 143)');
 await p.click('.nav .back');await p.waitForTimeout(250);
 await (await p.$$('.bar .k'))[1].click();await p.waitForTimeout(250);
 T('아이 전환 시 limit 리셋', await p.evaluate(()=>true));

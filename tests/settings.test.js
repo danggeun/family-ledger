@@ -58,7 +58,7 @@ await p.click('.nav .back'); await p.waitForTimeout(400);
 // 4-b) 색 규칙 — 잔액은 검정, 아이 색은 탭에만
 T('잔액은 검정', (await p.$eval('.bal b',e=>getComputedStyle(e).color))==='rgb(17, 19, 23)');
 const ul=await p.$eval('.bar .k.on',e=>getComputedStyle(e,'::after').backgroundColor);
-T('선택 탭 밑줄이 아이 색', ul==='rgb(47, 111, 168)');
+T('선택 탭 밑줄이 아이 색', ul==='rgb(30, 136, 229)');
 await p.click('.entry .sign'); await p.fill('input.memo','할머니'); await p.fill('input.amt','5000');
 await p.click('.entry .ok'); await p.waitForTimeout(400);
 T('받은 돈은 초록 유지', (await p.$eval('.row .a.in',e=>getComputedStyle(e).color))==='rgb(27, 122, 90)');
