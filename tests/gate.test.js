@@ -1,4 +1,4 @@
-// 새 가족 만들기 잠금 — 주인 가족만 보이고, 열면 시간이 지나 저절로 잠긴다
+// 잠깐 열어두기 잠금 — 주인 가족만 보이고, 열면 시간이 지나 저절로 잠긴다
 const {chromium}=require('playwright');
 const path=require('path');
 let pass=0,fail=0; const T=(n,ok)=>{ok?pass++:fail++;console.log((ok?'OK   ':'FAIL ')+n);};
@@ -9,22 +9,22 @@ const b=await chromium.launch(process.env.PW_CHROMIUM?{executablePath:process.en
 const ctx=await b.newContext({viewport:{width:390,height:844},deviceScaleFactor:2,isMobile:true,hasTouch:true});
 const p=await ctx.newPage(); const errs=[];p.on('pageerror',e=>errs.push(e.message));
 await p.goto('file://'+path.resolve(__dirname,'../index.html')); await p.evaluate(SEED); await p.reload(); await p.waitForTimeout(600);
-const row=()=>p.$('.srow.tap:has-text("새 가족 만들기")');
-const rowVal=()=>p.$eval('.srow.tap:has-text("새 가족 만들기") .val',e=>e.textContent);
+const row=()=>p.$('.srow.tap:has-text("잠깐 열어두기")');
+const rowVal=()=>p.$eval('.srow.tap:has-text("잠깐 열어두기") .val',e=>e.textContent);
 const until=()=>p.evaluate(()=>JSON.parse(localStorage.getItem('yd_local_v1')).openUntil||null);
 
 await p.click('.gear'); await p.waitForTimeout(400);
 T('주인이면 줄이 보인다', !!(await row()));
 T('처음엔 잠김', (await rowVal())==='잠김');
 await (await row()).click(); await p.waitForTimeout(300);
-T('시트 열림', /잠겨 있어요/.test(await p.textContent('.sheet .note')));
+T('시트 열림', /열어두면 10분 동안/.test(await p.textContent('.sheet .note')));
 T('잠겨 있을 땐 "지금 잠그기"가 없다', !(await p.$('.sheet button:has-text("지금 잠그기")')));
 await p.click('.sheet .btn.pri'); await p.waitForTimeout(400);
 T('열면 시트가 닫힌다', !(await p.$('.sheet')));
 T('열림이 저장된다', !!(await until()));
 T('줄에 남은 시간', /^\d+분 남음$/.test(await rowVal()));
 await (await row()).click(); await p.waitForTimeout(300);
-T('열려 있으면 안내가 바뀐다', /저절로 잠겨요/.test(await p.textContent('.sheet .note')));
+T('열려 있으면 안내가 바뀐다', /분 뒤에 잠겨요/.test(await p.textContent('.sheet .note')));
 await p.click('.sheet button:has-text("지금 잠그기")'); await p.waitForTimeout(400);
 T('잠그면 되돌아간다', (await rowVal())==='잠김' && (await until())===null);
 

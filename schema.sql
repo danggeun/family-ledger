@@ -98,7 +98,7 @@ begin
   select * into g from app_gate where id = 1;
   -- 주인 가족이 아직 없으면(=설치 후 첫 가족) 그냥 통과하고, 그 가족이 주인이 된다
   if g.owner_family_id is not null and coalesce(g.open_until, '-infinity'::timestamptz) < now() then
-    raise exception '새 가족 만들기가 잠겨 있어요';
+    raise exception '지금은 새로 시작할 수 없어요';
   end if;
   insert into families (code) values (p_code) returning id into fid;
   insert into family_members (family_id, user_id) values (fid, auth.uid());

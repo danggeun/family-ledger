@@ -285,7 +285,7 @@ button.srow{width:100%; text-align:left}
 "use strict";
 
 /* ══════════════════════ 유틸 ══════════════════════ */
-var APP_VERSION = "1.1.0";   // 올릴 때 sw.js 의 CACHE 도 같이
+var APP_VERSION = "1.1.1";   // 올릴 때 sw.js 의 CACHE 도 같이
 
 /* hex = 탭 밑줄·점(면), mid = 이름 글자(글자로 읽히게 조금 눌렀지만 색은 그대로 알아볼 수 있게).
    아이들이 "내 색"을 바로 알아보는 게 이 색의 유일한 목적이라 채도를 살린다.
@@ -308,6 +308,8 @@ function dowOf(s){ var p=s.split("-"); return new Date(+p[0],+p[1]-1,+p[2]).getD
 function fmt(n){ n=Math.round(n||0); var s=Math.abs(n).toLocaleString("ko-KR"); return (n<0?"−":"")+s; }
 function fmtSigned(n){ return (n>0?"+":"−")+Math.abs(n).toLocaleString("ko-KR"); }
 function digits(s){ return (s||"").replace(/[^\d]/g,""); }
+function plainDate(s){ var t=today(), p=s.split("-");   // 달력 칩용 — 오늘/어제로 바꾸지 않고 날짜 그대로
+  return (p[0]===t.slice(0,4) ? "" : p[0].slice(2)+".") + (+p[1]) + "." + pad(+p[2]); }
 function shortDate(s){ var t=today(); if(s===t) return "오늘"; if(s===addDays(t,-1)) return "어제"; var p=s.split("-"); var y=p[0]===t.slice(0,4)?"":p[0].slice(2)+"."; return y+(+p[1])+"."+pad(+p[2]); }
 function el(tag, cls, txt){ var n=document.createElement(tag); if(cls) n.className=cls; if(txt!=null) n.textContent=txt; return n; }
 function uid(){ return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,function(c){ return (c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16); }); }
@@ -422,7 +424,7 @@ var S = {
   editKid:null,         // 아이 지우는 중
   editWeek:null,        // 매주 용돈 고치는 중
   kidView:null,         // 아이에게 보여주는 화면에 띄운 아이
-  editGate:null,        // 새 가족 만들기 여닫는 중
+  editGate:null,        // 초대 여닫는 중
   pickDate:null,        // 달력으로 날짜 고르는 중 {target, date, view}
   gate:null,            // {is_owner, open_until} — 설정 화면에서 한 번 물어본다
   offline:false,        // 서버에서 못 받아온 상태. 마지막으로 받은 내용을 보여주는 중
@@ -748,7 +750,7 @@ function renderNewRow(){
         box.appendChild(b);
       });
       var near = d.date===t || d.date===addDays(t,-1) || d.date===addDays(t,-2);
-      var more=el("button", near?"cal":"cal on", near ? "달력" : shortDate(d.date));
+      var more=el("button", near?"cal":"cal on", plainDate(d.date));   // 날짜를 감추지 않는다
       more.onclick=function(){ openDatePick("draft", d.date); };
       box.appendChild(more); slot.appendChild(box);
     } else if(S.memoFocus){
@@ -867,16 +869,17 @@ function renderDateSheet(){
       var b=el("button",null,String(dd));
       if(iso===st.date) b.className="on"; else if(iso===t) b.className="today";
       b.disabled = iso>t;                                  // 아직 오지 않은 날은 적을 일이 없다
-      b.onclick=function(){ applyDate(st.target, iso); navBack(); };
+      b.onclick=function(){ st.date=iso; render(); };   // 고르기만 한다. 닫는 건 확인
+
       grid.appendChild(b);
     })(dd);
   }
   f.appendChild(grid);
 
   var btns=el("div","btns");
-  var today_=el("button","btn","오늘"); today_.onclick=function(){ applyDate(st.target, t); navBack(); };
-  var cancel=el("button","btn","닫기"); cancel.onclick=navBack;
-  btns.appendChild(today_); btns.appendChild(cancel); f.appendChild(btns);
+  var cancel=el("button","btn","취소"); cancel.onclick=navBack;
+  var okb=el("button","btn pri","확인"); okb.onclick=function(){ applyDate(st.target, st.date); navBack(); };
+  btns.appendChild(cancel); btns.appendChild(okb); f.appendChild(btns);
   sh.appendChild(f); frag.appendChild(sh);
   return frag;
 }
@@ -885,7 +888,7 @@ function applyDate(target, iso){
   else { S.draft.date=iso; S.datePick=false; }
 }
 
-/* ── 새 가족 만들기 시트 ── */
+/* ── 초대 시트 ── */
 function gateLeft(){   // 남은 분. 잠겨 있으면 0
   var u=S.gate && S.gate.open_until; if(!u) return 0;
   return Math.max(0, Math.ceil((new Date(u) - new Date())/60000));
@@ -893,11 +896,9 @@ function gateLeft(){   // 남은 분. 잠겨 있으면 0
 function renderGateSheet(){
   var frag=document.createDocumentFragment();
   var dim=el("div","dim"); dim.onclick=navBack; frag.appendChild(dim);
-  var sh=el("div","sheet"); sh.appendChild(el("h3",null,"새 가족 만들기"));
+  var sh=el("div","sheet"); sh.appendChild(el("h3",null,"초대"));
   var f=el("div","f"), left=gateLeft();
-  f.appendChild(el("p","note", left
-    ? "지금 열려 있어요. "+left+"분 뒤에 저절로 잠겨요."
-    : "잠겨 있어요. 열어두는 동안에만 다른 사람이 새 가족을 만들 수 있어요."));
+  f.appendChild(el("p","note", left ? left+"분 뒤에 잠겨요." : "열어두면 10분 동안 다른 사람이 이 앱을 시작할 수 있어요."));
   var btns=el("div","btns");                       // 상태마다 할 일은 하나뿐. 세 개를 늘어놓으면 글자가 잘린다
   var cancel=el("button","btn","닫기"); cancel.onclick=navBack; btns.appendChild(cancel);
   var act=el("button","btn pri", left ? "지금 잠그기" : "10분 동안 열기");
@@ -1123,8 +1124,9 @@ function renderSettings(){
   }
 
   if(S.gate && S.gate.is_owner){            // 맨 처음 만든 가족(주인)만 보이고 쓸 수 있다
+    wrap.appendChild(el("div","sec-h","초대"));
     var gCard=el("div","card"), gr=el("button","srow tap");
-    gr.appendChild(el("span","grow","새 가족 만들기"));
+    gr.appendChild(el("span","grow","잠깐 열어두기"));
     var left=gateLeft();
     var gv=el("span","val", left ? left+"분 남음" : "잠김"); if(!left) gv.classList.add("off");
     gr.appendChild(gv); gr.appendChild(el("span","chev","\u203A"));
