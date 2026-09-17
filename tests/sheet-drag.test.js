@@ -41,5 +41,14 @@ await p.evaluate((t)=>{const d=JSON.parse(localStorage.getItem('yd_local_v1'));
 await p.reload(); await p.waitForTimeout(700);
 await p.click('.row.auto'); await p.waitForTimeout(350);
 T('자동 줄에는 누가 적었는지 안 붙는다', !/적었어요/.test(await p.textContent('.sheet .f')));
+// 받은 돈 / 쓴 돈이 시트 안에서도 구분된다
+await p.goBack(); await p.waitForTimeout(300);
+await p.click('.row >> nth=1'); await p.waitForTimeout(350);   // 받은 돈 줄
+T('받은 돈이면 고른 칸이 초록', (await p.$eval('.sheet .tabs button.on',e=>getComputedStyle(e).color))==='rgb(27, 122, 90)');
+T('받은 돈이면 금액도 초록', (await p.$eval('.sheet input.r',e=>getComputedStyle(e).color))==='rgb(27, 122, 90)');
+await p.click('.sheet .tabs button:has-text("쓴 돈")'); await p.waitForTimeout(250);
+T('쓴 돈으로 바꾸면 검정', (await p.$eval('.sheet .tabs button.on',e=>getComputedStyle(e).color))==='rgb(17, 19, 23)'
+  && (await p.$eval('.sheet input.r',e=>getComputedStyle(e).color))==='rgb(17, 19, 23)');
+
 console.log(`\n${pass} passed, ${fail} failed`); console.log('errors:',errs.join('|')||'none');
 await b.close(); process.exit(fail?1:0);})();

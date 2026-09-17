@@ -195,6 +195,8 @@ input{border:0; background:none; outline:none; min-width:0}
 .tabs{display:flex; background:var(--wash); border-radius:12px; padding:3px}
 .tabs button{flex:1; padding:10px; border-radius:9px; font-size:var(--t4); font-weight:600; color:var(--muted)}
 .tabs button.on{background:var(--paper); color:var(--ink); box-shadow:0 1px 3px rgba(17,19,23,.1)}
+.tabs.in button.on{color:var(--in)}
+.f .box input.r.in{color:var(--in)}
 .btns{display:flex; gap:8px; margin-top:6px}
 .btn{flex:1; height:56px; border-radius:15px; font-size:var(--t4); font-weight:600;
   display:flex; align-items:center; justify-content:center; background:var(--wash); color:var(--ink)}
@@ -800,12 +802,12 @@ function renderEditSheet(){
   var sh=el("div","sheet"); sh.appendChild(el("h3",null,e.auto_key?"자동 용돈 고치기":"고치기"));
   var f=el("div","f");
 
-  var seg=el("div","tabs");
+  var seg=el("div","tabs"+(e.sign>0?" in":""));   // 고른 쪽이 목록과 같은 색으로 (초록 = 받은 돈)
   [["받은 돈",1],["쓴 돈",-1]].forEach(function(p){ var b=el("button",null,p[0]); if(e.sign===p[1]) b.className="on"; b.onclick=function(){ e.sign=p[1]; render(); }; seg.appendChild(b); });
   f.appendChild(seg);
 
   var g1=el("div"); g1.appendChild(el("label",null,"금액"));
-  var b1=el("div","box"); var ai=document.createElement("input"); ai.className="r"; ai.inputMode="numeric"; ai.value=Number(e.amountStr||0).toLocaleString("ko-KR");
+  var b1=el("div","box"); var ai=document.createElement("input"); ai.className=e.sign>0?"r in":"r"; ai.inputMode="numeric"; ai.value=Number(e.amountStr||0).toLocaleString("ko-KR");
   ai.oninput=function(){ e.amountStr=digits(ai.value); ai.value=e.amountStr?Number(e.amountStr).toLocaleString("ko-KR"):""; };
   b1.appendChild(ai); b1.appendChild(el("span",null,"원")); g1.appendChild(b1); f.appendChild(g1);
 

@@ -5,6 +5,7 @@
 - 설정 순서: 기록 → 초대
 - 최근 용도·날짜 칩이 입력줄 밖을 누르면 닫힘
 - 시트를 아래로 밀어서 닫기
+- 고치기 시트에서도 받은 돈/쓴 돈이 목록과 같은 색으로 구분됨
 - 기록에 적은 기기를 남기고, 고치기 시트에 한 줄로 표시
   (쓰던 프로젝트라면 `alter table entries add column if not exists created_by uuid default auth.uid();`)
 
