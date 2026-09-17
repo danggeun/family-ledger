@@ -71,6 +71,16 @@ T('삭제 확인 문구', (await p.$('.sheet button:has-text("정말 삭제")'))
 await p.click('.sheet button:has-text("정말 삭제")');await p.waitForTimeout(350);
 T('삭제 후 15,000', (await curBal())==='15,000');
 
+// 7-b) 칩은 딴 데를 누르면 닫힌다
+await p.click('input.memo'); await p.waitForTimeout(250);
+T('용도를 누르면 최근 용도 칩', (await p.$$('.chips button')).length>0);
+await p.click('.thead'); await p.waitForTimeout(300);
+T('딴 데를 누르면 칩이 닫힌다', (await p.$$('.chips button')).length===0);
+await p.click('.dbtn'); await p.waitForTimeout(250);
+T('날짜 칩도 열리고', (await p.$$('.chips.dates button')).length>0);
+await p.click('.thead'); await p.waitForTimeout(300);
+T('딴 데를 누르면 날짜 칩도 닫힌다', (await p.$$('.chips.dates button')).length===0);
+
 // 8) 자동 용돈
 await p.click('.gear');await p.waitForTimeout(300);
 T('설정 화면', (await p.$('h2:has-text("설정")'))!==null);

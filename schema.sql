@@ -42,6 +42,7 @@ create table if not exists entries (
   entry_date  date not null,
   memo        text not null default '',
   amount      int  not null,                    -- 양수 = 들어옴, 음수 = 나감
+  created_by  uuid default auth.uid(),          -- 적은 기기. 나중에 소급이 안 되므로 지금부터 남긴다
   auto_key    text,                             -- 자동 입금이면 'w:YYYY-MM-DD' (중복 방지)
   skipped     boolean not null default false,   -- 자동 입금을 건너뛴 주 (삭제 대신 숨김)
   created_at  timestamptz not null default now(),

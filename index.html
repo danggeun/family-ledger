@@ -285,7 +285,7 @@ button.srow{width:100%; text-align:left}
 "use strict";
 
 /* ══════════════════════ 유틸 ══════════════════════ */
-var APP_VERSION = "1.1.1";   // 올릴 때 sw.js 의 CACHE 도 같이
+var APP_VERSION = "1.1.2";   // 올릴 때 sw.js 의 CACHE 도 같이
 
 /* hex = 탭 밑줄·점(면), mid = 이름 글자(글자로 읽히게 조금 눌렀지만 색은 그대로 알아볼 수 있게).
    아이들이 "내 색"을 바로 알아보는 게 이 색의 유일한 목적이라 채도를 살린다.
@@ -321,6 +321,7 @@ function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
 /* ══════════════════════ 저장소: 로컬 ══════════════════════ */
 function LocalStore(){
   this.kind = "local";
+  this.userId = "me";
   this.key = "yd_local_v1";
   this.db = JSON.parse(lsGet(this.key) || "null") || {family:null, children:[], entries:[]};
 }
@@ -335,7 +336,7 @@ LocalStore.prototype = {
   loadAll: function(){ var d=this.db; return Promise.resolve({family:d.family, children:d.children.slice().sort(function(a,b){return a.sort-b.sort;}), entries:d.entries.slice()}); },
   upsertChild: function(c){ var i=this.db.children.findIndex(function(x){return x.id===c.id;}); if(i<0){ c.id=c.id||uid(); c.created_at=c.created_at||new Date().toISOString(); this.db.children.push(c);} else this.db.children[i]=Object.assign({},this.db.children[i],c); this.save(); return Promise.resolve(c); },
   deleteChild: function(id){ this.db.children=this.db.children.filter(function(x){return x.id!==id;}); this.db.entries=this.db.entries.filter(function(x){return x.child_id!==id;}); this.save(); return Promise.resolve(); },
-  addEntry: function(e){ e.id=uid(); e.created_at=new Date().toISOString(); e.updated_at=e.created_at; this.db.entries.push(e); this.save(); return Promise.resolve(e); },
+  addEntry: function(e){ e.id=uid(); e.created_by="me"; e.created_at=new Date().toISOString(); e.updated_at=e.created_at; this.db.entries.push(e); this.save(); return Promise.resolve(e); },
   addEntriesIgnoreDup: function(rows){ var self=this, n=0; rows.forEach(function(r){ var dup=self.db.entries.some(function(x){return x.child_id===r.child_id && x.auto_key && x.auto_key===r.auto_key;}); if(!dup){ r.id=uid(); r.created_at=new Date().toISOString(); r.updated_at=r.created_at; self.db.entries.push(r); n++; } }); this.save(); return Promise.resolve(n); },
   updateEntry: function(id, patch){ var e=this.db.entries.find(function(x){return x.id===id;}); if(e){ Object.assign(e,patch); e.updated_at=new Date().toISOString(); } this.save(); return Promise.resolve(); },
   deleteEntry: function(id){ this.db.entries=this.db.entries.filter(function(x){return x.id!==id;}); this.save(); return Promise.resolve(); },
@@ -345,6 +346,7 @@ LocalStore.prototype = {
 /* ══════════════════════ 저장소: Supabase ══════════════════════ */
 function SupaStore(cfg){
   this.kind = "supabase";
+  this.userId = null;
   this.sb = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
   this.familyId = null;
 }
@@ -354,7 +356,8 @@ SupaStore.prototype = {
     return sb.auth.getSession().then(function(r){
       if(r.data.session) return r.data.session;
       return sb.auth.signInAnonymously().then(function(r2){ if(r2.error) throw r2.error; return r2.data.session; });
-    }).then(function(){
+    }).then(function(ses){
+      self.userId = ses && ses.user ? ses.user.id : null;
       return sb.from("family_members").select("family_id, families(code)").limit(1);
     }).then(function(r){
       if(r.error) throw r.error;
@@ -581,6 +584,8 @@ function render(){
   if(S.editGate) root.appendChild(renderGateSheet());
   if(S.pickDate) root.appendChild(renderDateSheet());
   if(S.kidView) root.appendChild(renderKidView());
+  var sheets=root.querySelectorAll(".sheet");
+  if(sheets.length) sheetDrag(sheets[sheets.length-1]);      // 맨 위에 있는 시트만
 }
 
 /* ── 홈 ── */
@@ -617,6 +622,12 @@ function renderHome(){
   };
   bar.appendChild(gear);
   wrap.appendChild(bar);
+  // 칩(최근 용도·날짜)은 한 번 열면 계속 남아 거슬린다. 입력줄 밖을 누르면 닫는다
+  wrap.addEventListener("click", function(ev){
+    if(!S.memoFocus && !S.datePick) return;
+    if(ev.target.closest(".entry, .chips")) return;
+    S.memoFocus=false; S.datePick=false; render();
+  });
   if(S.offline) wrap.appendChild(offlineBar());
 
   if(!S.sel){
@@ -806,6 +817,10 @@ function renderEditSheet(){
   b3.appendChild(el("span","chev","\u203A"));
   b3.onclick=function(){ openDatePick("edit", e.entry_date); };
   g3.appendChild(b3); f.appendChild(g3);
+
+  if(e.created_by && !e.auto_key){       // 누가 적었는지. 자동 줄은 사람이 적은 게 아니라 뺀다
+    f.appendChild(el("p","note", e.created_by===store.userId ? "내가 적었어요" : "다른 기기에서 적었어요"));
+  }
 
   var btns=el("div","btns");
   var isAuto=!!e.auto_key;
@@ -1002,6 +1017,29 @@ function renderOpenSheet(){
   return frag;
 }
 
+/* ── 시트를 아래로 밀어서 닫기 ── */
+function sheetDrag(sh){
+  var y0=0, dy=0, t0=0, on=false, go=false;
+  sh.addEventListener("touchstart", function(e){
+    if(e.touches.length!==1) return;
+    on=true; go=false; dy=0; y0=e.touches[0].clientY; t0=e.timeStamp; sh.style.transition="none";
+  }, {passive:true});
+  sh.addEventListener("touchmove", function(e){
+    if(!on) return;
+    var d=e.touches[0].clientY-y0;
+    if(!go){ if(Math.abs(d)<8) return; if(d<0){ on=false; return; } go=true; }   // 위로 끌면 무시
+    e.preventDefault(); dy=Math.max(0,d); sh.style.transform="translateY("+dy+"px)";
+  }, {passive:false});
+  function end(e){
+    if(!on) return; on=false; if(!go) return;
+    var fast = dy>40 && (dy/(e.timeStamp-t0))>0.4;
+    sh.style.transition="transform .2s ease-out";
+    if(fast || dy>sh.offsetHeight*0.3){ sh.style.transform="translateY(100%)"; setTimeout(navBack,170); }
+    else sh.style.transform="";
+  }
+  sh.addEventListener("touchend", end); sh.addEventListener("touchcancel", end);
+}
+
 /* ── 뒤로 가기 ──────────────────────────────────────
    안드로이드 뒤로 가기 버튼·제스처가 앱을 끄지 않고 화면을 닫게 한다.
    화면을 열 때 방문 기록을 하나 쌓고(navOpen), 닫는 건 전부 navBack() → popstate 한 곳에서 처리한다.
@@ -1123,6 +1161,13 @@ function renderSettings(){
     wrap.appendChild(st2);
   }
 
+  wrap.appendChild(el("div","sec-h","기록"));
+  var eCard=el("div","card"), er=el("button","srow tap");
+  er.appendChild(el("span","grow","내보내기"));
+  er.appendChild(el("span","chev","\u203A"));
+  er.onclick=exportCSV;
+  eCard.appendChild(er); wrap.appendChild(eCard);
+
   if(S.gate && S.gate.is_owner){            // 맨 처음 만든 가족(주인)만 보이고 쓸 수 있다
     wrap.appendChild(el("div","sec-h","초대"));
     var gCard=el("div","card"), gr=el("button","srow tap");
@@ -1133,13 +1178,6 @@ function renderSettings(){
     gr.onclick=function(){ navOpen("editGate", function(){ S.editGate={}; }); };
     gCard.appendChild(gr); wrap.appendChild(gCard);
   }
-
-  wrap.appendChild(el("div","sec-h","기록"));
-  var eCard=el("div","card"), er=el("button","srow tap");
-  er.appendChild(el("span","grow","내보내기"));
-  er.appendChild(el("span","chev","\u203A"));
-  er.onclick=exportCSV;
-  eCard.appendChild(er); wrap.appendChild(eCard);
 
   wrap.appendChild(el("p","ver","v"+APP_VERSION));
   return wrap;

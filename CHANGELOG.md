@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.2 — 2026-09-17
+
+- 설정 순서: 기록 → 초대
+- 최근 용도·날짜 칩이 입력줄 밖을 누르면 닫힘
+- 시트를 아래로 밀어서 닫기
+- 기록에 적은 기기를 남기고, 고치기 시트에 한 줄로 표시
+  (쓰던 프로젝트라면 `alter table entries add column if not exists created_by uuid default auth.uid();`)
+
 ## 1.1.1 — 2026-09-17
 
 - 달력에서 날짜를 누르면 표시만 되고, 확인을 눌러야 닫힘
