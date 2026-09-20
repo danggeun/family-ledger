@@ -56,6 +56,7 @@ T('최근 용도 칩', chips.includes('할머니') && chips.includes('문구점 
 await p.click('.chips button:has-text("할머니")');await p.waitForTimeout(150);
 T('칩 탭 → 용도 채움', (await p.$eval('input.memo',e=>e.value))==='할머니');
 await p.fill('input.memo','');
+await p.click('.thead');await p.waitForTimeout(250);   // 적는 중엔 첫 탭이 키보드만 내린다
 
 // 6) 편집
 await p.click('.row >> nth=0');await p.waitForTimeout(250);

@@ -67,6 +67,7 @@ T('자동 용돈 줄은 칩에 없다', (await chips()).join('|')==='간식');
 await load([E('e1','간식',-800,'2026-09-18')]);
 T('홈 탭 이름 22px', await p.$eval('.bar .k.on',e=>getComputedStyle(e).fontSize==='22px'));
 T('홈 탭 이름 = 핑크 원색', await p.$eval('.bar .k.on',e=>getComputedStyle(e).color==='rgb(255, 61, 143)'));
+T('아이 탭 간격은 4px 격자 위', await p.$eval('.bar',e=>getComputedStyle(e).gap==='16px'));
 T('탭 밑줄은 그대로 원색', await p.$eval('.bar .k.on',e=>getComputedStyle(e,'::after').backgroundColor==='rgb(255, 61, 143)'));
 await p.click('.balbtn'); await p.waitForTimeout(400);
 T('아이 화면 이름도 같은 색', await p.$eval('.kid .kn',e=>getComputedStyle(e).color==='rgb(255, 61, 143)'));
@@ -216,6 +217,18 @@ await p.click('input.memo'); await p.type('input.memo','간식');
 await p.click('input.amt'); await p.type('input.amt','1200'); await p.waitForTimeout(200);
 await p.click('.thead'); await p.waitForTimeout(300);
 T('금액까지 쳤으면 밖을 눌러도 남는다', (await draft())==='간식' && (await amt())==='1,200');
+// 키보드를 내리려고 누른 탭으로 다른 화면이 열리면 안 된다
+await load([E('e1','젤리',-800,'2026-09-18')]);          // 깨끗한 상태에서
+await p.click('input.memo'); await p.type('input.memo','과자'); await p.waitForTimeout(250);
+await p.click('.row >> nth=0'); await p.waitForTimeout(350);
+T('적는 중에 기록 줄을 눌러도 고치기가 안 열린다', !(await p.$('.sheet')));
+T('대신 칩이 닫히고 적던 게 비워진다', (await p.$$('.chips button')).length===0 && (await draft())==='');
+await p.click('.row >> nth=0'); await p.waitForTimeout(350);
+T('한 번 더 누르면 그때 고치기가 열린다', !!(await p.$('.sheet')));
+await p.click('.sheet button:has-text("취소")'); await p.waitForTimeout(300);
+await p.click('.row >> nth=0'); await p.waitForTimeout(350);
+T('적는 중이 아니면 한 번에 열린다', !!(await p.$('.sheet')));
+await p.click('.sheet button:has-text("취소")'); await p.waitForTimeout(300);
 T('부호도 같이 되돌아온다', await (async()=>{ await p.click('.entry .sign'); await p.waitForTimeout(150);
   const plus=await p.$eval('.entry .sign',e=>e.className.includes('plus'));
   await p.click('input.memo'); await p.waitForTimeout(150);

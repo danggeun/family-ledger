@@ -93,6 +93,13 @@ T('홈 탭도 1개', (await p.$$('.bar .k')).length===1);
 T('처음 금액 줄에 날짜', (await p.$eval('.row.open .d',e=>e.textContent)).length>0);
 T('날짜가 오늘', (await p.$eval('.row.open .d',e=>e.textContent))==='오늘');
 
+// 아이 추가 — 늘어난 줄이 화면 밖일 수 있어 토스트로 알린다 (아이 수를 바꾸므로 맨 끝에서)
+await p.click('.gear'); await p.waitForTimeout(350);
+const before=(await p.$$('.srow .nm')).length;
+await p.click('.foot .addk'); await p.waitForTimeout(700);
+T('아이가 한 명 늘어난다', (await p.$$('.srow .nm')).length===before+1);
+T('추가하면 알려준다', /추가했어요/.test(await p.textContent('#toast')));
+
 console.log('\n'+pass+' passed, '+fail+' failed');
 console.log('errors:', errs.length?errs.join(' | '):'none');
 await b.close(); process.exit(fail?1:0);
