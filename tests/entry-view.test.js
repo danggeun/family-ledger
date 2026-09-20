@@ -65,7 +65,7 @@ T('자동 용돈 줄은 칩에 없다', (await chips()).join('|')==='간식');
 
 // ── 2) 이름 크기·색 ───────────────────────────────────────
 await load([E('e1','간식',-800,'2026-09-18')]);
-T('홈 탭 이름 24px', await p.$eval('.bar .k.on',e=>getComputedStyle(e).fontSize==='24px'));
+T('홈 탭 이름 22px', await p.$eval('.bar .k.on',e=>getComputedStyle(e).fontSize==='22px'));
 T('홈 탭 이름 = 핑크 원색', await p.$eval('.bar .k.on',e=>getComputedStyle(e).color==='rgb(255, 61, 143)'));
 T('탭 밑줄은 그대로 원색', await p.$eval('.bar .k.on',e=>getComputedStyle(e,'::after').backgroundColor==='rgb(255, 61, 143)'));
 await p.click('.balbtn'); await p.waitForTimeout(400);
@@ -106,7 +106,7 @@ await press('.row >> nth=0', 700);
 T('길게 누르면 그림이 열린다', !!(await p.$('.kid.one')));
 T('돼지는 없다 (잔액 화면과 구분)', !(await p.$('.kid.one img.pig')));
 T('용도가 아이 색·이름 크기로', (await p.textContent('.kid.one .kn'))==='젤리'
-  && await p.$eval('.kid.one .kn',e=>getComputedStyle(e).fontSize==='24px' && getComputedStyle(e).color==='rgb(255, 61, 143)'));
+  && await p.$eval('.kid.one .kn',e=>getComputedStyle(e).fontSize==='22px' && getComputedStyle(e).color==='rgb(255, 61, 143)'));
 T('금액에 부호', (await p.textContent('.kid.one .ka b'))==='−800');
 T('−800 = 500 + 100×3', await p.$$eval('.kid.one .money .row',es=>es.map(e=>e.querySelector('svg text').textContent+':'+e.querySelectorAll('svg').length).join('|')==='500:1|100:3'));
 T('고치기 시트는 안 열렸다', !(await p.$('.sheet')));
@@ -130,6 +130,98 @@ T('누른 채 움직이면(스크롤) 안 열린다', !(await p.$('.kid.one')));
 await load([Object.assign(E('e1','',-1000,'2026-09-18'),{memo:''})]);
 await press('.row >> nth=0', 700);
 T('용도가 없으면 — 대신 금액만', !!(await p.$('.kid.one')) && !(await p.$('.kid.one .kn')));
+
+
+// ── 5) 나간 돈은 "빠진 자리"로, 받은 돈은 꽉 찬 색 ────────────
+const edge=()=>p.$eval('.kid.one .money svg',e=>{const n=e.querySelector('rect,circle');
+  return {dash:n.getAttribute('stroke-dasharray')||'', stroke:n.getAttribute('stroke'), fill:n.getAttribute('fill'),
+          parts:e.querySelectorAll('circle,path').length};});
+await load([E('e1','젤리',-800,'2026-09-18'),E('e2','할머니',5000,'2026-09-17')]);
+await press('.row >> nth=0', 700);
+let g=await edge();
+T('나간 돈은 점선 테두리', g.dash==='6 4');
+T('점선은 제 색 (크림·흰색이 아님)', g.stroke==='#7CC48E' || (g.stroke!=='#FDF6E7' && g.stroke!=='#fff'));
+T('색이 남아 있다 (비어 있지 않음)', g.fill!=='none' && g.fill!=='#FDF6E7');
+T('안쪽 동그라미·하이라이트는 그대로', g.parts>=2);
+await p.goBack(); await p.waitForTimeout(350);
+await press('.row >> nth=1', 700);
+g=await edge();
+T('받은 돈은 점선이 아니다', g.dash==='' );
+T('받은 돈 테두리는 크림 (스티커 컷)', g.stroke==='#FDF6E7');
+await p.goBack(); await p.waitForTimeout(350);
+T('잔액 화면(가진 돈)도 꽉 찬 색', await (async()=>{ await p.click('.balbtn'); await p.waitForTimeout(450);
+  const r=await p.$eval('.kid .money svg',e=>e.querySelector('rect,circle').getAttribute('stroke')); 
+  await p.click('.kid .x'); await p.waitForTimeout(250); return r==='#FDF6E7'; })());
+
+// ── 6) 한 줄 그림은 들어가는 한 크게 ─────────────────────────
+await load([E('e1','젤리',-800,'2026-09-18')]);
+await press('.row >> nth=0', 700);
+const zoom=()=>p.$eval('.kid.one .money',e=>parseFloat(e.style.zoom||'1'));
+T('적은 금액은 크게 (1.3배 이상)', (await zoom())>=1.3);
+T('한 화면에 들어감', await p.$eval('.kid.one',e=>e.scrollHeight<=e.clientHeight+1));
+await p.goBack(); await p.waitForTimeout(350);
+await load([E('e1','자전거',-99990,'2026-09-18')]);
+await press('.row >> nth=0', 700);
+T('큰 금액(99,990·8줄)은 배율을 줄인다', (await zoom())<1.6);
+T('큰 금액도 한 화면에', await p.$eval('.kid.one',e=>e.scrollHeight<=e.clientHeight+1));
+T('가로로도 안 잘린다', await p.$eval('.kid.one',e=>e.scrollWidth<=e.clientWidth+1));
+await p.goBack(); await p.waitForTimeout(350);
+await load([E('e1','자전거',-368880,'2026-09-18')]);   // 5만원권 여러 장 — 가로가 먼저 넘치는 경우
+await press('.row >> nth=0', 700);
+T('5만원권 줄도 가로로 안 잘린다', await p.$eval('.kid.one',e=>e.scrollWidth<=e.clientWidth+1));
+await p.goBack(); await p.waitForTimeout(350);
+
+// 다섯 장을 넘으면 한 장 + ×n — 어떤 금액에서도 줄이 화면을 안 넘는다
+await load([E('e1','자전거',-350000,'2026-09-18')]);
+await press('.row >> nth=0', 700);
+T('35만(5만원권 7장)은 한 장 + ×7', await p.$$eval('.kid.one .money .row',es=>{
+  const r=es[0]; return r.querySelectorAll('svg').length===1 && r.querySelector('.xn').textContent==='×7';}));
+T('장수는 그 지폐의 진한 톤으로 크게', await p.$eval('.kid.one .money .xn',e=>{
+  const b=getComputedStyle(e.querySelector('b'));
+  return b.fontSize==='28px' && getComputedStyle(e).color==='rgb(107, 74, 0)';}));
+T('곱하기는 작고 연하게, 세로 가운데', await p.$eval('.kid.one .money .xn',e=>{
+  const i=getComputedStyle(e.querySelector('i'));
+  return i.fontSize==='17px' && i.color!=='rgb(107, 74, 0)' && getComputedStyle(e).alignItems==='center';}));
+T('한글 없이 숫자만 (라벨 규칙)', !/[가-힣]/.test(await p.textContent('.kid.one .money')));
+T('그래도 가로로 안 잘린다', await p.$eval('.kid.one',e=>e.scrollWidth<=e.clientWidth+1));
+await p.goBack(); await p.waitForTimeout(350);
+await load([E('e1','자전거',-200000,'2026-09-18')]);
+await press('.row >> nth=0', 700);
+T('20만(4장)은 그대로 넉 장 부채꼴', await p.$$eval('.kid.one .money .row',es=>{
+  const r=es[0]; return r.querySelectorAll('svg').length===5 && !r.querySelector('.xn');}));  // 지폐 4 + 실루엣 1
+T('겹친 지폐는 점선이 하나뿐 (바깥 실루엣)', await p.$$eval('.kid.one .money .row svg',es=>{
+  const dashed=es.filter(e=>{const n=e.querySelector('rect,circle'); return (n.getAttribute('stroke-dasharray')||'')!=='';});
+  return dashed.length===1 && dashed[0].querySelector('rect').getAttribute('fill')==='none';}));
+T('장끼리는 크림 컷으로 나뉜다', await p.$$eval('.kid.one .money .row svg',es=>
+  es.filter(e=>e.querySelector('rect')&&e.querySelector('rect').getAttribute('stroke')==='#FDF6E7').length===4));
+await p.goBack(); await p.waitForTimeout(350);
+
+// ── 7) 적다 만 입력은 떠나면 비워진다 ────────────────────────
+await load([E('e1','젤리',-800,'2026-09-18')]);
+const draft=()=>p.$eval('input.memo',e=>e.value);
+const amt=()=>p.$eval('input.amt',e=>e.value);
+await p.click('input.memo'); await p.type('input.memo','장난감'); await p.waitForTimeout(200);
+await p.click('.bar .k >> nth=1'); await p.waitForTimeout(350);          // 다른 아이로
+T('아이를 바꾸면 적던 게 비워진다', (await draft())==='' && (await amt())==='');
+await p.click('.bar .k >> nth=0'); await p.waitForTimeout(350);
+await p.click('input.memo'); await p.type('input.memo','장난감');
+await p.click('input.amt'); await p.type('input.amt','5000'); await p.waitForTimeout(200);
+await p.click('.bar .k >> nth=1'); await p.waitForTimeout(350);
+T('금액까지 쳤어도 아이를 바꾸면 비워진다', (await draft())==='' && (await amt())==='');
+await p.click('.bar .k >> nth=0'); await p.waitForTimeout(350);
+await p.click('input.memo'); await p.type('input.memo','간식'); await p.waitForTimeout(200);
+await p.click('.thead'); await p.waitForTimeout(300);                    // 입력줄 밖
+T('금액 없이 밖을 누르면 비워진다', (await draft())==='');
+await p.click('input.memo'); await p.type('input.memo','간식');
+await p.click('input.amt'); await p.type('input.amt','1200'); await p.waitForTimeout(200);
+await p.click('.thead'); await p.waitForTimeout(300);
+T('금액까지 쳤으면 밖을 눌러도 남는다', (await draft())==='간식' && (await amt())==='1,200');
+T('부호도 같이 되돌아온다', await (async()=>{ await p.click('.entry .sign'); await p.waitForTimeout(150);
+  const plus=await p.$eval('.entry .sign',e=>e.className.includes('plus'));
+  await p.click('input.memo'); await p.waitForTimeout(150);
+  await p.click('.bar .k >> nth=1'); await p.waitForTimeout(350);
+  await p.click('.bar .k >> nth=0'); await p.waitForTimeout(350);
+  return plus && await p.$eval('.entry .sign',e=>!e.className.includes('plus')); })());
 
 console.log(`\n${pass} passed, ${fail} failed`);
 console.log('errors: '+(errs.length?errs.join(' / '):'none'));

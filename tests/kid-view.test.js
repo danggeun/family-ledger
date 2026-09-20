@@ -21,7 +21,7 @@ T('배경 크림(로고 타일 색)', await p.$eval('.kid',e=>getComputedStyle(e
 T('큰 돼지', await p.$eval('.kid img.pig',e=>/logo-pig\.png$/.test(e.src) && e.getBoundingClientRect().width===222));
 T('이름·금액', (await p.textContent('.kid .kn'))==='서윤' && (await p.textContent('.kid .ka b'))==='16,300');
 T('이름은 아이 색 (핑크 원색)', await p.$eval('.kid .kn',e=>getComputedStyle(e).color==='rgb(255, 61, 143)'));
-T('이름 24px', await p.$eval('.kid .kn',e=>getComputedStyle(e).fontSize==='24px'));
+T('이름 22px', await p.$eval('.kid .kn',e=>getComputedStyle(e).fontSize==='22px'));
 let r=await rows();
 T('16,300 = 10000·5000·1000·100×3', r.length===4 && r[0].t==='10000'&&r[0].n===1 && r[1].t==='5000' && r[2].t==='1000' && r[3].t==='100'&&r[3].n===3);
 T('×n 없음', r.every(x=>x.x===''));
@@ -40,7 +40,7 @@ await p.click('.kid'); await p.waitForTimeout(150);
 
 await p.evaluate((s)=>eval(s),`(${SEED.toString()})(300000,0)`); await p.reload(); await p.waitForTimeout(500);
 await p.click('.balbtn'); await p.waitForTimeout(300); r=await rows();
-T('30만 = 50000 5장 + ×6', r.length===1 && r[0].n===5 && r[0].x==='×6');
+T('30만 = 50000 한 장 + ×6 (다섯 장 넘으면 세지 않는다)', r.length===1 && r[0].n===1 && r[0].x==='×6');
 await p.click('.kid'); await p.waitForTimeout(150);
 
 // 줄이 많으면 돼지를 줄여서라도 한 화면에

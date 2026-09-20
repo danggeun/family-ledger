@@ -32,7 +32,8 @@
   --t3:13px;  /* 보조 텍스트 */
   --t4:15px;  /* 본문 */
   --t5:17px;  /* 강조·입력·제목 */
-  --t5b:24px; /* 아이 이름 — 램프의 유일한 예외. 24px 이상이면 대비 기준이 3.0이라 아이 색을 눌러 죽이지 않아도 된다 */
+  --t5b:22px; /* 아이 이름 — 램프의 유일한 예외. 17과 28의 기하평균(21.8)이라 단계가 고르다.
+                 700 굵기의 22px 는 "큰 글자"라 대비 기준이 3.0 — 아이 색을 눌러 죽이지 않아도 된다 */
   --t6:28px;  /* 큰 제목 */
   --t7:44px;  /* 잔액 */
   /* 4px 간격 격자 */
@@ -101,8 +102,8 @@ input{border:0; background:none; outline:none; min-width:0}
 .kid .x{position:absolute; top:calc(var(--sat) + 10px); right:14px; width:40px; height:40px; border-radius:50%;
   display:flex; align-items:center; justify-content:center; font-size:var(--t6); font-weight:300; color:#B9AB96}
 .kid .pig{width:222px; height:auto; aspect-ratio:600/569; flex:none}   /* 비율을 미리 잡아둬야 그림이 늦게 떠도 배치가 안 흔들린다 */
-.kid .kn{font-size:var(--t5b); font-weight:700; color:var(--c-name); margin-top:6px; letter-spacing:-.02em}
-.kid .ka{display:flex; align-items:baseline; gap:5px; margin-top:2px}
+.kid .kn{font-size:var(--t5b); font-weight:700; color:var(--c-name); margin-top:10px; letter-spacing:-.02em}
+.kid .ka{display:flex; align-items:baseline; gap:5px; margin-top:8px}   /* 이름이 커져서 2px 이면 숫자에 들러붙는다 */
 .kid .ka b{font-size:var(--t7); font-weight:800; letter-spacing:-.04em; line-height:1.05}
 .kid .ka i{font-style:normal; font-size:var(--t5); font-weight:600; color:#8C7B66}
 .kid .ka b.in{color:var(--in)}                     /* 받은 돈은 목록과 같은 초록 */
@@ -115,7 +116,9 @@ input{border:0; background:none; outline:none; min-width:0}
 .money .row{display:flex; align-items:center; padding:0; border:0; background:none}
 .money .st{position:relative}
 .money .st svg{position:absolute; left:0; top:0; display:block}
-.money .xn{margin-left:var(--s2); font-weight:700; font-size:var(--t4); color:#8C7B66}
+.money .xn{margin-left:var(--s3); display:inline-flex; align-items:center; gap:3px; white-space:nowrap}
+.money .xn b{font-size:var(--t6); font-weight:800; letter-spacing:-.03em; line-height:1}
+.money .xn i{font-style:normal; font-size:var(--t5); font-weight:700; line-height:1}
 .bal{display:flex; align-items:baseline; gap:5px; padding:var(--s4) 0 var(--s5)}
 .bal b{font-size:var(--t7); font-weight:700; letter-spacing:-.04em; line-height:1; color:var(--ink)}
 .bal i{font-style:normal; font-size:var(--t5); font-weight:600; color:var(--muted)}
@@ -250,7 +253,10 @@ input{border:0; background:none; outline:none; min-width:0}
 button.srow{width:100%; text-align:left}
 .srow.tap:active{background:var(--wash)}
 .srow .chev{flex:none; font-size:var(--t5); color:var(--faint); line-height:1; margin-left:var(--s2)}
-.ver{text-align:right; font-size:var(--t2); color:var(--faint); margin:var(--s6) 0 0}
+.foot{display:flex; align-items:baseline; justify-content:space-between; gap:var(--s4); margin:var(--s6) 0 0}
+.ver{text-align:right; font-size:var(--t2); color:var(--faint); margin:0}
+.foot .addk{font-size:var(--t2); color:var(--faint); padding:0; text-align:left}
+.foot .addk:active{color:var(--ink-2)}
 .syncdot{width:6px; height:6px; border-radius:50%; background:var(--faint);
   display:inline-block; margin-right:8px; vertical-align:2px}
 .syncdot.on{background:var(--in)}
@@ -485,28 +491,61 @@ var NOTE={50000:{w:134,h:58,c:"#F6C443",i:"#FBD86A",t:"#6B4A00"}, 10000:{w:126,h
 var COIN={500:{d:56,c:"#C8CCD1",i:"#DEE1E5",t:"#3B4046"}, 100:{d:50,c:"#C8CCD1",i:"#DEE1E5",t:"#3B4046"},
           50:{d:42,c:"#C8CCD1",i:"#DEE1E5",t:"#3B4046"},   10:{d:36,c:"#D9A377",i:"#E8BD97",t:"#5C3A1B"}};
 var KID_FONT="-apple-system,'Apple SD Gothic Neo','Noto Sans KR',sans-serif";
-function noteSvg(v){ var d=NOTE[v], r=Math.round(d.h*.18), n=4;
+/* 나간 돈은 "빠진 자리"로 그린다 — 색을 45%까지 바래고 테두리를 제 색 얇은 점선으로.
+   진한 굵은 점선으로도 해봤는데 색칠공부처럼 투박해졌다. 옅은 판이 훨씬 낫고,
+   45% 면 만원=초록·천원=파랑이 남으면서 안쪽 동그라미와 동전 하이라이트도 보인다.
+   투명도로 연하게 하면 안 된다 — 부채꼴로 겹친 지폐가 서로 비쳐서 숫자가 겹쳐 보인다. 크림색과 섞어 불투명하게. */
+function fade(hex, k){ var bg=[253,246,231], c=[1,3,5].map(function(i){ return parseInt(hex.substr(i,2),16); });
+  return '#'+c.map(function(v,i){ return Math.round(v*k+bg[i]*(1-k)).toString(16).padStart(2,"0"); }).join(""); }
+var GONE_K=0.45;                                    // 남길 색의 양
+function goneEdge(hex){ return ' stroke="'+hex+'" stroke-width="2" stroke-dasharray="6 4"'; }
+/* 겹쳐 쌓은 지폐의 바깥선. 같은 크기의 둥근 사각형을 가로로만 밀어 겹친 것이라
+   그 합집합은 폭만 늘어난 같은 모양의 둥근 사각형이다 — 한 번만 그리면 된다. */
+function goneSilhouette(v, W){ var d=NOTE[v], r=Math.round(d.h*.18);
+  return '<svg width="'+W+'" height="'+d.h+'" viewBox="0 0 '+W+' '+d.h+'">'+
+    '<rect x="1" y="1" width="'+(W-2)+'" height="'+(d.h-2)+'" rx="'+r+'" fill="none"'+goneEdge(d.c)+'/></svg>'; }
+function noteSvg(v, gone, stacked){ var d=NOTE[v], r=Math.round(d.h*.18), n=4, k=gone?GONE_K:1;
+  var c=gone?fade(d.c,k):d.c, i2=gone?fade(d.i,k):d.i;
+  // 겹쳐 쌓을 때는 각자 점선을 그리지 않는다 — 뒷장 점선과 앞장 점선이 포개져 지저분해진다.
+  // 대신 크림 테두리(스티커 컷)로 장끼리만 나누고, 점선은 겹친 덩어리 바깥선 하나로 그린다(goneSilhouette).
+  var edge = (gone && !stacked) ? goneEdge(d.c) : ' stroke="#FDF6E7" stroke-width="2"';
   return '<svg width="'+d.w+'" height="'+d.h+'" viewBox="0 0 '+d.w+' '+d.h+'">'+
-    '<rect x="1" y="1" width="'+(d.w-2)+'" height="'+(d.h-2)+'" rx="'+r+'" fill="'+d.c+'" stroke="#FDF6E7" stroke-width="2"/>'+
-    '<rect x="'+(n+1)+'" y="'+(n+1)+'" width="'+(d.w-2*n-2)+'" height="'+(d.h-2*n-2)+'" rx="'+(r-2)+'" fill="'+d.i+'"/>'+
-    '<circle cx="'+(d.h*.44)+'" cy="'+(d.h/2)+'" r="'+(d.h*.22)+'" fill="'+d.c+'"/>'+
+    '<rect x="1" y="1" width="'+(d.w-2)+'" height="'+(d.h-2)+'" rx="'+r+'" fill="'+c+'"'+edge+'/>'+
+    '<rect x="'+(n+1)+'" y="'+(n+1)+'" width="'+(d.w-2*n-2)+'" height="'+(d.h-2*n-2)+'" rx="'+(r-2)+'" fill="'+i2+'"/>'+
+    '<circle cx="'+(d.h*.44)+'" cy="'+(d.h/2)+'" r="'+(d.h*.22)+'" fill="'+c+'"/>'+
     '<text x="'+(d.w*.62)+'" y="'+(d.h/2)+'" text-anchor="middle" dominant-baseline="central" font-family="'+KID_FONT+'" font-weight="800" font-size="'+Math.round(d.h*.36)+'" fill="'+d.t+'">'+v+'</text></svg>'; }
-function coinSvg(v){ var d=COIN[v], R=d.d/2;
+function coinSvg(v, gone){ var d=COIN[v], R=d.d/2, k=gone?GONE_K:1;
+  var c=gone?fade(d.c,k):d.c, i2=gone?fade(d.i,k):d.i;
+  var edge = gone ? goneEdge(d.c) : ' stroke="#FDF6E7" stroke-width="2"';
   return '<svg width="'+d.d+'" height="'+d.d+'" viewBox="0 0 '+d.d+' '+d.d+'">'+
-    '<circle cx="'+R+'" cy="'+R+'" r="'+(R-1)+'" fill="'+d.c+'" stroke="#FDF6E7" stroke-width="2"/>'+
-    '<circle cx="'+R+'" cy="'+R+'" r="'+(R-5)+'" fill="'+d.i+'"/>'+
+    '<circle cx="'+R+'" cy="'+R+'" r="'+(R-1)+'" fill="'+c+'"'+edge+'/>'+
+    '<circle cx="'+R+'" cy="'+R+'" r="'+(R-5)+'" fill="'+i2+'"/>'+
     '<path d="M '+(R*.55)+' '+(R*.62)+' A '+(R*.62)+' '+(R*.62)+' 0 0 1 '+(R*.9)+' '+(R*.42)+'" stroke="#fff" stroke-opacity=".75" stroke-width="'+Math.max(2,R*.14)+'" stroke-linecap="round" fill="none"/>'+
     '<text x="'+R+'" y="'+(R+1)+'" text-anchor="middle" dominant-baseline="central" font-family="'+KID_FONT+'" font-weight="800" font-size="'+Math.round(R*.62)+'" fill="'+d.t+'">'+v+'</text></svg>'; }
 function splitWon(n){ var out=[]; n=Math.max(0,Math.round(n||0));
   [50000,10000,5000,1000,500,100,50,10].forEach(function(v){ var c=Math.floor(n/v); if(c){ out.push([v,c]); n-=c*v; } }); return out; }
-function moneyRows(n){
+function moneyRows(n, gone){
   var box=el("div","money");
   splitWon(n).forEach(function(p){ var v=p[0], c=p[1], isN=v>=1000, d=isN?NOTE[v]:COIN[v], w=isN?d.w:d.d, h=isN?d.h:d.d;
-    var step=isN?Math.round(w*.30):w+6, show=Math.min(c,5);        // 지폐는 부채꼴로 겹치고, 동전은 나란히
-    var row=el("div","row"), st=el("div","st"); st.style.width=(w+step*(show-1))+"px"; st.style.height=h+"px";
-    var html=""; for(var i=0;i<show;i++) html+='<div style="position:absolute;left:'+(i*step)+'px;top:0">'+(isN?noteSvg(v):coinSvg(v))+'</div>';
+    // 지폐는 부채꼴로 겹치고, 동전은 나란히. 다섯 장을 넘으면 한 장만 놓고 ×n —
+    // 탐욕 분해라 5만원권만 여기 오고(25만원부터), 그쯤이면 "이 지폐가 n장"으로 읽는 게 낫다.
+    // 줄이 길어져 화면 밖으로 잘리는 일도 이걸로 원천봉쇄된다.
+    var step=isN?Math.round(w*.30):w+6, show=(c<=4?c:1);
+    var W=w+step*(show-1), stacked=isN && show>1;
+    var row=el("div","row"), st=el("div","st"); st.style.width=W+"px"; st.style.height=h+"px";
+    var html=""; for(var i=0;i<show;i++) html+='<div style="position:absolute;left:'+(i*step)+'px;top:0">'+(isN?noteSvg(v,gone,stacked):coinSvg(v,gone))+'</div>';
+    if(gone && stacked) html+='<div style="position:absolute;left:0;top:0">'+goneSilhouette(v,W)+'</div>';
     st.innerHTML=html; row.appendChild(st);
-    if(c>show) row.appendChild(el("span","xn","\u00d7"+c));          // 5만원권만 여기 올 수 있다 (탐욕 분해)
+    if(c>show){        // 5만원권만 여기 올 수 있다 (탐욕 분해). 몇 장인지가 한눈에 들어와야 한다.
+      // "장" 같은 글자는 넣지 않는다 — 이 화면의 라벨은 전부 숫자다(50000·1000·500).
+      // 곱하기는 작고 연하게(거드는 기호), 장수는 크고 진하게(읽어야 하는 값). 세로는 가운데로 맞춘다.
+      var many=el("span","xn"), sym=el("i",null,"\u00d7");
+      sym.style.color=fade(d.t,.55);
+      many.appendChild(sym);
+      many.appendChild(el("b",null,String(c)));
+      many.style.color=d.t;           // 그 지폐의 진한 톤 — 화면에 이미 있는 색이라 새 색을 들이지 않는다
+      row.appendChild(many);
+    }
     box.appendChild(row); });
   return box;
 }
@@ -540,9 +579,16 @@ function renderEntryView(){
   var ka=el("div","ka"), b=el("b",null,fmtSigned(e.amount));
   if(e.amount>0) b.className="in";
   ka.appendChild(b); ka.appendChild(el("i",null,"원")); v.appendChild(ka);
-  v.appendChild(moneyRows(Math.abs(e.amount)));
-  function fit(){                                       // 큰 금액이면 간격을 줄여 한 화면에 (아이 화면과 같은 규칙)
+  var money=moneyRows(Math.abs(e.amount), e.amount<0);   // 나간 돈이면 "빠진 자리"로
+  v.appendChild(money);
+  function fit(){          // 돼지가 없어 헐거우므로 들어가는 한 크게. 그래도 넘치면 아이 화면과 같은 규칙으로 줄인다
     v.classList.remove("tight","tighter");
+    var zooms=[1.6,1.45,1.3,1.15,1];
+    for(var i=0;i<zooms.length;i++){
+      money.style.zoom=zooms[i];
+      // 가로도 같이 본다 — 5만원권 다섯 장을 겹쳐 쌓은 줄은 키우면 화면 밖으로 밀려 잘린다
+      if(v.scrollHeight <= v.clientHeight && v.scrollWidth <= v.clientWidth) return;
+    }
     if(v.scrollHeight > v.clientHeight) v.classList.add("tight");
     if(v.scrollHeight > v.clientHeight) v.classList.add("tighter");
   }
@@ -566,7 +612,11 @@ function longPress(node, fn){
   node.addEventListener("touchstart", function(ev){
     if(ev.touches.length!==1) return;
     fired=false; x0=ev.touches[0].clientX; y0=ev.touches[0].clientY;
-    clear(); t=setTimeout(function(){ t=null; fired=true; fn(); }, 500);
+    clear(); t=setTimeout(function(){
+      t=null; fired=true;
+      if(navigator.vibrate) navigator.vibrate(12);   // 열리는 순간에만 — "지금 떼도 된다"는 신호. iOS 는 조용히 무시한다
+      fn();
+    }, 500);
   }, {passive:true});
   node.addEventListener("touchmove", function(ev){
     if(!t) return;
@@ -684,7 +734,7 @@ function renderHome(){
     S.children.forEach(function(k){
       var on=k.id===S.sel, b=el("button","k"+(on?" on":""), k.name);
       if(on) b.style.setProperty("--c",(COLORS[k.color]||COLORS.blue).hex);
-      b.onclick=function(){ S.sel=k.id; lsSet("yd_sel",k.id); S.datePick=false; S.memoFocus=false; S.limit=60; render(); };
+      b.onclick=function(){ S.sel=k.id; lsSet("yd_sel",k.id); S.datePick=false; S.memoFocus=false; S.limit=60; resetDraft(); render(); };
       bar.appendChild(b);
     });
   } else if(c){
@@ -700,9 +750,12 @@ function renderHome(){
   wrap.appendChild(bar);
   // 칩(최근 용도·날짜)은 한 번 열면 계속 남아 거슬린다. 입력줄 밖을 누르면 닫는다
   wrap.addEventListener("click", function(ev){
-    if(!S.memoFocus && !S.datePick) return;
     if(ev.target.closest(".entry, .chips")) return;
-    S.memoFocus=false; S.datePick=false; render();
+    var d=S.draft, typing = d.memo || d.amount || d.sign>0 || d.date!==today();
+    if(!S.memoFocus && !S.datePick && !typing) return;
+    S.memoFocus=false; S.datePick=false;
+    if(!d.amount) resetDraft();     // 금액을 안 넣었으면 적다 만 것 — 지운다. 금액까지 쳤으면 남긴다
+    render();
   });
   if(S.offline) wrap.appendChild(offlineBar());
 
@@ -856,6 +909,9 @@ function renderNewRow(){
   }
 }
 
+/* 적다 만 입력은 그 아이·그 순간의 것이다. 아이를 바꾸거나 입력줄 밖으로 나가면 비운다 —
+   안 그러면 서윤 화면에서 치던 게 하준 입력줄에 남아 하준 기록으로 저장될 수 있다. */
+function resetDraft(){ S.draft={date:today(), memo:"", amount:"", sign:-1}; }
 function submitNew(){
   var d=S.draft, n=Number(d.amount);
   if(!(n>0)) return;
@@ -1197,15 +1253,6 @@ function renderSettings(){
     kidCard.appendChild(r);
   });
   wrap.appendChild(kidCard);
-  if(S.children.length<4){
-    var add=el("button","link sm","＋ 아이 추가");
-    add.onclick=function(){
-      var n=S.children.length, keys=Object.keys(COLORS);
-      store.upsertChild({name:["첫째","둘째","셋째","넷째"][n]||"아이", color:keys[n%keys.length],
-        sort:n, opening_balance:0, weekly_on:false, weekly_amount:0}).then(reload).catch(fail);
-    };
-    wrap.appendChild(add);
-  }
 
   wrap.appendChild(el("div","sec-h","매주 용돈"));
   // 한 아이에 한 줄. 값은 요약("토요일 · 3,000원")으로 보여주고, 고치는 건 시트에서 — 설정 앱들이 하는 방식
@@ -1259,7 +1306,20 @@ function renderSettings(){
     gCard.appendChild(gr); wrap.appendChild(gCard);
   }
 
-  wrap.appendChild(el("p","ver","v"+APP_VERSION));
+  // 아이 추가는 한 집에서 한두 번 있는 일이다. 매번 보이는 자리를 차지할 일이 아니라
+  // 맨 아래 버전과 같은 줄, 같은 톤으로 내려놓는다. 없는 기능이 되지는 않는다.
+  var foot=el("div","foot");
+  if(S.children.length<4){
+    var add=el("button","addk","아이 추가하기");
+    add.onclick=function(){
+      var n=S.children.length, keys=Object.keys(COLORS);
+      store.upsertChild({name:["첫째","둘째","셋째","넷째"][n]||"아이", color:keys[n%keys.length],
+        sort:n, opening_balance:0, weekly_on:false, weekly_amount:0}).then(reload).catch(fail);
+    };
+    foot.appendChild(add);
+  } else foot.appendChild(el("span"));
+  foot.appendChild(el("span","ver","v"+APP_VERSION));
+  wrap.appendChild(foot);
   return wrap;
   function fail(err){ toast("저장 실패: "+(err.message||err)); }
 }

@@ -54,6 +54,14 @@ T('두 폰이 같이 보는 중 문구 없음', !/두 폰이 같이/.test(txt));
 T('내보내기가 눌리는 행', (await p.$('.srow.tap:has-text("내보내기")'))!==null
    && /\u203A/.test(await p.$eval('.srow.tap:has-text("내보내기")',e=>e.textContent)));
 T('버전 오른정렬', (await p.$eval('.ver',e=>getComputedStyle(e).textAlign))==='right');
+T('아이 추가는 맨 아래 버전 줄 왼쪽에', await p.$eval('.foot',e=>{
+  const a=e.querySelector('.addk'), v=e.querySelector('.ver');
+  return !!a && a.textContent==='아이 추가하기'
+    && a.getBoundingClientRect().left < v.getBoundingClientRect().left;}));
+T('아이 추가는 버전과 같은 톤', await p.$eval('.foot',e=>{
+  const a=getComputedStyle(e.querySelector('.addk')), v=getComputedStyle(e.querySelector('.ver'));
+  return a.fontSize===v.fontSize && a.color===v.color;}));
+T('아이 섹션에는 추가 버튼이 없다', !(await p.$('.card + .link.sm')));
 T('로컬은 연결 안 됨 표시', /연결 안 됨/.test(txt));
 await p.click('.nav .back'); await p.waitForTimeout(400);
 // 4-b) 색 규칙 — 잔액은 검정, 아이 색은 탭에만
