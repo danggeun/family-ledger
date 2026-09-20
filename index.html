@@ -32,6 +32,7 @@
   --t3:13px;  /* 보조 텍스트 */
   --t4:15px;  /* 본문 */
   --t5:17px;  /* 강조·입력·제목 */
+  --t5b:24px; /* 아이 이름 — 램프의 유일한 예외. 24px 이상이면 대비 기준이 3.0이라 아이 색을 눌러 죽이지 않아도 된다 */
   --t6:28px;  /* 큰 제목 */
   --t7:44px;  /* 잔액 */
   /* 4px 간격 격자 */
@@ -51,10 +52,10 @@ input{border:0; background:none; outline:none; min-width:0}
 .screen{min-height:100dvh; padding:calc(var(--sat) + 6px) 20px calc(48px + var(--sab))}
 
 /* ─── 상단: 아이 탭 + 설정 ─── */
-.bar{display:flex; align-items:center; gap:22px; height:46px}
-.bar .k{position:relative; padding:12px 0; font-size:var(--t5); font-weight:600; color:var(--faint);
-  letter-spacing:-.01em; transition:color .15s}
-.bar .k.on{color:var(--c-mid)}
+.bar{display:flex; align-items:center; gap:22px; height:54px}
+.bar .k{position:relative; padding:8px 0; font-size:var(--t5b); font-weight:600; color:var(--faint);
+  letter-spacing:-.02em; transition:color .15s}
+.bar .k.on{color:var(--c-name)}
 .bar .k.on::after{content:""; position:absolute; left:0; right:0; bottom:4px; height:4px;
   border-radius:2px; background:var(--c)}
 .bar .sp{flex:1}
@@ -100,10 +101,12 @@ input{border:0; background:none; outline:none; min-width:0}
 .kid .x{position:absolute; top:calc(var(--sat) + 10px); right:14px; width:40px; height:40px; border-radius:50%;
   display:flex; align-items:center; justify-content:center; font-size:var(--t6); font-weight:300; color:#B9AB96}
 .kid .pig{width:222px; height:auto; aspect-ratio:600/569; flex:none}   /* 비율을 미리 잡아둬야 그림이 늦게 떠도 배치가 안 흔들린다 */
-.kid .kn{font-size:var(--t5); font-weight:700; color:var(--c-mid); margin-top:6px}
+.kid .kn{font-size:var(--t5b); font-weight:700; color:var(--c-name); margin-top:6px; letter-spacing:-.02em}
 .kid .ka{display:flex; align-items:baseline; gap:5px; margin-top:2px}
 .kid .ka b{font-size:var(--t7); font-weight:800; letter-spacing:-.04em; line-height:1.05}
 .kid .ka i{font-style:normal; font-size:var(--t5); font-weight:600; color:#8C7B66}
+.kid .ka b.in{color:var(--in)}                     /* 받은 돈은 목록과 같은 초록 */
+.kid.one{justify-content:center; padding-top:calc(var(--sat) + 24px)}   /* 한 줄 그림 — 돼지가 없어 위가 비므로 가운데로 */
 .money{display:flex; flex-direction:column; gap:var(--s4); align-items:flex-start; margin-top:var(--s5)}
 .kid.tight .pig{width:150px}      /* 줄이 많거나 화면이 작으면 돼지를 줄여 한 화면에 담는다 */
 .kid.tight .money{gap:var(--s3); margin-top:var(--s4)}
@@ -122,7 +125,8 @@ input{border:0; background:none; outline:none; min-width:0}
 .thead{padding:0 2px var(--s3); border-bottom:1px solid var(--hair);
   font-size:var(--t2); font-weight:600; color:var(--muted); letter-spacing:.01em}
 .thead span:nth-child(n+3){text-align:right}
-.row{padding:14px 2px; border-bottom:1px solid var(--hair-2); width:100%; text-align:left}
+.row{padding:14px 2px; border-bottom:1px solid var(--hair-2); width:100%; text-align:left;
+  -webkit-user-select:none; user-select:none; -webkit-touch-callout:none}   /* 길게 눌러도 글자 선택·메뉴가 안 뜨게 */
 .row .d{font-size:var(--t2); font-weight:500; color:var(--ink-3)}
 .row .m{font-size:var(--t4); font-weight:500; letter-spacing:-.01em;
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
@@ -287,18 +291,21 @@ button.srow{width:100%; text-align:left}
 "use strict";
 
 /* ══════════════════════ 유틸 ══════════════════════ */
-var APP_VERSION = "1.1.2";   // 올릴 때 sw.js 의 CACHE 도 같이
+var APP_VERSION = "1.1.3";   // 올릴 때 sw.js 의 CACHE 도 같이
 
-/* hex = 탭 밑줄·점(면), mid = 이름 글자(글자로 읽히게 조금 눌렀지만 색은 그대로 알아볼 수 있게).
+/* hex = 탭 밑줄·점(면), name = 이름 글자, mid = 작은 글자용 예비값(지금 쓰는 곳은 없다).
    아이들이 "내 색"을 바로 알아보는 게 이 색의 유일한 목적이라 채도를 살린다.
+   이름을 24px 로 키우면서 name 을 새로 뒀다 — 큰 글자는 대비 기준이 3.0 이라 덜 눌러도 되고,
+   파랑·핑크·보라는 원색 그대로 나간다. 노랑만 금색까지 내려가는데, 흰 종이에 노란 글자는
+   어떤 크기에서도 안 읽힌다(원색 대비 1.56).
    키를 지우지 말 것 — 그 색을 쓰던 아이가 파랑으로 튄다 */
 var COLORS = {
-  blue:   {hex:"#1E88E5", mid:"#0B6BD8"},
-  green:  {hex:"#1DB954", mid:"#0F8A3C"},
-  yellow: {hex:"#FFC400", mid:"#9C7000"},   // 밑줄·점은 샛노랑 그대로. 글자는 노랑을 어둡게 하면 무조건 갈색이라 여기가 한계
-  apricot:{hex:"#FF7A1A", mid:"#C2510A"},
-  pink:   {hex:"#FF3D8F", mid:"#D81B60"},
-  purple: {hex:"#8B4FE8", mid:"#6D3BD0"}
+  blue:   {hex:"#1E88E5", name:"#1E88E5", mid:"#0B6BD8"},   // 원색 그대로 (3.59)
+  green:  {hex:"#1DB954", name:"#1AA94D", mid:"#0F8A3C"},   // 명도만 살짝 (3.00)
+  yellow: {hex:"#FFC400", name:"#B78D00", mid:"#9C7000"},   // 금색. 밑줄·점은 샛노랑 그대로
+  apricot:{hex:"#FF7A1A", name:"#F56700", mid:"#C2510A"},   // (3.00)
+  pink:   {hex:"#FF3D8F", name:"#FF3D8F", mid:"#D81B60"},   // 원색 그대로 (3.24)
+  purple: {hex:"#8B4FE8", name:"#8B4FE8", mid:"#6D3BD0"}    // 원색 그대로 (4.67)
 };
 
 var DOW = ["일","월","화","수","목","금","토"];
@@ -307,6 +314,9 @@ function ymd(d){ return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDat
 function today(){ return ymd(new Date()); }
 function addDays(s, n){ var p=s.split("-"); var d=new Date(+p[0],+p[1]-1,+p[2]); d.setDate(d.getDate()+n); return ymd(d); }
 function dowOf(s){ var p=s.split("-"); return new Date(+p[0],+p[1]-1,+p[2]).getDay(); }
+/* 아이가 등록된 "날짜". created_at 은 UTC 로 저장되므로 잘라 쓰면 안 된다 —
+   한국은 UTC+9 라 자정~아침 9시에 추가한 아이가 어제 등록된 것으로 보인다 (처음 금액 줄 날짜가 "어제"). */
+function localDay(iso){ if(!iso) return ""; var d=new Date(iso); return isNaN(d) ? String(iso).slice(0,10) : ymd(d); }
 function fmt(n){ n=Math.round(n||0); var s=Math.abs(n).toLocaleString("ko-KR"); return (n<0?"−":"")+s; }
 function fmtSigned(n){ return (n>0?"+":"−")+Math.abs(n).toLocaleString("ko-KR"); }
 function digits(s){ return (s||"").replace(/[^\d]/g,""); }
@@ -338,9 +348,9 @@ LocalStore.prototype = {
   loadAll: function(){ var d=this.db; return Promise.resolve({family:d.family, children:d.children.slice().sort(function(a,b){return a.sort-b.sort;}), entries:d.entries.slice()}); },
   upsertChild: function(c){ var i=this.db.children.findIndex(function(x){return x.id===c.id;}); if(i<0){ c.id=c.id||uid(); c.created_at=c.created_at||new Date().toISOString(); this.db.children.push(c);} else this.db.children[i]=Object.assign({},this.db.children[i],c); this.save(); return Promise.resolve(c); },
   deleteChild: function(id){ this.db.children=this.db.children.filter(function(x){return x.id!==id;}); this.db.entries=this.db.entries.filter(function(x){return x.child_id!==id;}); this.save(); return Promise.resolve(); },
-  addEntry: function(e){ e.id=uid(); e.created_by="me"; e.created_at=new Date().toISOString(); e.updated_at=e.created_at; this.db.entries.push(e); this.save(); return Promise.resolve(e); },
+  addEntry: function(e){ e.id=uid(); e.created_by="me"; e.updated_by="me"; e.created_at=new Date().toISOString(); e.updated_at=e.created_at; this.db.entries.push(e); this.save(); return Promise.resolve(e); },
   addEntriesIgnoreDup: function(rows){ var self=this, n=0; rows.forEach(function(r){ var dup=self.db.entries.some(function(x){return x.child_id===r.child_id && x.auto_key && x.auto_key===r.auto_key;}); if(!dup){ r.id=uid(); r.created_at=new Date().toISOString(); r.updated_at=r.created_at; self.db.entries.push(r); n++; } }); this.save(); return Promise.resolve(n); },
-  updateEntry: function(id, patch){ var e=this.db.entries.find(function(x){return x.id===id;}); if(e){ Object.assign(e,patch); e.updated_at=new Date().toISOString(); } this.save(); return Promise.resolve(); },
+  updateEntry: function(id, patch){ var e=this.db.entries.find(function(x){return x.id===id;}); if(e){ Object.assign(e,patch); e.updated_by="me"; e.updated_at=new Date().toISOString(); } this.save(); return Promise.resolve(); },
   deleteEntry: function(id){ this.db.entries=this.db.entries.filter(function(x){return x.id!==id;}); this.save(); return Promise.resolve(); },
   subscribe: function(){ }
 };
@@ -405,7 +415,7 @@ SupaStore.prototype = {
   deleteChild: function(id){ return this.sb.from("children").delete().eq("id",id).then(function(r){ if(r.error) throw r.error; }); },   // entries 는 on delete cascade
   addEntry: function(e){ e.family_id=this.familyId; return this.sb.from("entries").insert(e).select().single().then(function(r){ if(r.error) throw r.error; return r.data; }); },
   addEntriesIgnoreDup: function(rows){ var fid=this.familyId; rows.forEach(function(r){ r.family_id=fid; }); return this.sb.from("entries").upsert(rows,{onConflict:"child_id,auto_key", ignoreDuplicates:true}).select().then(function(r){ if(r.error) throw r.error; return (r.data||[]).length; }); },
-  updateEntry: function(id, patch){ patch.updated_at=new Date().toISOString(); return this.sb.from("entries").update(patch).eq("id",id).then(function(r){ if(r.error) throw r.error; }); },
+  updateEntry: function(id, patch){ patch.updated_at=new Date().toISOString(); patch.updated_by=this.userId; return this.sb.from("entries").update(patch).eq("id",id).then(function(r){ if(r.error) throw r.error; }); },
   deleteEntry: function(id){ return this.sb.from("entries").delete().eq("id",id).then(function(r){ if(r.error) throw r.error; }); },
   subscribe: function(cb){
     var fid=this.familyId;
@@ -429,6 +439,7 @@ var S = {
   editKid:null,         // 아이 지우는 중
   editWeek:null,        // 매주 용돈 고치는 중
   kidView:null,         // 아이에게 보여주는 화면에 띄운 아이
+  entryView:null,       // 한 줄을 길게 눌러 띄운 기록 (그 금액만 그림으로)
   editGate:null,        // 초대 여닫는 중
   pickDate:null,        // 달력으로 날짜 고르는 중 {target, date, view}
   gate:null,            // {is_owner, open_until} — 설정 화면에서 한 번 물어본다
@@ -449,10 +460,21 @@ function withTotals(cid){
   return rows.reverse();
 }
 function balanceOf(cid){ var c=childOf(cid); var b=c?(c.opening_balance||0):0; entriesFor(cid).forEach(function(e){ b+=e.amount; }); return b; }
+/* 최근 용도 칩 — 많이 쓴 순, 같으면 최근에 쓴 순.
+   부호도 같이 들려 보낸다("용돈"은 받은 돈, "간식"은 쓴 돈). 한 번 환불로 +를 적었다고 부호가 뒤집히지
+   않도록 정렬과 같은 규칙(다수 → 동률이면 최근)을 쓴다. */
 function recentMemos(cid){
-  var seen={}, out=[];
-  withTotals(cid).forEach(function(e){ var m=(e.memo||"").trim(); if(!m||seen[m]||e.auto_key) return; seen[m]=1; out.push(m); });
-  return out.slice(0,4);
+  var map={}, out=[];
+  withTotals(cid).forEach(function(e){                       // withTotals 는 최신순이라 먼저 나온 게 최근
+    var m=(e.memo||"").trim(); if(!m||e.auto_key) return;
+    var r=map[m] || (map[m]={memo:m, n:0, plus:0, minus:0, at:out.push(m)-1});
+    r.n++; if(e.amount>0) r.plus++; else r.minus++;
+    if(r.recent==null) r.recent = e.amount>0 ? 1 : -1;       // 가장 최근에 이 용도로 적은 줄의 부호
+  });
+  return out.map(function(m){ return map[m]; })
+    .sort(function(a,b){ return b.n-a.n || a.at-b.at; })
+    .slice(0,4)
+    .map(function(r){ return {memo:r.memo, sign: r.plus>r.minus ? 1 : r.minus>r.plus ? -1 : r.recent}; });
 }
 
 /* ══════════════════════ 아이에게 보여주기 — 돈 그림 ══════════════════════ */
@@ -490,7 +512,7 @@ function moneyRows(n){
 }
 function renderKidView(){
   var c=childOf(S.kidView), col=COLORS[(c||{}).color]||COLORS.blue;
-  var v=el("div","kid"); v.style.setProperty("--c-mid",col.mid);
+  var v=el("div","kid"); v.style.setProperty("--c-name",col.name);
   v.onclick=navBack;
   var x=el("button","x","\u2715"); x.setAttribute("aria-label","닫기"); v.appendChild(x);
   var pig=document.createElement("img"); pig.className="pig"; pig.src="logo-pig.png"; pig.alt=""; v.appendChild(pig);
@@ -506,6 +528,57 @@ function renderKidView(){
   return v;
 }
 
+/* 한 줄을 길게 누르면 그 금액만 그림으로.
+   아이 화면(잔액)과 같은 크림·같은 지폐지만 돼지가 없다 — 돼지는 "저금통 전체"라서,
+   돼지가 없는 것이 "이건 한 건"이라는 표식이다. 네 살은 전/후를 못 견주므로 지금 눈앞의 양 하나만 보여준다. */
+function renderEntryView(){
+  var e=S.entryView, c=childOf(e.child_id), col=COLORS[(c||{}).color]||COLORS.blue;
+  var v=el("div","kid one"); v.style.setProperty("--c-name",col.name);
+  v.onclick=navBack;
+  var x=el("button","x","\u2715"); x.setAttribute("aria-label","닫기"); v.appendChild(x);
+  if(e.memo) v.appendChild(el("div","kn", e.memo));         // 용도가 없으면 금액만 (— 를 크게 띄우지 않는다)
+  var ka=el("div","ka"), b=el("b",null,fmtSigned(e.amount));
+  if(e.amount>0) b.className="in";
+  ka.appendChild(b); ka.appendChild(el("i",null,"원")); v.appendChild(ka);
+  v.appendChild(moneyRows(Math.abs(e.amount)));
+  function fit(){                                       // 큰 금액이면 간격을 줄여 한 화면에 (아이 화면과 같은 규칙)
+    v.classList.remove("tight","tighter");
+    if(v.scrollHeight > v.clientHeight) v.classList.add("tight");
+    if(v.scrollHeight > v.clientHeight) v.classList.add("tighter");
+  }
+  requestAnimationFrame(fit);
+  return v;
+}
+
+/* 길게 누르기. 스크롤하다 걸리지 않게 10px 움직이면 취소한다.
+   손을 떼면 브라우저가 click 을 하나 만들어 보내는데, 그때는 이미 그림이 손가락 밑에 떠 있어서
+   그 click 이 그림(아무 데나 누르면 닫힘)에 떨어져 열자마자 닫힌다. 그래서 손 떼는 순간
+   다음 click 한 번을 통째로 삼킨다 — 줄의 고치기 시트도 같이 막히므로 따로 막을 게 없다. */
+function swallowNextClick(){
+  function kill(ev){ ev.preventDefault(); ev.stopPropagation(); done(); }
+  function done(){ document.removeEventListener("click", kill, true); clearTimeout(tm); }
+  var tm=setTimeout(done, 500);                 // click 이 안 오는 기기도 있으니 스스로 물러난다
+  document.addEventListener("click", kill, true);
+}
+function longPress(node, fn){
+  var t=null, x0=0, y0=0, fired=false;
+  function clear(){ if(t){ clearTimeout(t); t=null; } }
+  node.addEventListener("touchstart", function(ev){
+    if(ev.touches.length!==1) return;
+    fired=false; x0=ev.touches[0].clientX; y0=ev.touches[0].clientY;
+    clear(); t=setTimeout(function(){ t=null; fired=true; fn(); }, 500);
+  }, {passive:true});
+  node.addEventListener("touchmove", function(ev){
+    if(!t) return;
+    var p=ev.touches[0];
+    if(Math.abs(p.clientX-x0)>10 || Math.abs(p.clientY-y0)>10) clear();      // 스크롤이면 취소
+  }, {passive:true});
+  function end(){ clear(); if(fired){ fired=false; swallowNextClick(); } }   // 얼마나 오래 눌렀든 뗀 순간부터
+  node.addEventListener("touchend", end);
+  node.addEventListener("touchcancel", end);
+  node.addEventListener("contextmenu", function(ev){ ev.preventDefault(); });
+}
+
 /* ══════════════════════ 자동 입금 ══════════════════════ */
 function ensureAllowances(){
   var t=today(), rows=[];
@@ -516,7 +589,7 @@ function ensureAllowances(){
     var have={}, last="";
     S.entries.forEach(function(e){ if(e.child_id===c.id && e.auto_key){ have[e.auto_key]=1;
       if(e.entry_date>last) last=e.entry_date; } });
-    var start = c.weekly_start || (c.created_at||"").slice(0,10) || t;
+    var start = c.weekly_start || localDay(c.created_at) || t;
     var from = last && last>=start ? addDays(last,1) : start;
     var floor = addDays(t,-400);          // 아주 오래 안 열었어도 몇 년치를 한꺼번에 넣지는 않는다
     if(from < floor) from = floor;        // 대신 루프는 항상 오늘까지 도달한다 (예전엔 여기서 끊겨 최근 주가 비었다)
@@ -586,6 +659,7 @@ function render(){
   if(S.editGate) root.appendChild(renderGateSheet());
   if(S.pickDate) root.appendChild(renderDateSheet());
   if(S.kidView) root.appendChild(renderKidView());
+  if(S.entryView) root.appendChild(renderEntryView());
   var sheets=root.querySelectorAll(".sheet");
   if(sheets.length) sheetDrag(sheets[sheets.length-1]);      // 맨 위에 있는 시트만
 }
@@ -603,7 +677,7 @@ function renderHome(){
   var wrap=el("div","screen");
   var c=childOf(S.sel), col=c?(COLORS[c.color]||COLORS.blue):COLORS.blue;
   wrap.style.setProperty("--c", col.hex);
-  wrap.style.setProperty("--c-mid", col.mid);
+  wrap.style.setProperty("--c-name", col.name);
 
   var bar=el("div","bar");
   if(S.children.length>1){
@@ -672,6 +746,7 @@ function renderHome(){
     r.appendChild(el("span","a"+(e.amount>0?" in":""), fmtSigned(e.amount)));
     r.appendChild(el("span","t",fmt(e.total)));
     r.onclick=function(){ navOpen("edit", function(){ S.edit=Object.assign({}, e, {amountStr:String(Math.abs(e.amount)), sign:e.amount>0?1:-1, arm:false}); }); };
+    longPress(r, function(){ navOpen("entryView", function(){ S.entryView=e; }); });
     wrap.appendChild(r);
   });
   if(rows.length > shown.length){
@@ -686,7 +761,7 @@ function renderHome(){
 
 /* 통장 맨 아래 — 시작할 때 있던 돈. 눌러서 고친다. */
 function ledgerStart(c){           // 이 통장이 시작된 날 (아이 등록일과 가장 이른 기록 중 빠른 쪽)
-  var d=(c.created_at||"").slice(0,10) || today();
+  var d=localDay(c.created_at) || today();
   entriesFor(c.id).forEach(function(e){ if(e.entry_date < d) d=e.entry_date; });
   return d;
 }
@@ -727,14 +802,15 @@ function renderNewRow(){
   row.appendChild(memo);
 
   var acell=el("div","acell");
-  var sign=el("button","sign"+(d.sign>0?" plus":""), d.sign>0?"+":"\u2212");
-  sign.setAttribute("aria-label", d.sign>0?"받은 돈":"쓴 돈");
-  sign.onclick=function(){
-    d.sign=-d.sign;
-    sign.textContent=d.sign>0?"+":"\u2212";
-    sign.className="sign"+(d.sign>0?" plus":"");
-    sign.setAttribute("aria-label", d.sign>0?"받은 돈":"쓴 돈");
-  };
+  var sign=el("button","sign");
+  function setSign(v){            // 화면을 다시 그리지 않는다 — render() 를 부르면 키보드가 내려간다
+    d.sign=v;
+    sign.textContent = v>0?"+":"\u2212";
+    sign.className = "sign"+(v>0?" plus":"");
+    sign.setAttribute("aria-label", v>0?"받은 돈":"쓴 돈");
+  }
+  setSign(d.sign);
+  sign.onclick=function(){ setSign(-d.sign); };
   acell.appendChild(sign);
   var amt=el("input","amt"); amt.type="text"; amt.inputMode="numeric"; amt.placeholder="0";
   amt.value=d.amount?Number(d.amount).toLocaleString("ko-KR"):""; amt.enterKeyHint="done";
@@ -770,9 +846,9 @@ function renderNewRow(){
       var ms=recentMemos(S.sel); if(!ms.length) return;
       var box2=el("div","chips");
       ms.forEach(function(m){
-        var b=el("button",null,m);
+        var b=el("button",null,m.memo);
         b.onmousedown=function(ev){ ev.preventDefault(); };
-        b.onclick=function(){ d.memo=m; memo.value=m; amt.focus(); };
+        b.onclick=function(){ d.memo=m.memo; memo.value=m.memo; setSign(m.sign); amt.focus(); };   // 부호도 같이 따라온다
         box2.appendChild(b);
       });
       slot.appendChild(box2);
@@ -820,8 +896,10 @@ function renderEditSheet(){
   b3.onclick=function(){ openDatePick("edit", e.entry_date); };
   g3.appendChild(b3); f.appendChild(g3);
 
-  if(e.created_by && !e.auto_key){       // 누가 적었는지. 자동 줄은 사람이 적은 게 아니라 뺀다
-    f.appendChild(el("p","note", e.created_by===store.userId ? "내가 적었어요" : "다른 기기에서 적었어요"));
+  if((e.updated_by || e.created_by) && !e.auto_key){   // 마지막으로 손댄 사람. 자동 줄은 사람이 적은 게 아니라 뺀다
+    var who = e.updated_by || e.created_by;            // 옛 줄은 updated_by 가 없어서 적은 사람으로 폴백
+    var fixed = !!e.updated_by && !!e.created_by && e.updated_by !== e.created_by;   // 적은 사람과 다르면 고친 것
+    f.appendChild(el("p","note", (who===store.userId ? "내가 " : "다른 기기에서 ") + (fixed ? "고쳤어요" : "적었어요")));
   }
 
   var btns=el("div","btns");
@@ -842,7 +920,7 @@ function renderEditSheet(){
   var cancel=el("button","btn","취소"); cancel.onclick=navBack;
   var save=el("button","btn pri","저장"); save.onclick=function(){
     var n=Number(e.amountStr); if(!(n>0)){ toast("금액을 넣어주세요"); return; }
-    var patch={entry_date:e.entry_date, memo:(e.memo||"").trim(), amount:e.sign*n};
+    var patch={entry_date:e.entry_date, memo:(e.memo||"").trim(), amount:e.sign*n, updated_by:store.userId};
     var id=e.id; navBack();
     var t=S.entries.find(function(x){return x.id===id;}); if(t) Object.assign(t,patch);
     render();
