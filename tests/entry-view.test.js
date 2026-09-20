@@ -229,6 +229,16 @@ await p.click('.sheet button:has-text("취소")'); await p.waitForTimeout(300);
 await p.click('.row >> nth=0'); await p.waitForTimeout(350);
 T('적는 중이 아니면 한 번에 열린다', !!(await p.$('.sheet')));
 await p.click('.sheet button:has-text("취소")'); await p.waitForTimeout(300);
+// 칩을 눌러 금액칸으로 넘어간 상태에서도 마찬가지 (포커스가 용도칸이 아니어도)
+await load([E('e1','용돈',3000,'2026-09-18')]);
+await p.click('input.memo'); await p.waitForTimeout(250);
+await p.click('.chips button:has-text("용돈")'); await p.waitForTimeout(250);
+T('칩을 누르면 금액칸에 포커스', await p.evaluate(()=>document.activeElement.className.includes('amt')));
+await p.click('.row >> nth=0'); await p.waitForTimeout(350);
+T('칩 누른 뒤 밖을 눌러도 고치기가 안 열린다', !(await p.$('.sheet')));
+await p.click('.row >> nth=0'); await p.waitForTimeout(350);
+T('그다음 탭에는 열린다', !!(await p.$('.sheet')));
+await p.click('.sheet button:has-text("취소")'); await p.waitForTimeout(300);
 T('부호도 같이 되돌아온다', await (async()=>{ await p.click('.entry .sign'); await p.waitForTimeout(150);
   const plus=await p.$eval('.entry .sign',e=>e.className.includes('plus'));
   await p.click('input.memo'); await p.waitForTimeout(150);

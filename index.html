@@ -754,15 +754,26 @@ function renderHome(){
   // 기록 줄을 밟기 쉬운데, 그때마다 고치기 시트가 뜨면 나가려다 더 들어가는 꼴이 된다.
   // 시트를 열었을 때 딤을 누르면 시트만 닫히는 것과 같은 규칙. 누르려던 건 한 번 더 누르면 된다.
   // 캡처 단계에서 잡아야 기록 줄의 onclick 보다 먼저 멈출 수 있다.
+  // 손이 닿는 순간의 상태를 적어둔다. click 때 보면 이미 늦다 —
+  // 화면을 건드리면 그 전에 입력칸의 포커스가 풀려서 "적는 중"이 아닌 걸로 읽힌다.
+  var wasTyping=false;
+  wrap.addEventListener("pointerdown", function(ev){
+    var a=document.activeElement;
+    wasTyping = S.memoFocus || S.datePick || !!(a && a.closest && a.closest(".entry"));
+  }, true);
   wrap.addEventListener("click", function(ev){
     if(ev.target.closest(".entry, .chips")) return;
-    var d=S.draft, a=document.activeElement;
-    var keyboard = S.memoFocus || S.datePick || !!(a && a.closest && a.closest(".entry"));
+    var d=S.draft;
     var dirty = d.memo || d.amount || d.sign>0 || d.date!==today();
-    if(!keyboard && !dirty) return;
-    if(keyboard){ ev.preventDefault(); ev.stopPropagation(); }   // 나가려는 탭은 여기서 끝낸다
+    if(!wasTyping && !dirty) return;
+    // 탭을 먹는 건 기록 목록에서만. 키보드가 화면 절반을 덮은 채 "빈 곳"을 노리다 밟는 곳이 거기다.
+    // 위의 아이 탭·설정·잔액은 작고 일부러 누르는 자리라 그대로 동작한다(적던 건 비워진다).
+    if(wasTyping && ev.target.closest(".row, .more, .thead, .mdiv, .empty-msg")){
+      ev.preventDefault(); ev.stopPropagation();
+    }
+    wasTyping=false;
     S.memoFocus=false; S.datePick=false;
-    if(a && a.blur) a.blur();
+    var a=document.activeElement; if(a && a.blur) a.blur();
     if(!d.amount) resetDraft();     // 금액을 안 넣었으면 적다 만 것 — 지운다. 금액까지 쳤으면 남긴다
     render();
   }, true);
