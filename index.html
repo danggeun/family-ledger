@@ -97,17 +97,9 @@ input{border:0; background:none; outline:none; min-width:0}
 .balbtn{display:flex; align-items:baseline; gap:5px; margin-left:-6px; padding:0 8px 0 6px; border-radius:12px}
 .balbtn:active{background:var(--wash)}
 .balbtn .pig{align-self:center; width:31px; height:28px; margin-left:8px; object-fit:contain}
-.load{display:flex; align-items:center; justify-content:center; min-height:72dvh}
-.load .slot{position:relative; width:112px; height:156px}
-.load .pig{position:absolute; left:0; bottom:0; width:112px; height:auto; aspect-ratio:112/100}
-.load .coin{position:absolute; left:50%; top:0; margin-left:-13px; animation:drop 1.15s ease-in infinite}
-@keyframes drop{                      /* 위에서 떨어져 등의 구멍으로 쏙 */
-  0%{transform:translateY(0); opacity:0}
-  18%{opacity:1}
-  70%{transform:translateY(40px); opacity:1}
-  88%,100%{transform:translateY(56px) scaleY(.65); opacity:0}
-}
-@media (prefers-reduced-motion: reduce){ .load .coin{animation:none; opacity:1} }
+.load{opacity:0; animation:showlate .45s ease-out .35s forwards}   /* 빠르면 아예 안 보인다 */
+@keyframes showlate{ from{opacity:0; transform:translateY(4px)} to{opacity:1; transform:none} }
+@media (prefers-reduced-motion: reduce){ .load{animation-duration:.01s} }
 .kid{position:fixed; inset:0; z-index:60; background:#FDF6E7; color:#2B1D14; overflow:auto;
   display:flex; flex-direction:column; align-items:center; padding:calc(var(--sat) + 64px) 24px calc(32px + var(--sab))}
 .kid .x{position:absolute; top:calc(var(--sat) + 10px); right:14px; width:40px; height:40px; border-radius:50%;
@@ -725,18 +717,10 @@ function render(){
   if(sheets.length) sheetDrag(sheets[sheets.length-1]);      // 맨 위에 있는 시트만
 }
 
-/* 불러오는 동안 — 글자 대신 저금통에 동전이 들어간다.
-   보통 1초도 안 걸려서 중간에 끊겨도 어색하지 않게, 동전 하나가 계속 떨어지는 단순한 반복으로. */
-function renderLoading(){
-  var v=el("div","load"), box=el("div","slot");
-  box.innerHTML='<svg class="coin" width="26" height="26" viewBox="0 0 26 26">'+
-    '<circle cx="13" cy="13" r="12" fill="#F6C443"/><circle cx="13" cy="13" r="8.5" fill="#FBD86A"/>'+
-    '<path d="M 7.5 9.5 A 7.5 7.5 0 0 1 11.5 5.8" stroke="#fff" stroke-opacity=".8" stroke-width="2.2" stroke-linecap="round" fill="none"/></svg>';
-  // 시작 화면 판(logo-pig-t)에는 로고의 금화가 이미 그려져 있어 떨어지는 동전과 겹친다. 돼지만 있는 판을 쓴다
-  var pig=document.createElement("img"); pig.className="pig"; pig.src="logo-pig-sm.png"; pig.alt="";
-  box.appendChild(pig); v.appendChild(box);
-  return v;
-}
+/* 불러오는 동안. 보통 1초도 안 걸려서 **아무것도 안 보이는 게 가장 깔끔하다** —
+   0.35초까지는 빈 화면이고, 그보다 오래 걸릴 때만 글자가 스르륵 올라온다.
+   (그림을 넣어봤다가 뺐다: 순간만 스치니 큰 그림이 잔상처럼 남아 거슬렸다.) */
+function renderLoading(){ return el("div","empty-msg load","불러오는 중…"); }
 
 /* ── 홈 ── */
 function offlineBar(){
