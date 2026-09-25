@@ -25,6 +25,9 @@ T('이름 22px', await p.$eval('.kid .kn',e=>getComputedStyle(e).fontSize==='22p
 let r=await rows();
 T('16,300 = 10000·5000·1000·100×3', r.length===4 && r[0].t==='10000'&&r[0].n===1 && r[1].t==='5000' && r[2].t==='1000' && r[3].t==='100'&&r[3].n===3);
 T('×n 없음', r.every(x=>x.x===''));
+// 숫자의 세로 위치는 글꼴에 맡기지 않는다 — dominant-baseline 은 기기 글꼴마다 위아래로 밀린다
+T('숫자는 밑줄을 직접 놓는다', await p.$$eval('.kid .money svg text',es=>
+  es.length>0 && es.every(e=>e.getAttribute('dy')==='.35em' && !e.getAttribute('dominant-baseline'))));
 T('문구·버튼 없음(닫기만)', (await p.$$('.kid button')).length===1);
 await p.click('.kid .ka'); await p.waitForTimeout(200);
 T('아무 데나 누르면 닫힘', !(await p.$('.kid')));

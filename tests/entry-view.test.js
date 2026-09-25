@@ -157,13 +157,15 @@ T('잔액 화면(가진 돈)도 꽉 찬 색', await (async()=>{ await p.click('.
 // ── 6) 한 줄 그림은 들어가는 한 크게 ─────────────────────────
 await load([E('e1','젤리',-800,'2026-09-18')]);
 await press('.row >> nth=0', 700);
-const zoom=()=>p.$eval('.kid.one .money',e=>parseFloat(e.style.zoom||'1'));
+// 배율은 CSS zoom 이 아니라 그림 자체 크기로 준다 — 지폐의 실제 그려진 너비로 잰다
+const zoom=()=>p.$eval('.kid.one .money svg',e=>+(e.getAttribute('width')/e.viewBox.baseVal.width).toFixed(2));
 T('적은 금액은 크게 (1.3배 이상)', (await zoom())>=1.3);
 T('한 화면에 들어감', await p.$eval('.kid.one',e=>e.scrollHeight<=e.clientHeight+1));
 await p.goBack(); await p.waitForTimeout(350);
 await load([E('e1','자전거',-99990,'2026-09-18')]);
 await press('.row >> nth=0', 700);
 T('큰 금액(99,990·8줄)은 배율을 줄인다', (await zoom())<1.6);
+T('CSS zoom 은 쓰지 않는다 (사파리에서 어긋난다)', await p.$eval('.kid.one .money',e=>!e.style.zoom));
 T('큰 금액도 한 화면에', await p.$eval('.kid.one',e=>e.scrollHeight<=e.clientHeight+1));
 T('가로로도 안 잘린다', await p.$eval('.kid.one',e=>e.scrollWidth<=e.clientWidth+1));
 await p.goBack(); await p.waitForTimeout(350);

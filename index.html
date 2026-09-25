@@ -110,11 +110,12 @@ input{border:0; background:none; outline:none; min-width:0}
 .kid .ka b{font-size:var(--t7); font-weight:800; letter-spacing:-.04em; line-height:1.05}
 .kid .ka i{font-style:normal; font-size:var(--t5); font-weight:600; color:#8C7B66}
 .kid .ka b.in{color:var(--in)}                     /* 받은 돈은 목록과 같은 초록 */
-.kid.slide-l{animation:kin-l .18s ease-out}
-.kid.slide-r{animation:kin-r .18s ease-out}
-@keyframes kin-l{from{opacity:.3; transform:translateX(26px)} to{opacity:1; transform:none}}
-@keyframes kin-r{from{opacity:.3; transform:translateX(-26px)} to{opacity:1; transform:none}}
-@media (prefers-reduced-motion: reduce){ .kid.slide-l,.kid.slide-r{animation:none} }
+/* 화면 전체를 움직이면 잠깐 뒤(홈 목록)가 비친다. 돼지는 어차피 그대로니 **바뀌는 것만** 움직인다 */
+.kid.slide-l .kn,.kid.slide-l .ka,.kid.slide-l .money{animation:kin-l .18s ease-out}
+.kid.slide-r .kn,.kid.slide-r .ka,.kid.slide-r .money{animation:kin-r .18s ease-out}
+@keyframes kin-l{from{opacity:0; transform:translateX(22px)} to{opacity:1; transform:none}}
+@keyframes kin-r{from{opacity:0; transform:translateX(-22px)} to{opacity:1; transform:none}}
+@media (prefers-reduced-motion: reduce){ .kid.slide-l *,.kid.slide-r *{animation:none} }
 .kid.one{justify-content:center; padding-top:calc(var(--sat) + 24px)}   /* 한 줄 그림 — 돼지가 없어 위가 비므로 가운데로 */
 .money{display:flex; flex-direction:column; gap:var(--s4); align-items:flex-start; margin-top:var(--s5)}
 .kid.tight .pig{width:150px}      /* 줄이 많거나 화면이 작으면 돼지를 줄여 한 화면에 담는다 */
@@ -498,6 +499,9 @@ var NOTE={50000:{w:134,h:58,c:"#F6C443",i:"#FBD86A",t:"#6B4A00"}, 10000:{w:126,h
           5000:{w:116,h:51,c:"#F4A072",i:"#F9BE9B",t:"#7A3612"},   1000:{w:108,h:48,c:"#86B7E8",i:"#ADCDF1",t:"#1E4A76"}};
 var COIN={500:{d:56,c:"#C8CCD1",i:"#DEE1E5",t:"#3B4046"}, 100:{d:50,c:"#C8CCD1",i:"#DEE1E5",t:"#3B4046"},
           50:{d:42,c:"#C8CCD1",i:"#DEE1E5",t:"#3B4046"},   10:{d:36,c:"#D9A377",i:"#E8BD97",t:"#5C3A1B"}};
+/* 숫자를 도형 한가운데 놓을 때 dominant-baseline 은 쓰지 않는다 — 글꼴의 em 상자 기준이라
+   기기마다(사파리는 SF Pro, 안드로이드는 Noto) 위아래로 밀린다. 그림을 키우면 그만큼 커져서 눈에 띈다.
+   대신 밑줄을 직접 놓는다: 도형 중심 + 0.35em ≈ 숫자 높이의 절반. 어느 글꼴에서나 같은 자리에 온다. */
 var KID_FONT="-apple-system,'Apple SD Gothic Neo','Noto Sans KR',sans-serif";
 /* 나간 돈은 "빠진 자리"로 그린다 — 색을 45%까지 바래고 테두리를 제 색 얇은 점선으로.
    진한 굵은 점선으로도 해봤는데 색칠공부처럼 투박해졌다. 옅은 판이 훨씬 낫고,
@@ -509,30 +513,33 @@ var GONE_K=0.45;                                    // 남길 색의 양
 function goneEdge(hex){ return ' stroke="'+hex+'" stroke-width="2" stroke-dasharray="6 4"'; }
 /* 겹쳐 쌓은 지폐의 바깥선. 같은 크기의 둥근 사각형을 가로로만 밀어 겹친 것이라
    그 합집합은 폭만 늘어난 같은 모양의 둥근 사각형이다 — 한 번만 그리면 된다. */
-function goneSilhouette(v, W){ var d=NOTE[v], r=Math.round(d.h*.18);
-  return '<svg width="'+W+'" height="'+d.h+'" viewBox="0 0 '+W+' '+d.h+'">'+
+function goneSilhouette(v, W, z){ var d=NOTE[v], r=Math.round(d.h*.18); z=z||1;
+  return '<svg width="'+Math.round(W*z)+'" height="'+Math.round(d.h*z)+'" viewBox="0 0 '+W+' '+d.h+'">'+
     '<rect x="1" y="1" width="'+(W-2)+'" height="'+(d.h-2)+'" rx="'+r+'" fill="none"'+goneEdge(d.c)+'/></svg>'; }
-function noteSvg(v, gone, stacked){ var d=NOTE[v], r=Math.round(d.h*.18), n=4, k=gone?GONE_K:1;
+/* 배율(z)은 viewBox 는 그대로 두고 width/height 만 키운다 — 안쪽 좌표를 다시 계산할 필요가 없고,
+   CSS zoom 과 달리 어느 브라우저에서나 같은 그림이 나온다(사파리에서 숫자 위치가 틀어졌다). */
+function noteSvg(v, gone, stacked, z){ var d=NOTE[v], r=Math.round(d.h*.18), n=4, k=gone?GONE_K:1; z=z||1;
   var c=gone?fade(d.c,k):d.c, i2=gone?fade(d.i,k):d.i;
   // 겹쳐 쌓을 때는 각자 점선을 그리지 않는다 — 뒷장 점선과 앞장 점선이 포개져 지저분해진다.
   // 대신 크림 테두리(스티커 컷)로 장끼리만 나누고, 점선은 겹친 덩어리 바깥선 하나로 그린다(goneSilhouette).
   var edge = (gone && !stacked) ? goneEdge(d.c) : ' stroke="#FDF6E7" stroke-width="2"';
-  return '<svg width="'+d.w+'" height="'+d.h+'" viewBox="0 0 '+d.w+' '+d.h+'">'+
+  return '<svg width="'+Math.round(d.w*z)+'" height="'+Math.round(d.h*z)+'" viewBox="0 0 '+d.w+' '+d.h+'">'+
     '<rect x="1" y="1" width="'+(d.w-2)+'" height="'+(d.h-2)+'" rx="'+r+'" fill="'+c+'"'+edge+'/>'+
     '<rect x="'+(n+1)+'" y="'+(n+1)+'" width="'+(d.w-2*n-2)+'" height="'+(d.h-2*n-2)+'" rx="'+(r-2)+'" fill="'+i2+'"/>'+
     '<circle cx="'+(d.h*.44)+'" cy="'+(d.h/2)+'" r="'+(d.h*.22)+'" fill="'+c+'"/>'+
-    '<text x="'+(d.w*.62)+'" y="'+(d.h/2)+'" text-anchor="middle" dominant-baseline="central" font-family="'+KID_FONT+'" font-weight="800" font-size="'+Math.round(d.h*.36)+'" fill="'+d.t+'">'+v+'</text></svg>'; }
-function coinSvg(v, gone){ var d=COIN[v], R=d.d/2, k=gone?GONE_K:1;
+    '<text x="'+(d.w*.62)+'" y="'+(d.h/2)+'" dy=".35em" text-anchor="middle" font-family="'+KID_FONT+'" font-weight="800" font-size="'+Math.round(d.h*.36)+'" fill="'+d.t+'">'+v+'</text></svg>'; }
+function coinSvg(v, gone, z){ var d=COIN[v], R=d.d/2, k=gone?GONE_K:1; z=z||1;
   var c=gone?fade(d.c,k):d.c, i2=gone?fade(d.i,k):d.i;
   var edge = gone ? goneEdge(d.c) : ' stroke="#FDF6E7" stroke-width="2"';
-  return '<svg width="'+d.d+'" height="'+d.d+'" viewBox="0 0 '+d.d+' '+d.d+'">'+
+  return '<svg width="'+Math.round(d.d*z)+'" height="'+Math.round(d.d*z)+'" viewBox="0 0 '+d.d+' '+d.d+'">'+
     '<circle cx="'+R+'" cy="'+R+'" r="'+(R-1)+'" fill="'+c+'"'+edge+'/>'+
     '<circle cx="'+R+'" cy="'+R+'" r="'+(R-5)+'" fill="'+i2+'"/>'+
     '<path d="M '+(R*.55)+' '+(R*.62)+' A '+(R*.62)+' '+(R*.62)+' 0 0 1 '+(R*.9)+' '+(R*.42)+'" stroke="#fff" stroke-opacity=".75" stroke-width="'+Math.max(2,R*.14)+'" stroke-linecap="round" fill="none"/>'+
-    '<text x="'+R+'" y="'+(R+1)+'" text-anchor="middle" dominant-baseline="central" font-family="'+KID_FONT+'" font-weight="800" font-size="'+Math.round(R*.62)+'" fill="'+d.t+'">'+v+'</text></svg>'; }
+    '<text x="'+R+'" y="'+R+'" dy=".35em" text-anchor="middle" font-family="'+KID_FONT+'" font-weight="800" font-size="'+Math.round(R*.62)+'" fill="'+d.t+'">'+v+'</text></svg>'; }
 function splitWon(n){ var out=[]; n=Math.max(0,Math.round(n||0));
   [50000,10000,5000,1000,500,100,50,10].forEach(function(v){ var c=Math.floor(n/v); if(c){ out.push([v,c]); n-=c*v; } }); return out; }
-function moneyRows(n, gone){
+function moneyRows(n, gone, z){
+  z=z||1;
   var box=el("div","money");
   splitWon(n).forEach(function(p){ var v=p[0], c=p[1], isN=v>=1000, d=isN?NOTE[v]:COIN[v], w=isN?d.w:d.d, h=isN?d.h:d.d;
     // 지폐는 부채꼴로 겹치고, 동전은 나란히. 다섯 장을 넘으면 한 장만 놓고 ×n —
@@ -540,9 +547,10 @@ function moneyRows(n, gone){
     // 줄이 길어져 화면 밖으로 잘리는 일도 이걸로 원천봉쇄된다.
     var step=isN?Math.round(w*.30):w+6, show=(c<=4?c:1);
     var W=w+step*(show-1), stacked=isN && show>1;
-    var row=el("div","row"), st=el("div","st"); st.style.width=W+"px"; st.style.height=h+"px";
-    var html=""; for(var i=0;i<show;i++) html+='<div style="position:absolute;left:'+(i*step)+'px;top:0">'+(isN?noteSvg(v,gone,stacked):coinSvg(v,gone))+'</div>';
-    if(gone && stacked) html+='<div style="position:absolute;left:0;top:0">'+goneSilhouette(v,W)+'</div>';
+    var row=el("div","row"), st=el("div","st");
+    st.style.width=Math.round(W*z)+"px"; st.style.height=Math.round(h*z)+"px";
+    var html=""; for(var i=0;i<show;i++) html+='<div style="position:absolute;left:'+Math.round(i*step*z)+'px;top:0">'+(isN?noteSvg(v,gone,stacked,z):coinSvg(v,gone,z))+'</div>';
+    if(gone && stacked) html+='<div style="position:absolute;left:0;top:0">'+goneSilhouette(v,W,z)+'</div>';
     st.innerHTML=html; row.appendChild(st);
     if(c>show){        // 5만원권만 여기 올 수 있다 (탐욕 분해). 몇 장인지가 한눈에 들어와야 한다.
       // "장" 같은 글자는 넣지 않는다 — 이 화면의 라벨은 전부 숫자다(50000·1000·500).
@@ -641,7 +649,8 @@ function renderEntryView(){
     v.classList.remove("tight","tighter");
     var zooms=[1.6,1.45,1.3,1.15,1];
     for(var i=0;i<zooms.length;i++){
-      money.style.zoom=zooms[i];
+      var m2=moneyRows(Math.abs(e.amount), e.amount<0, zooms[i]);
+      v.replaceChild(m2, money); money=m2;
       // 가로도 같이 본다 — 5만원권 다섯 장을 겹쳐 쌓은 줄은 키우면 화면 밖으로 밀려 잘린다
       if(v.scrollHeight <= v.clientHeight && v.scrollWidth <= v.clientWidth) return;
     }
