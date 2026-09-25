@@ -100,7 +100,7 @@ input{border:0; background:none; outline:none; min-width:0}
 .load{opacity:0; animation:showlate .45s ease-out .35s forwards}   /* 빠르면 아예 안 보인다 */
 @keyframes showlate{ from{opacity:0; transform:translateY(4px)} to{opacity:1; transform:none} }
 @media (prefers-reduced-motion: reduce){ .load{animation-duration:.01s} }
-.kid{position:fixed; inset:0; z-index:60; background:#FDF6E7; color:#2B1D14; overflow:auto;
+.kid{position:fixed; inset:0; z-index:60; background:#FDF6E7; color:#2B1D14; overflow:auto; touch-action:pan-y;
   display:flex; flex-direction:column; align-items:center; padding:calc(var(--sat) + 64px) 24px calc(32px + var(--sab))}
 .kid .x{position:absolute; top:calc(var(--sat) + 10px); right:14px; width:40px; height:40px; border-radius:50%;
   display:flex; align-items:center; justify-content:center; font-size:var(--t6); font-weight:300; color:#B9AB96}
@@ -110,6 +110,11 @@ input{border:0; background:none; outline:none; min-width:0}
 .kid .ka b{font-size:var(--t7); font-weight:800; letter-spacing:-.04em; line-height:1.05}
 .kid .ka i{font-style:normal; font-size:var(--t5); font-weight:600; color:#8C7B66}
 .kid .ka b.in{color:var(--in)}                     /* 받은 돈은 목록과 같은 초록 */
+.kid.slide-l{animation:kin-l .18s ease-out}
+.kid.slide-r{animation:kin-r .18s ease-out}
+@keyframes kin-l{from{opacity:.3; transform:translateX(26px)} to{opacity:1; transform:none}}
+@keyframes kin-r{from{opacity:.3; transform:translateX(-26px)} to{opacity:1; transform:none}}
+@media (prefers-reduced-motion: reduce){ .kid.slide-l,.kid.slide-r{animation:none} }
 .kid.one{justify-content:center; padding-top:calc(var(--sat) + 24px)}   /* 한 줄 그림 — 돼지가 없어 위가 비므로 가운데로 */
 .money{display:flex; flex-direction:column; gap:var(--s4); align-items:flex-start; margin-top:var(--s5)}
 .kid.tight .pig{width:150px}      /* 줄이 많거나 화면이 작으면 돼지를 줄여 한 화면에 담는다 */
@@ -554,8 +559,10 @@ function moneyRows(n, gone){
 }
 function renderKidView(){
   var c=childOf(S.kidView), col=COLORS[(c||{}).color]||COLORS.blue;
-  var v=el("div","kid"); v.style.setProperty("--c-name",col.name);
-  v.onclick=navBack;
+  var v=el("div","kid"+(kidSlide?" slide-"+kidSlide:"")); kidSlide=null;
+  v.style.setProperty("--c-name",col.name);
+  v.onclick=function(){ if(kidDragClick){ kidDragClick=false; return; } navBack(); };   // 끌어서 생긴 click 은 닫기가 아니다
+  kidSwipe(v);
   var x=el("button","x","\u2715"); x.setAttribute("aria-label","닫기"); v.appendChild(x);
   var pig=document.createElement("img"); pig.className="pig"; pig.src="logo-pig.png"; pig.alt=""; v.appendChild(pig);
   v.appendChild(el("div","kn",c?c.name:""));
@@ -568,6 +575,52 @@ function renderKidView(){
   }
   requestAnimationFrame(fit); pig.addEventListener("load", fit);
   return v;
+}
+
+/* 아이 화면에서 좌우로 밀면 다른 아이 돈이 나온다. 애들한테 차례로 보여주는 동작이라
+   **엄마가 고르고 있던 아이(S.sel)는 건드리지 않는다** — 닫으면 원래 통장으로 돌아온다.
+   확인 버튼 없이 아무 데나 누르면 닫히는 화면이라 이건 "이동"이 아니라 "훑어보기"다.
+   화면 가장자리는 안드로이드 뒤로 가기 몫이라 비워 둔다. */
+var kidSlide=null, kidDragClick=false;
+function kidSwipe(node){
+  var x0=0, y0=0, t0=0, on=false, moved=false, go=false, edge=false;
+  // 새로 누르기 시작하면 지난 번 표시는 버린다. 끌고 나서 click 이 아예 안 오는 경우가 있어
+  // 그 표시가 남으면 다음에 일부러 누른 닫기를 먹는다. pointerdown 이라 터치·마우스 둘 다 지난다
+  node.addEventListener("pointerdown", function(){ kidDragClick=false; }, {passive:true});
+  node.addEventListener("touchstart", function(e){
+    if(e.touches.length!==1){ on=false; return; }
+    var t=e.touches[0];
+    on=true; moved=false; go=false;
+    edge = t.clientX<=40 || t.clientX >= window.innerWidth-40;   // 가장자리는 안드로이드 뒤로 가기 몫
+    x0=t.clientX; y0=t.clientY; t0=e.timeStamp;
+  }, {passive:true});
+  node.addEventListener("touchmove", function(e){
+    if(!on) return;
+    var t=e.touches[0], dx=t.clientX-x0, dy=t.clientY-y0;
+    if(Math.abs(dx)>10 || Math.abs(dy)>10) moved=true;           // 끈 것은 누른 게 아니다
+    if(Math.abs(dy)>Math.abs(dx)){ if(!go) return; }             // 세로가 우세하면 스크롤에 양보
+    else if(Math.abs(dx)>10) go=true;
+    // 가로로 끄는 동안은 기본 동작을 막는다 — 안 막으면 브라우저가 "뒤로 가기"로 가져간다(세로는 pan-y 로 열어둠)
+    if(go && e.cancelable) e.preventDefault();
+  }, {passive:false});
+  function end(e){
+    if(!on) return; on=false;
+    // 끌었으면 그 터치가 만든 click 하나만 무시한다 — 스와이프가 빗나가도 화면이 사라지지 않게.
+    // 시간으로 막으면 민 직후 일부러 누른 닫기까지 먹는다
+    if(moved) kidDragClick=true;
+    if(!go || edge || S.children.length<2) return;
+    var t=e.changedTouches && e.changedTouches[0]; if(!t) return;
+    var dx=t.clientX-x0, ab=Math.abs(dx);
+    var fast = ab>60 && ab/Math.max(1,e.timeStamp-t0) > 0.45;
+    if(!(fast || ab > window.innerWidth*0.22)) return;           // 살짝 민 것은 그냥 제자리
+    var ids=S.children.map(function(c){ return c.id; }), i=ids.indexOf(S.kidView);
+    if(i<0) return;
+    S.kidView = ids[(i + (dx<0?1:-1) + ids.length) % ids.length];   // 끝에서 처음으로 — 애들이 계속 밀 수 있게
+    kidSlide = dx<0 ? "l" : "r";
+    render();
+  }
+  node.addEventListener("touchend", end);
+  node.addEventListener("touchcancel", end);
 }
 
 /* 한 줄을 길게 누르면 그 금액만 그림으로.

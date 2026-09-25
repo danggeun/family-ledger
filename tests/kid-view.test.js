@@ -58,4 +58,46 @@ await p.click('.bar .k:nth-child(2)'); await p.waitForTimeout(200); await p.clic
 T('0원이면 줄 없음, 화면은 뜸', !!(await p.$('.kid')) && (await rows()).length===0 && (await p.textContent('.kid .kn'))==='하준');
 T('노랑 아이 이름색 (금색)', await p.$eval('.kid .kn',e=>getComputedStyle(e).color==='rgb(183, 141, 0)'));
 
-console.log(`\n${pass} passed, ${fail} failed`); console.log('errors:',errs.join('|')||'none'); await b.close(); process.exit(fail?1:0);})();
+
+// ── 좌우로 밀어 다른 아이 보여주기 (보여주기일 뿐, 고른 아이는 안 바뀐다) ──
+const cdp=await ctx.newCDPSession(p);
+const swipe=async(x0,y0,x1,y1,ms=180)=>{
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:x0,y:y0}]});
+  for(let i=1;i<=6;i++){ await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',
+    touchPoints:[{x:x0+(x1-x0)*i/6, y:y0+(y1-y0)*i/6}]}); await p.waitForTimeout(ms/6); }
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+  await p.waitForTimeout(350);
+};
+const who=()=>p.textContent('.kid .kn');
+await p.evaluate((s)=>eval(s),`(${SEED.toString()})(16300,5000)`);
+await p.evaluate(()=>localStorage.setItem('yd_sel','k1'));      // 앞 구간이 하준을 골라둔 상태를 초기화
+await p.reload(); await p.waitForTimeout(600);
+await p.click('.balbtn'); await p.waitForTimeout(350);
+T('서윤 화면에서 시작', (await who())==='서윤');
+await swipe(300,500,90,500);
+T('왼쪽으로 밀면 다음 아이', (await who())==='하준');
+T('화면이 닫히지 않는다', !!(await p.$('.kid')));
+T('금액도 그 아이 것', (await p.textContent('.kid .ka b'))==='5,000');
+await swipe(90,500,300,500);
+T('오른쪽으로 밀면 되돌아온다', (await who())==='서윤');
+await swipe(90,500,300,500);
+T('끝에서 더 밀면 처음으로 돈다', (await who())==='하준');
+await swipe(300,400,260,720);                // 세로가 우세
+T('세로로 밀면 안 바뀐다', (await who())==='하준' && !!(await p.$('.kid')));
+await swipe(300,500,270,500);                // 너무 짧게
+T('살짝 밀면 제자리, 화면도 그대로', (await who())==='하준' && !!(await p.$('.kid')));
+await p.click('.kid .x'); await p.waitForTimeout(300);
+T('닫으면 고르고 있던 아이 그대로', (await p.textContent('.bar .k.on'))==='서윤');
+await p.click('.balbtn'); await p.waitForTimeout(350);
+T('다시 열면 원래 아이', (await who())==='서윤');
+// 가장자리에서 시작한 것은 무시한다. (실기기에서는 그 전에 안드로이드 제스처가 먼저 가져가 화면이 닫힐 수 있는데, 그건 우리가 못 막고 닫히는 건 무해하다)
+await swipe(20,500,300,500);
+T('가장자리에서 시작하면 안 바뀐다', (await who())==='서윤' && !!(await p.$('.kid')));
+await p.click('.kid .x'); await p.waitForTimeout(250);
+// 아이가 한 명이면 아무 일도 없다
+await p.evaluate(()=>{const d=JSON.parse(localStorage.getItem('yd_local_v1')); d.children=[d.children[0]]; localStorage.setItem('yd_local_v1',JSON.stringify(d));});
+await p.reload(); await p.waitForTimeout(600); await p.click('.balbtn'); await p.waitForTimeout(350);
+await swipe(300,500,90,500);
+T('아이가 한 명이면 그대로', (await who())==='서윤' && !!(await p.$('.kid')));
+
+console.log(`\n${pass} passed, ${fail} failed`); console.log('errors:',errs.join('|')||'none'); await b.close(); process.exit(fail||errs.length?1:0);})();
