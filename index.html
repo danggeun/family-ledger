@@ -306,7 +306,7 @@ button.srow{width:100%; text-align:left}
 "use strict";
 
 /* ══════════════════════ 유틸 ══════════════════════ */
-var APP_VERSION = "1.1.3";   // 올릴 때 sw.js 의 CACHE 도 같이
+var APP_VERSION = "1.1.4";   // 올릴 때 sw.js 의 CACHE 도 같이
 
 /* hex = 탭 밑줄·점(면), name = 이름 글자, mid = 작은 글자용 예비값(지금 쓰는 곳은 없다).
    아이들이 "내 색"을 바로 알아보는 게 이 색의 유일한 목적이라 채도를 살린다.
@@ -538,8 +538,26 @@ function coinSvg(v, gone, z){ var d=COIN[v], R=d.d/2, k=gone?GONE_K:1; z=z||1;
     '<text x="'+R+'" y="'+R+'" dy=".35em" text-anchor="middle" font-family="'+KID_FONT+'" font-weight="800" font-size="'+Math.round(R*.62)+'" fill="'+d.t+'">'+v+'</text></svg>'; }
 function splitWon(n){ var out=[]; n=Math.max(0,Math.round(n||0));
   [50000,10000,5000,1000,500,100,50,10].forEach(function(v){ var c=Math.floor(n/v); if(c){ out.push([v,c]); n-=c*v; } }); return out; }
-function moneyRows(n, gone, z){
+/* 빌린 돈(잔액이 마이너스)은 "빈 자리"로 — 안을 채우지 않은 점선 틀 + 옅은 숫자.
+   나간 돈은 있던 게 빠진 흔적이라 바랜 색을 남기지만, 빌린 돈은 아직 채워지지 않은 자리다.
+   나간 돈처럼 바랜 지폐로 그려봤더니 "연한 천원짜리"로 읽혀서, 텅 빈 0원보다 빌린 쪽이 더 많아 보였다.
+   틀만 남기면 돈이 아니라 구멍으로 읽힌다 — 다음 용돈이 이 틀부터 채운다.
+   (나간 돈에서 "덜 그려진 것 같다"고 버렸던 느낌이 여기서는 맞는 뜻이다.)
+   채우는 색이 없어 선이 혼자 모양을 지므로 나간 돈의 점선보다 조금 굵다.
+   겹쳐 쌓을 때는 크림으로 속을 채워 뒷장 선을 가리고 장마다 테두리를 그린다 — 앞장의 왼쪽 선으로 장수가 세어진다. */
+function owedEdge(hex){ return ' stroke="'+hex+'" stroke-width="2.5" stroke-dasharray="7 5"'; }
+function owedNote(v, z){ var d=NOTE[v], r=Math.round(d.h*.18); z=z||1;
+  return '<svg width="'+Math.round(d.w*z)+'" height="'+Math.round(d.h*z)+'" viewBox="0 0 '+d.w+' '+d.h+'">'+
+    '<rect x="1.5" y="1.5" width="'+(d.w-3)+'" height="'+(d.h-3)+'" rx="'+r+'" fill="#FDF6E7"'+owedEdge(d.c)+'/>'+
+    '<text x="'+(d.w*.62)+'" y="'+(d.h/2)+'" dy=".35em" text-anchor="middle" font-family="'+KID_FONT+'" font-weight="800" font-size="'+Math.round(d.h*.36)+'" fill="'+fade(d.t,GONE_K)+'">'+v+'</text></svg>'; }
+function owedCoin(v, z){ var d=COIN[v], R=d.d/2; z=z||1;
+  return '<svg width="'+Math.round(d.d*z)+'" height="'+Math.round(d.d*z)+'" viewBox="0 0 '+d.d+' '+d.d+'">'+
+    '<circle cx="'+R+'" cy="'+R+'" r="'+(R-1.5)+'" fill="#FDF6E7"'+owedEdge(d.c)+'/>'+
+    '<text x="'+R+'" y="'+R+'" dy=".35em" text-anchor="middle" font-family="'+KID_FONT+'" font-weight="800" font-size="'+Math.round(R*.62)+'" fill="'+fade(d.t,GONE_K)+'">'+v+'</text></svg>'; }
+/* look: 없음 = 가진 돈(꽉 찬 색) · "gone" = 나간 돈(바랜 흔적) · "owed" = 빌린 돈(빈 자리) */
+function moneyRows(n, look, z){
   z=z||1;
+  var gone=look==="gone", owed=look==="owed";
   var box=el("div","money");
   splitWon(n).forEach(function(p){ var v=p[0], c=p[1], isN=v>=1000, d=isN?NOTE[v]:COIN[v], w=isN?d.w:d.d, h=isN?d.h:d.d;
     // 지폐는 부채꼴로 겹치고, 동전은 나란히. 다섯 장을 넘으면 한 장만 놓고 ×n —
@@ -549,17 +567,19 @@ function moneyRows(n, gone, z){
     var W=w+step*(show-1), stacked=isN && show>1;
     var row=el("div","row"), st=el("div","st");
     st.style.width=Math.round(W*z)+"px"; st.style.height=Math.round(h*z)+"px";
-    var html=""; for(var i=0;i<show;i++) html+='<div style="position:absolute;left:'+Math.round(i*step*z)+'px;top:0">'+(isN?noteSvg(v,gone,stacked,z):coinSvg(v,gone,z))+'</div>';
+    var html=""; for(var i=0;i<show;i++) html+='<div style="position:absolute;left:'+Math.round(i*step*z)+'px;top:0">'+
+      (owed ? (isN?owedNote(v,z):owedCoin(v,z)) : (isN?noteSvg(v,gone,stacked,z):coinSvg(v,gone,z)))+'</div>';
     if(gone && stacked) html+='<div style="position:absolute;left:0;top:0">'+goneSilhouette(v,W,z)+'</div>';
     st.innerHTML=html; row.appendChild(st);
     if(c>show){        // 5만원권만 여기 올 수 있다 (탐욕 분해). 몇 장인지가 한눈에 들어와야 한다.
       // "장" 같은 글자는 넣지 않는다 — 이 화면의 라벨은 전부 숫자다(50000·1000·500).
       // 곱하기는 작고 연하게(거드는 기호), 장수는 크고 진하게(읽어야 하는 값). 세로는 가운데로 맞춘다.
       var many=el("span","xn"), sym=el("i",null,"\u00d7");
-      sym.style.color=fade(d.t,.55);
+      var tone=owed?fade(d.t,GONE_K):d.t;   // 빈 자리면 틀 속 숫자처럼 옅게
+      sym.style.color=fade(tone,.55);
       many.appendChild(sym);
       many.appendChild(el("b",null,String(c)));
-      many.style.color=d.t;           // 그 지폐의 진한 톤 — 화면에 이미 있는 색이라 새 색을 들이지 않는다
+      many.style.color=tone;          // 그 지폐의 진한 톤 — 화면에 이미 있는 색이라 새 색을 들이지 않는다
       row.appendChild(many);
     }
     box.appendChild(row); });
@@ -574,8 +594,11 @@ function renderKidView(){
   var x=el("button","x","\u2715"); x.setAttribute("aria-label","닫기"); v.appendChild(x);
   var pig=document.createElement("img"); pig.className="pig"; pig.src="logo-pig.png"; pig.alt=""; v.appendChild(pig);
   v.appendChild(el("div","kn",c?c.name:""));
-  var ka=el("div","ka"); ka.appendChild(el("b",null,fmt(balanceOf(S.kidView)))); ka.appendChild(el("i",null,"원")); v.appendChild(ka);
-  v.appendChild(moneyRows(balanceOf(S.kidView)));
+  var bal=balanceOf(S.kidView);
+  var ka=el("div","ka"); ka.appendChild(el("b",null,fmt(bal))); ka.appendChild(el("i",null,"원")); v.appendChild(ka);
+  // 빌려 쓴 만큼은 "빈 자리"로 — 0원(텅 빔)과 마이너스가 아이 눈에 달라야 한다.
+  // 숫자는 그대로 검정 −. 숫자는 부모가 읽고 아이는 그림을 본다. 빨강은 새 색이고 잔소리다
+  v.appendChild(moneyRows(Math.abs(bal), bal<0?"owed":null));
   function fit(){                                       // 넘치면 한 단계씩 줄인다 (작은 폰·큰 금액)
     v.classList.remove("tight","tighter");
     if(v.scrollHeight > v.clientHeight) v.classList.add("tight");
@@ -643,13 +666,13 @@ function renderEntryView(){
   var ka=el("div","ka"), b=el("b",null,fmtSigned(e.amount));
   if(e.amount>0) b.className="in";
   ka.appendChild(b); ka.appendChild(el("i",null,"원")); v.appendChild(ka);
-  var money=moneyRows(Math.abs(e.amount), e.amount<0);   // 나간 돈이면 "빠진 자리"로
+  var money=moneyRows(Math.abs(e.amount), e.amount<0?"gone":null);   // 나간 돈이면 "빠진 자리"로
   v.appendChild(money);
   function fit(){          // 돼지가 없어 헐거우므로 들어가는 한 크게. 그래도 넘치면 아이 화면과 같은 규칙으로 줄인다
     v.classList.remove("tight","tighter");
     var zooms=[1.6,1.45,1.3,1.15,1];
     for(var i=0;i<zooms.length;i++){
-      var m2=moneyRows(Math.abs(e.amount), e.amount<0, zooms[i]);
+      var m2=moneyRows(Math.abs(e.amount), e.amount<0?"gone":null, zooms[i]);
       v.replaceChild(m2, money); money=m2;
       // 가로도 같이 본다 — 5만원권 다섯 장을 겹쳐 쌓은 줄은 키우면 화면 밖으로 밀려 잘린다
       if(v.scrollHeight <= v.clientHeight && v.scrollWidth <= v.clientWidth) return;
