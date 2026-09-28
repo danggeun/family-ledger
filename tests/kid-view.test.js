@@ -60,6 +60,39 @@ await p.click('.kid'); await p.waitForTimeout(150);
 await p.click('.bar .k:nth-child(2)'); await p.waitForTimeout(200); await p.click('.balbtn'); await p.waitForTimeout(300);
 T('0원이면 줄 없음, 화면은 뜸', !!(await p.$('.kid')) && (await rows()).length===0 && (await p.textContent('.kid .kn'))==='하준');
 T('노랑 아이 이름색 (금색)', await p.$eval('.kid .kn',e=>getComputedStyle(e).color==='rgb(183, 141, 0)'));
+await p.click('.kid .x'); await p.waitForTimeout(200);
+
+
+// ── 빌린 돈(마이너스 잔액)은 "빈 자리" — 텅 빈 0원과 달라야 하고, 가진 돈처럼 보이면 안 된다 ──
+const marks=()=>p.$$eval('.kid .money svg',es=>es.map(e=>{const n=e.querySelector('rect,circle'), t=e.querySelector('text');
+  return {fill:n.getAttribute('fill'), stroke:n.getAttribute('stroke'), dash:n.getAttribute('stroke-dasharray')||'',
+          parts:e.querySelectorAll('rect,circle,path').length, tf:t.getAttribute('fill')};}));
+await p.evaluate((s)=>eval(s),`(${SEED.toString()})(-2000,-12500)`);
+await p.evaluate(()=>localStorage.setItem('yd_sel','k1'));
+await p.reload(); await p.waitForTimeout(600);
+await p.click('.balbtn'); await p.waitForTimeout(350);
+T('마이너스 숫자는 −2,000', (await p.textContent('.kid .ka b'))==='−2,000');
+T('숫자는 그대로 검정 (빨강·옅은 색 아님)', await p.$eval('.kid .ka b',e=>getComputedStyle(e).color==='rgb(43, 29, 20)'));
+r=await rows(); let m=await marks();
+T('빌린 만큼 빈 자리가 그려진다 (0원과 다르다)', r.length===1 && r[0].t==='1000' && r[0].n===2);
+T('빈 자리는 속을 채우지 않는다 (크림)', m.every(x=>x.fill==='#FDF6E7'));
+T('빈 자리는 제 색 점선 틀', m.every(x=>x.dash==='7 5' && x.stroke==='#86B7E8'));
+T('안쪽 무늬 없이 틀 하나 (가진 돈의 동그라미·하이라이트 없음)', m.every(x=>x.parts===1));
+T('틀 속 숫자는 옅게', m.every(x=>x.tf!=='#1E4A76'));
+T('겹친 빈 자리는 장마다 제 틀 (앞장 왼쪽 선으로 장수가 보인다)', await p.$$eval('.kid .money .row svg',es=>es.length===2));
+await p.click('.kid .x'); await p.waitForTimeout(200);
+await p.click('.bar .k:nth-child(2)'); await p.waitForTimeout(200); await p.click('.balbtn'); await p.waitForTimeout(350);
+r=await rows(); m=await marks();
+T('−12,500 = 빈 10000 · 1000×2 · 500', r.map(x=>x.t+'×'+x.n).join()==='10000×1,1000×2,500×1');
+T('동전도 빈 자리', m[m.length-1].fill==='#FDF6E7' && m[m.length-1].dash==='7 5');
+await p.click('.kid .x'); await p.waitForTimeout(200);
+await p.evaluate((s)=>eval(s),`(${SEED.toString()})(-300000,0)`);
+await p.evaluate(()=>localStorage.setItem('yd_sel','k1'));
+await p.reload(); await p.waitForTimeout(600);
+await p.click('.balbtn'); await p.waitForTimeout(350);
+T('빚이 커도 한 장 + ×6, 가로로 안 잘린다', (await rows())[0].x==='×6' && await p.$eval('.kid',e=>e.scrollWidth<=e.clientWidth+1));
+T('빈 자리의 ×n 은 옅은 톤', await p.$eval('.kid .money .xn',e=>getComputedStyle(e).color!=='rgb(107, 74, 0)'));
+await p.click('.kid .x'); await p.waitForTimeout(200);
 
 
 // ── 좌우로 밀어 다른 아이 보여주기 (보여주기일 뿐, 고른 아이는 안 바뀐다) ──
