@@ -306,7 +306,7 @@ button.srow{width:100%; text-align:left}
 "use strict";
 
 /* ══════════════════════ 유틸 ══════════════════════ */
-var APP_VERSION = "1.1.4";   // 올릴 때 sw.js 의 CACHE 도 같이
+var APP_VERSION = "1.1.5";   // 올릴 때 sw.js 의 CACHE 도 같이
 
 /* hex = 탭 밑줄·점(면), name = 이름 글자, mid = 작은 글자용 예비값(지금 쓰는 곳은 없다).
    아이들이 "내 색"을 바로 알아보는 게 이 색의 유일한 목적이라 채도를 살린다.
@@ -490,6 +490,27 @@ function recentMemos(cid){
     .sort(function(a,b){ return b.n-a.n || a.at-b.at; })
     .slice(0,4)
     .map(function(r){ return {memo:r.memo, sign: r.plus>r.minus ? 1 : r.minus>r.plus ? -1 : r.recent}; });
+}
+
+/* 용도를 치기만 해도 부호가 따라온다 — 칩을 누를 때와 같은 규칙(다수 → 동률이면 최근).
+   "용돈(장난감)" "용돈(큰아빠)" 처럼 괄호로 덧붙여 쓰므로, 똑같은 용도가 없으면 괄호 앞 말로 묶어서 본다.
+   자동 용돈 줄도 센다 — "용돈"이 받은 돈이라는 가장 확실한 근거라서. 아이마다 뜻이 같으니 가족 전체 기록으로 본다.
+   처음 보는 말이면 0 (부르는 쪽이 처음 상태인 쓴 돈으로 둔다). */
+function memoBase(m){ return m.split(/[(（]/)[0].trim(); }
+function signForMemo(text){
+  var m=(text||"").trim(); if(!m) return 0;
+  var b=memoBase(m), same={p:0,n:0,at:"",r:0}, base={p:0,n:0,at:"",r:0};
+  S.entries.forEach(function(e){
+    if(e.skipped) return;
+    var em=(e.memo||"").trim(); if(!em) return;
+    var g = em===m ? same : (b && memoBase(em)===b) ? base : null; if(!g) return;
+    if(g===same) tally(base, e);                  // 똑같은 용도도 괄호 앞 말 묶음에 들어간다
+    tally(g, e);
+  });
+  return pick(same) || pick(base);
+  function tally(g, e){ if(e.amount>0) g.p++; else g.n++;
+    var at=e.entry_date+"|"+(e.created_at||""); if(at>=g.at){ g.at=at; g.r=e.amount>0?1:-1; } }
+  function pick(g){ return g.p>g.n ? 1 : g.n>g.p ? -1 : g.r; }
 }
 
 /* ══════════════════════ 아이에게 보여주기 — 돈 그림 ══════════════════════ */
@@ -962,7 +983,9 @@ function renderNewRow(){
 
   var memo=el("input","memo"); memo.type="text"; memo.placeholder="용도"; memo.value=d.memo;
   memo.autocomplete="off"; memo.enterKeyHint="next";
-  memo.oninput=function(){ d.memo=memo.value; updateOk(); };
+  memo.oninput=function(){ d.memo=memo.value; updateOk();
+    if(!d.signByHand) setSign(signForMemo(d.memo) || -1);    // 손으로 부호를 바꿨으면 그 뒤로는 안 건드린다
+  };
   memo.onfocus=function(){ if(!S.memoFocus){ S.memoFocus=true; S.datePick=false; redrawChips(); } };
   memo.onkeydown=function(ev){ if(ev.key==="Enter"){ ev.preventDefault(); amt.focus(); } };
   row.appendChild(memo);
@@ -976,7 +999,7 @@ function renderNewRow(){
     sign.setAttribute("aria-label", v>0?"받은 돈":"쓴 돈");
   }
   setSign(d.sign);
-  sign.onclick=function(){ setSign(-d.sign); };
+  sign.onclick=function(){ d.signByHand=true; setSign(-d.sign); };
   acell.appendChild(sign);
   var amt=el("input","amt"); amt.type="text"; amt.inputMode="numeric"; amt.placeholder="0";
   amt.value=d.amount?Number(d.amount).toLocaleString("ko-KR"):""; amt.enterKeyHint="done";
