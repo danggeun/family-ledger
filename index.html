@@ -1050,21 +1050,15 @@ function renderNewRow(){
 
 /* 적다 만 입력은 그 아이·그 순간의 것이다. 아이를 바꾸거나 입력줄 밖으로 나가면 비운다 —
    안 그러면 서윤 화면에서 치던 게 하준 입력줄에 남아 하준 기록으로 저장될 수 있다. */
-/* 금액칸 — 탭하면 커서가 끝으로 간다. 1의 자리와 ✓ 사이가 8px 뿐이라 끝을 노리다 저장이 눌리는 걸 막는다.
-   금액은 짧아서 지우고 다시 치는 쪽이 빠르다(송금·계산기 앱의 방식). 다만 일부러 옮기는 건 막지 않는다 —
-   길게 눌러 손잡이를 끌면 click 이 안 오므로 그 자리에 남는다. 폰이 원래 하는 동작이라 설명이 필요 없다.
-   브라우저가 탭 위치에 커서를 놓은 뒤에 옮겨야 하므로 한 틱 늦춘다. */
+/* 금액칸은 커서가 항상 끝에 있다 — 은행·송금 앱, 계산기와 같은 방식. 숫자는 끝에 붙고 ⌫ 는 끝에서 지운다.
+   가운데를 고치게 열어 뒀더니 3,500 에서 5 를 지우면 300 이 되는 식으로 자릿수가 밀려 오히려 이상했다.
+   금액은 고치는 게 아니라 지우고 다시 치는 것. 1의 자리를 노리다 ✓ 를 누르는 일도 같이 없어진다.
+   길게 눌러 끌어도 끝으로 돌아온다(selectionchange). 브라우저가 커서를 놓은 뒤 옮겨야 해서 한 틱 늦춘다. */
 function tapEnd(inp){
-  function end(){ setTimeout(function(){ var n=inp.value.length; try{ inp.setSelectionRange(n,n); }catch(_){} }, 0); }
-  inp.addEventListener("focus", end); inp.addEventListener("click", end);
-  // 콤마 위에서 ⌫ 를 누르면 콤마 앞 숫자를 지운다 — 안 그러면 콤마만 지워졌다 다시 찍혀 두 번 눌러야 한다
-  inp.addEventListener("beforeinput", function(ev){
-    if(ev.inputType!=="deleteContentBackward") return;
-    var a=inp.selectionStart; if(a!==inp.selectionEnd || a<2 || inp.value[a-1]!==",") return;
-    ev.preventDefault();
-    inp.value=inp.value.slice(0,a-2)+inp.value.slice(a); inp.setSelectionRange(a-2,a-2);
-    inp.dispatchEvent(new Event("input",{bubbles:true}));
-  });
+  function end(){ setTimeout(function(){ var n=inp.value.length;
+    if(document.activeElement===inp && (inp.selectionStart!==n || inp.selectionEnd!==n)){ try{ inp.setSelectionRange(n,n); }catch(_){} } }, 0); }
+  ["focus","click","select","keyup"].forEach(function(t){ inp.addEventListener(t, end); });
+  document.addEventListener("selectionchange", function(){ if(document.activeElement===inp) end(); });
 }
 /* 콤마를 다시 찍으면서 커서가 끝으로 튀지 않게 — 커서 앞에 숫자가 몇 개였는지 세어 그 뒤에 다시 놓는다.
    (999 → 9,999 처럼 콤마가 늘 때 value 를 새로 넣으면 브라우저가 커서를 끝으로 보낸다) */
