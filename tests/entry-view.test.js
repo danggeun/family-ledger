@@ -63,6 +63,50 @@ await load([Object.assign(E('e1','용돈',3000,'2026-09-19'),{auto_key:'w:2026-0
 await p.click('input.memo'); await p.waitForTimeout(250);
 T('자동 용돈 줄은 칩에 없다', (await chips()).join('|')==='간식');
 
+// 용도를 치기만 해도 부호가 따라온다 — 괄호로 덧붙인 말은 괄호 앞 말로 묶어서
+const typeMemo=async(s)=>{ await p.fill('input.memo',''); await p.type('input.memo',s); await p.waitForTimeout(150); };
+await load([E('e0','용돈',3000,'2026-09-13'),E('e1','용돈',3000,'2026-09-14'),E('e2','용돈(큰아빠)',10000,'2026-09-15'),E('e3','간식',-800,'2026-09-16'),
+            E('e4','용돈(장난감)',-2000,'2026-09-17'),E('e5','용돈(장난감)',-1000,'2026-09-18')]);
+await p.click('input.memo'); await p.waitForTimeout(200);
+await typeMemo('용돈');
+T('"용돈"을 치면 받은 돈', (await signTxt())==='+');
+await typeMemo('용돈(할머니)');
+T('처음 쓰는 괄호도 괄호 앞 말(용돈)을 따른다', (await signTxt())==='+');
+await typeMemo('용돈(장난감)');
+T('똑같은 용도가 있으면 그게 먼저 (용돈(장난감)은 쓴 돈)', (await signTxt())==='−');
+await typeMemo('간식');
+T('"간식"을 치면 쓴 돈', (await signTxt())==='−');
+await typeMemo('용돈'); await typeMemo('처음보는말');
+T('처음 보는 말이면 처음 상태(쓴 돈)로 돌아간다', (await signTxt())==='−');
+await p.fill('input.memo',''); await p.click('.entry .sign'); await p.waitForTimeout(150);
+await typeMemo('간식');
+T('부호를 손으로 바꿨으면 치는 말이 덮어쓰지 않는다', (await signTxt())==='+');
+await load([Object.assign(E('e1','용돈',3000,'2026-09-19'),{auto_key:'w:2026-09-19'})]);
+await p.click('input.memo'); await p.waitForTimeout(200);
+await typeMemo('용돈');
+T('손으로 적은 적이 없어도 자동 용돈 줄이 근거가 된다', (await signTxt())==='+');
+T('기록이 있으면 "용도" 안내 글씨 없음', (await p.$eval('input.memo',e=>e.placeholder))==='');
+await load([]);
+T('기록이 하나도 없으면 "용도" 안내', (await p.$eval('input.memo',e=>e.placeholder))==='용도');
+
+// 금액칸은 어디를 눌러도 커서가 끝 — 1의 자리를 노리다 ✓ 를 누르는 일이 없게
+await p.click('input.amt'); await p.keyboard.type('12345'); await p.waitForTimeout(100);
+await p.click('input.amt',{position:{x:6,y:12}}); await p.waitForTimeout(100);          // 왼쪽 끝(=맨 앞 자리)을 누른다
+T('금액칸 왼쪽을 눌러도 커서는 끝', await p.$eval('input.amt',a=>a.selectionStart===a.value.length));
+await p.keyboard.type('6'); await p.waitForTimeout(100);
+T('그 상태에서 치면 끝에 붙는다', (await p.$eval('input.amt',a=>a.value))==='123,456');
+// 일부러 옮긴 커서(길게 눌러 끌기 = click 없음)는 존중하고, 거기서 쳐도 콤마 때문에 끝으로 튀지 않는다
+await p.evaluate(()=>{const a=document.querySelector('input.amt'); a.setSelectionRange(1,1);}); await p.waitForTimeout(50);
+T('일부러 옮긴 커서는 그 자리', await p.$eval('input.amt',a=>a.selectionStart===1));
+await p.keyboard.type('9'); await p.waitForTimeout(100);
+T('가운데서 치면 가운데에 들어간다 (1,923,456)', (await p.$eval('input.amt',a=>a.value))==='1,923,456');
+T('콤마가 늘어도 커서는 친 숫자 바로 뒤', await p.$eval('input.amt',a=>a.selectionStart===3));
+await p.keyboard.press('Backspace'); await p.waitForTimeout(100);
+T('지워도 제자리 (123,456 · 커서 1)', (await p.$eval('input.amt',a=>a.value))==='123,456' && await p.$eval('input.amt',a=>a.selectionStart===1));
+await p.evaluate(()=>{const a=document.querySelector('input.amt'); a.setSelectionRange(4,4);});   // 콤마 바로 뒤
+await p.keyboard.press('Backspace'); await p.waitForTimeout(100);
+T('콤마 위에서 ⌫ 는 콤마 앞 숫자를 지운다 (12,456 · 커서 2)', (await p.$eval('input.amt',a=>a.value))==='12,456' && await p.$eval('input.amt',a=>a.selectionStart===2));
+
 // ── 2) 이름 크기·색 ───────────────────────────────────────
 await load([E('e1','간식',-800,'2026-09-18')]);
 T('홈 탭 이름 22px', await p.$eval('.bar .k.on',e=>getComputedStyle(e).fontSize==='22px'));
