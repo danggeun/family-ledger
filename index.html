@@ -115,7 +115,11 @@ input{border:0; background:none; outline:none; min-width:0}
 .kid.slide-r .kn,.kid.slide-r .ka,.kid.slide-r .money{animation:kin-r .18s ease-out}
 @keyframes kin-l{from{opacity:0; transform:translateX(22px)} to{opacity:1; transform:none}}
 @keyframes kin-r{from{opacity:0; transform:translateX(-22px)} to{opacity:1; transform:none}}
-@media (prefers-reduced-motion: reduce){ .kid.slide-l *,.kid.slide-r *{animation:none} }
+/* 홈에서 아이를 바꾸면(탭이든 밀기든) 탭 줄만 두고 아래가 아이 화면과 같은 방향으로 미끄러져 들어온다 */
+.screen.home{touch-action:pan-y}
+.screen.slide-l > :not(.bar){animation:kin-l .18s ease-out}
+.screen.slide-r > :not(.bar){animation:kin-r .18s ease-out}
+@media (prefers-reduced-motion: reduce){ .kid.slide-l *,.kid.slide-r *,.screen.slide-l > *,.screen.slide-r > *{animation:none} }
 .kid.one{justify-content:center; padding-top:calc(var(--sat) + 24px)}   /* 한 줄 그림 — 돼지가 없어 위가 비므로 가운데로 */
 .money{display:flex; flex-direction:column; gap:var(--s4); align-items:flex-start; margin-top:var(--s5)}
 .kid.tight .pig{width:150px}      /* 줄이 많거나 화면이 작으면 돼지를 줄여 한 화면에 담는다 */
@@ -306,7 +310,7 @@ button.srow{width:100%; text-align:left}
 "use strict";
 
 /* ══════════════════════ 유틸 ══════════════════════ */
-var APP_VERSION = "1.1.6";   // 올릴 때 sw.js 의 CACHE 도 같이
+var APP_VERSION = "1.1.7";   // 올릴 때 sw.js 의 CACHE 도 같이
 
 /* hex = 탭 밑줄·점(면), name = 이름 글자, mid = 작은 글자용 예비값(지금 쓰는 곳은 없다).
    아이들이 "내 색"을 바로 알아보는 게 이 색의 유일한 목적이라 채도를 살린다.
@@ -837,8 +841,57 @@ function offlineBar(){
   b.onclick=function(){ reload(); };
   return b;
 }
+/* 아이 바꾸기 — 탭을 누르든 좌우로 밀든 같은 길. 내용이 그 아이 쪽에서 미끄러져 들어온다 */
+var homeSlide=null, homeDragClick=false;
+function pickKid(id){
+  if(id===S.sel) return;
+  var ids=S.children.map(function(c){ return c.id; });
+  homeSlide = ids.indexOf(id) > ids.indexOf(S.sel) ? "l" : "r";
+  S.sel=id; lsSet("yd_sel",id); S.datePick=false; S.memoFocus=false; S.limit=60; resetDraft(); render();
+}
+/* 홈에서 좌우로 밀면 옆 아이 통장. 아이 화면(kidSwipe)과 같은 손맛(같은 문턱·같은 미끄러짐)이되 셋이 다르다:
+   ① 진짜로 바꾼다(S.sel) — 탭을 누른 것과 똑같다, 적다 만 것도 똑같이 비워진다
+   ② 끝에서 더 밀면 아무 일 없다 — 탭 줄은 한 줄이라 돌면 내용은 오른쪽에서 오는데 밑줄은 왼쪽으로 튄다
+   ③ 적는 중(키보드 떠 있음)이거나 입력줄·칩 위에서 시작한 끌기는 무시 — 밖을 누르면 나가기만 하는 것과 같은 규칙.
+      칩은 가로로 스크롤되는 줄이고, 입력칸 안에서 가로로 끄는 건 글자 고르기다
+   가장자리 40px 는 안드로이드 뒤로 가기 몫. 세로가 우세하면 스크롤에 양보. 끌었으면 그 터치의 click 하나는 버린다 */
+function homeSwipe(node){
+  var x0=0, y0=0, t0=0, on=false, moved=false, go=false;
+  node.addEventListener("touchstart", function(e){
+    on=false;
+    if(e.touches.length!==1 || S.children.length<2) return;
+    var t=e.touches[0], a=document.activeElement;
+    if(t.clientX<=40 || t.clientX>=window.innerWidth-40) return;
+    if(e.target.closest && e.target.closest(".entry, .chips")) return;
+    if(S.memoFocus || S.datePick || (a && a.closest && a.closest(".entry"))) return;
+    on=true; moved=false; go=false; x0=t.clientX; y0=t.clientY; t0=e.timeStamp;
+  }, {passive:true});
+  node.addEventListener("touchmove", function(e){
+    if(!on) return;
+    var t=e.touches[0], dx=t.clientX-x0, dy=t.clientY-y0;
+    if(Math.abs(dx)>10 || Math.abs(dy)>10) moved=true;
+    if(Math.abs(dy)>Math.abs(dx)){ if(!go){ on=false; return; } }
+    else if(Math.abs(dx)>10) go=true;
+    if(go && e.cancelable) e.preventDefault();
+  }, {passive:false});
+  function end(e){
+    if(!on) return; on=false;
+    if(moved) homeDragClick=true;
+    if(!go) return;
+    var t=e.changedTouches && e.changedTouches[0]; if(!t) return;
+    var dx=t.clientX-x0, ab=Math.abs(dx);
+    var fast = ab>60 && ab/Math.max(1,e.timeStamp-t0) > 0.45;
+    if(!(fast || ab > window.innerWidth*0.22)) return;
+    var ids=S.children.map(function(c){ return c.id; }), j=ids.indexOf(S.sel)+(dx<0?1:-1);
+    if(j<0 || j>=ids.length) return;
+    pickKid(ids[j]);
+  }
+  node.addEventListener("touchend", end);
+  node.addEventListener("touchcancel", end);
+}
 function renderHome(){
-  var wrap=el("div","screen");
+  var wrap=el("div","screen home"+(homeSlide?" slide-"+homeSlide:"")); homeSlide=null;
+  homeSwipe(wrap);
   var c=childOf(S.sel), col=c?(COLORS[c.color]||COLORS.blue):COLORS.blue;
   wrap.style.setProperty("--c", col.hex);
   wrap.style.setProperty("--c-name", col.name);
@@ -848,7 +901,7 @@ function renderHome(){
     S.children.forEach(function(k){
       var on=k.id===S.sel, b=el("button","k"+(on?" on":""), k.name);
       if(on) b.style.setProperty("--c",(COLORS[k.color]||COLORS.blue).hex);
-      b.onclick=function(){ S.sel=k.id; lsSet("yd_sel",k.id); S.datePick=false; S.memoFocus=false; S.limit=60; resetDraft(); render(); };
+      b.onclick=function(){ pickKid(k.id); };
       bar.appendChild(b);
     });
   } else if(c){
@@ -872,10 +925,12 @@ function renderHome(){
   // 화면을 건드리면 그 전에 입력칸의 포커스가 풀려서 "적는 중"이 아닌 걸로 읽힌다.
   var wasTyping=false;
   wrap.addEventListener("pointerdown", function(ev){
+    homeDragClick=false;                       // 새로 누르면 지난 끌기 표시는 버린다 (click 이 안 오는 기기도 있다)
     var a=document.activeElement;
     wasTyping = S.memoFocus || S.datePick || !!(a && a.closest && a.closest(".entry"));
   }, true);
   wrap.addEventListener("click", function(ev){
+    if(homeDragClick){ homeDragClick=false; ev.preventDefault(); ev.stopPropagation(); return; }   // 끌기가 만든 click
     if(ev.target.closest(".entry, .chips")) return;
     var d=S.draft;
     var dirty = d.memo || d.amount || d.sign>0 || d.date!==today();
@@ -1053,10 +1108,13 @@ function renderNewRow(){
 /* 금액칸은 커서가 항상 끝에 있다 — 은행·송금 앱, 계산기와 같은 방식. 숫자는 끝에 붙고 ⌫ 는 끝에서 지운다.
    가운데를 고치게 열어 뒀더니 3,500 에서 5 를 지우면 300 이 되는 식으로 자릿수가 밀려 오히려 이상했다.
    금액은 고치는 게 아니라 지우고 다시 치는 것. 1의 자리를 노리다 ✓ 를 누르는 일도 같이 없어진다.
-   길게 눌러 끌어도 끝으로 돌아온다(selectionchange). 브라우저가 커서를 놓은 뒤 옮겨야 해서 한 틱 늦춘다. */
+   길게 눌러 끌어도 끝으로 돌아온다(selectionchange). 전체 선택만 예외 — 고칠 자리가 보이니 바꿔 치기는 된다.
+   브라우저가 커서를 놓은 뒤 옮겨야 해서 한 틱 늦춘다. */
 function tapEnd(inp){
-  function end(){ setTimeout(function(){ var n=inp.value.length;
-    if(document.activeElement===inp && (inp.selectionStart!==n || inp.selectionEnd!==n)){ try{ inp.setSelectionRange(n,n); }catch(_){} } }, 0); }
+  function end(){ setTimeout(function(){ var n=inp.value.length, a=inp.selectionStart, z=inp.selectionEnd;
+    if(document.activeElement!==inp || (a===n && z===n)) return;
+    if(a===0 && z===n && n>0) return;            // 전체 선택은 둔다 — 통째로 바꿔 치는 건 어디를 고칠지 눈에 보인다
+    try{ inp.setSelectionRange(n,n); }catch(_){} }, 0); }
   ["focus","click","select","keyup"].forEach(function(t){ inp.addEventListener(t, end); });
   document.addEventListener("selectionchange", function(){ if(document.activeElement===inp) end(); });
 }
