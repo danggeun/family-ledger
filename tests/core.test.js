@@ -4,7 +4,7 @@ const path=require('path');
 const b=await chromium.launch(process.env.PW_CHROMIUM?{executablePath:process.env.PW_CHROMIUM}:{});
 const ctx=await b.newContext({viewport:{width:390,height:844},deviceScaleFactor:2,isMobile:true,hasTouch:true});
 await ctx.addInitScript(require('./_env').LOCAL);
-const p=await ctx.newPage();
+const p=await ctx.newPage(); require('./_env').guard(p);
 const errs=[];p.on('pageerror',e=>errs.push(e.message));
 p.on('console',m=>{if(m.type()==='error'&&!/ERR_|Failed to load resource/.test(m.text()))errs.push('console: '+m.text());});
 await p.goto('file://'+path.resolve(__dirname,'../index.html'));await p.waitForTimeout(800);
@@ -101,7 +101,7 @@ T('잔액 17,000', (await curBal())==='17,000');
 T('"자동" 표시', (await p.$('.row.auto'))!==null);
 
 // 9) 새로고침
-await p.reload();await p.waitForTimeout(900);
+await p.waitForTimeout(150); await p.reload();await p.waitForTimeout(900);
 T('새로고침 후 17,000', (await curBal())==='17,000');
 T('자동 중복 없음', (await p.$$('.row.auto')).length===1);
 
@@ -111,7 +111,7 @@ T('건너뛰기 버튼', (await p.$('.sheet button:has-text("이번 주 건너�
 await p.click('.sheet button:has-text("이번 주 건너뛰기")');await p.waitForTimeout(150);
 await p.click('.sheet button:has-text("정말 건너뛰기")');await p.waitForTimeout(350);
 T('건너뛴 뒤 15,000', (await curBal())==='15,000');
-await p.reload();await p.waitForTimeout(900);
+await p.waitForTimeout(150); await p.reload();await p.waitForTimeout(900);
 T('새로고침해도 안 돌아옴', (await p.$$('.row.auto')).length===0 && (await curBal())==='15,000');
 console.log('\n'+pass+' passed, '+fail+' failed');
 console.log('errors:', errs.length?errs.join(' | '):'none');

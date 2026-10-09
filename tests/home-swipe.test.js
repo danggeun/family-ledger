@@ -11,10 +11,10 @@ const ENTRIES=[E('e1','k1','간식',-800,'2026-09-18'),E('e2','k1','용돈',3000
 const b=await chromium.launch(process.env.PW_CHROMIUM?{executablePath:process.env.PW_CHROMIUM}:{});
 const ctx=await b.newContext({viewport:{width:390,height:844},deviceScaleFactor:2,isMobile:true,hasTouch:true});
 await ctx.addInitScript(require('./_env').LOCAL);
-const p=await ctx.newPage(); const errs=[]; p.on('pageerror',e=>errs.push(e.message));
+const p=await ctx.newPage(); require('./_env').guard(p); const errs=[]; p.on('pageerror',e=>errs.push(e.message));
 const cdp=await ctx.newCDPSession(p);
 await p.goto('file://'+path.resolve(__dirname,'../index.html'));
-const load=async(kids,entries)=>{ await p.evaluate(s=>eval(s),`(${SEED.toString()})(${JSON.stringify(kids)},${JSON.stringify(entries)})`); await p.reload(); await p.waitForTimeout(600); };
+const load=async(kids,entries)=>{ await p.evaluate(s=>eval(s),`(${SEED.toString()})(${JSON.stringify(kids)},${JSON.stringify(entries)})`); await p.waitForTimeout(150); await p.reload(); await p.waitForTimeout(600); };
 const swipe=async(x0,y0,x1,y1,ms=180)=>{
   await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:x0,y:y0}]});
   for(let i=1;i<=6;i++){ await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:x0+(x1-x0)*i/6,y:y0+(y1-y0)*i/6}]}); await p.waitForTimeout(ms/6); }

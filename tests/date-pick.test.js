@@ -10,9 +10,9 @@ const pad=n=>String(n).padStart(2,'0');
 const b=await chromium.launch(process.env.PW_CHROMIUM?{executablePath:process.env.PW_CHROMIUM}:{});
 const ctx=await b.newContext({viewport:{width:390,height:844},deviceScaleFactor:2,isMobile:true,hasTouch:true});
 await ctx.addInitScript(require('./_env').LOCAL);
-const p=await ctx.newPage(); const errs=[];p.on('pageerror',e=>errs.push(e.message));
+const p=await ctx.newPage(); require('./_env').guard(p); const errs=[];p.on('pageerror',e=>errs.push(e.message));
 await p.goto('file://'+path.resolve(__dirname,'../index.html'));
-await p.evaluate(SEED); await p.reload(); await p.waitForTimeout(600);
+await p.evaluate(SEED); await p.waitForTimeout(150); await p.reload(); await p.waitForTimeout(600);
 const now=new Date(), Y=now.getFullYear(), M=now.getMonth()+1, D=now.getDate();
 
 T('기기 기본 달력을 쓰지 않는다', (await p.$$('input[type=date]')).length===0);

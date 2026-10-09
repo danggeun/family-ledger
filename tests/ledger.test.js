@@ -4,7 +4,7 @@ const path=require('path');
 const b=await chromium.launch(process.env.PW_CHROMIUM?{executablePath:process.env.PW_CHROMIUM}:{});
 const ctx=await b.newContext({viewport:{width:390,height:844},deviceScaleFactor:2,isMobile:true,hasTouch:true});
 await ctx.addInitScript(require('./_env').LOCAL);
-const p=await ctx.newPage();
+const p=await ctx.newPage(); require('./_env').guard(p);
 const errs=[];p.on('pageerror',e=>errs.push(e.message));
 let pass=0,fail=0;
 const T=(l,c)=>{c?pass++:fail++;console.log((c?'OK  ':'FAIL')+' '+l);};
@@ -23,7 +23,7 @@ await p.evaluate(()=>{
     }
   localStorage.setItem('yd_local_v1', JSON.stringify({family:fam, children:kids, entries:ents}));
 });
-await p.reload();await p.waitForTimeout(900);
+await p.waitForTimeout(150); await p.reload();await p.waitForTimeout(900);
 
 const divs=await p.$$eval('.mdiv',es=>es.map(e=>e.textContent));
 T('월 구분선 존재', divs.length>=2);

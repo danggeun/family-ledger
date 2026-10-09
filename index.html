@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, interactive-widget=resizes-content">
 <title>용돈기입장</title>
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -213,7 +213,8 @@ input{border:0; background:none; outline:none; min-width:0}
 .dim{position:fixed; inset:0; background:rgba(17,19,23,.32); z-index:30}
 .sheet{position:fixed; left:0; right:0; bottom:0; background:var(--paper);
   border-radius:22px 22px 0 0; padding:8px 20px calc(20px + var(--sab)); z-index:31;
-  box-shadow:0 -8px 40px rgba(17,19,23,.16)}
+  box-shadow:0 -8px 40px rgba(17,19,23,.16);
+  max-height:100dvh; overflow:auto; overscroll-behavior:contain}   /* 키보드가 뜨면 화면이 줄어든다 — 시트가 그보다 길면 안에서 스크롤 */
 .sheet::before{content:""; display:block; width:36px; height:4px; border-radius:2px;
   background:var(--hair); margin:0 auto 14px}
 .sheet h3{margin:0 0 var(--s4); font-size:var(--t3); font-weight:600; text-align:center; color:var(--muted)}
@@ -280,8 +281,55 @@ button.srow{width:100%; text-align:left}
 .srow .chev{flex:none; font-size:var(--t5); color:var(--faint); line-height:1; margin-left:var(--s2)}
 .foot{display:flex; align-items:baseline; justify-content:space-between; gap:var(--s4); margin:var(--s6) 0 0}
 .ver{text-align:right; font-size:var(--t2); color:var(--faint); margin:0}
-.foot .addk{font-size:var(--t2); color:var(--faint); padding:0; text-align:left}
-.foot .addk:active{color:var(--ink-2)}
+.foot .addk,.foot .help-link{font-size:var(--t2); color:var(--faint); padding:0; text-align:left}
+.foot .addk:active,.foot .help-link:active{color:var(--ink-2)}
+
+/* ─── 사용법 — 설정 위에 얹히는 한 페이지. 설정과 같은 머리·같은 나가는 법 ─── */
+.page.help{position:fixed; inset:0; z-index:20; overflow:auto; background:var(--paper)}
+.help .hl{margin:0; padding:15px 0; border-bottom:1px solid var(--hair); font-size:var(--t4); line-height:1.6; color:var(--ink-2)}
+.help .hl:last-child{border-bottom:0}
+.help .hl b{color:var(--ink); font-weight:700}
+
+/* ─── 처음 안내 — 화면을 살짝 어둡게 하고 눌러볼 곳만 밝게. 한 번에 한 가지, 해 보면 다음으로. 언제든 건너뛰기.
+   레이어는 root 밖에 하나만 두고 자리만 옮긴다 — 그래야 단계가 바뀔 때 밝은 구멍과 카드가 미끄러져 간다 ─── */
+.tour{position:fixed; inset:0; z-index:50; opacity:0; transition:opacity .25s; pointer-events:none}   /* 상자 자체는 터치를 안 받는다 — 구멍이 뚫려야 하니까 */
+.tour.in{opacity:1}
+.tour-block,.tour-sample,.tour-card{pointer-events:auto}
+.tour.hide,.tour.out,.tour.hide *,.tour.out *{opacity:0; pointer-events:none}
+.tour-spot{position:fixed; pointer-events:none; border-radius:14px; box-shadow:0 0 0 200vmax rgba(17,19,23,.56);   /* 그림자가 곧 어두운 막 */
+  transition:top .4s cubic-bezier(.2,.8,.2,1), left .4s cubic-bezier(.2,.8,.2,1), width .4s cubic-bezier(.2,.8,.2,1), height .4s cubic-bezier(.2,.8,.2,1), border-radius .4s}
+.tour-block{position:fixed; touch-action:none}                 /* 구멍 밖은 못 누른다 — 보이진 않는 네 장 */
+.tour-pulse{position:fixed; width:0; height:0; pointer-events:none; transition:top .4s cubic-bezier(.2,.8,.2,1), left .4s cubic-bezier(.2,.8,.2,1)}
+.tour-pulse i{position:absolute; left:-24px; top:-24px; width:48px; height:48px; border-radius:50%; border:2px solid #fff; opacity:0;
+  animation:tpulse 2s cubic-bezier(.2,.6,.4,1) infinite}
+.tour-pulse i:nth-child(2){animation-delay:.7s}
+.tour-pulse.off i{animation:none}
+@keyframes tpulse{0%{transform:scale(.45); opacity:.9} 100%{transform:scale(2); opacity:0}}
+.tour-sample{position:fixed; left:20px; right:20px; background:var(--paper); border-radius:12px; padding:0 10px; display:none}
+.tour-sample.on{display:block}
+.tour-sample .row{border-bottom:0}
+.row.sample .m::after{content:"예시"; font-size:var(--t1); font-weight:600; color:var(--muted);
+  border:1px solid var(--hair); border-radius:5px; padding:1px 5px; margin-left:6px; vertical-align:1px}
+.tour-card{position:fixed; left:20px; right:20px; background:var(--paper); color:var(--ink); border-radius:18px; padding:18px 18px 14px;
+  box-shadow:0 18px 44px -12px rgba(0,0,0,.45); transition:top .4s cubic-bezier(.2,.8,.2,1)}
+.tour-card .tc-caret{position:absolute; top:-6px; width:12px; height:12px; background:var(--paper); border-radius:2px; transform:rotate(45deg);
+  transition:left .4s cubic-bezier(.2,.8,.2,1), opacity .2s}
+.tour-card .tc-title{font-size:var(--t5); font-weight:700; letter-spacing:-.02em; line-height:1.3}
+.tour-card .tc-body{margin:6px 0 0; font-size:var(--t3); line-height:1.55; color:var(--ink-3)}
+.tour-card .tc-text.swap{animation:tcin .32s ease-out}
+@keyframes tcin{from{opacity:0; transform:translateY(5px)} to{opacity:1; transform:none}}
+.tc-chev{display:inline-flex; gap:1px; margin-left:8px; vertical-align:-1px}
+.tc-chev i{font-style:normal; font-weight:400; color:var(--faint); animation:tchev 1.3s ease-in-out infinite}
+.tc-chev i:nth-child(2){animation-delay:.16s} .tc-chev i:nth-child(3){animation-delay:.32s}
+@keyframes tchev{0%,100%{opacity:.25} 45%{opacity:1}}
+.tour-card .tc-foot{display:flex; align-items:center; justify-content:space-between; margin-top:14px; min-height:30px}
+.tour-card .dots{display:flex; gap:6px}
+.tour-card .dots i{width:6px; height:6px; border-radius:50%; background:var(--hair); transition:background .3s}
+.tour-card .dots i.on{background:var(--ink)}
+.tour-card .skip{font-size:var(--t3); font-weight:600; color:var(--muted); padding:4px 2px}
+.tour-card .skip:active{color:var(--ink)}
+.tour-card .ok{background:var(--ink); color:#fff; border-radius:11px; padding:9px 18px; font-size:var(--t3); font-weight:600}
+@media (prefers-reduced-motion: reduce){ .tour-spot,.tour-card,.tour-pulse,.tour-card .tc-caret{transition:none} .tour-pulse i,.tc-chev i,.tour-card .tc-text.swap{animation:none} }
 .syncdot{width:6px; height:6px; border-radius:50%; background:var(--faint);
   display:inline-block; margin-right:8px; vertical-align:2px}
 .syncdot.on{background:var(--in)}
@@ -321,7 +369,7 @@ button.srow{width:100%; text-align:left}
 "use strict";
 
 /* ══════════════════════ 유틸 ══════════════════════ */
-var APP_VERSION = "1.1.9";   // 올릴 때 sw.js 의 CACHE 도 같이
+var APP_VERSION = "1.2.0";   // 올릴 때 sw.js 의 CACHE 도 같이
 
 /* hex = 탭 밑줄·점(면), name = 이름 글자, mid = 작은 글자용 예비값(지금 쓰는 곳은 없다).
    아이들이 "내 색"을 바로 알아보는 게 이 색의 유일한 목적이라 채도를 살린다.
@@ -491,6 +539,8 @@ var S = {
   editWeek:null,        // 매주 용돈 고치는 중
   kidView:null,         // 아이에게 보여주는 화면에 띄운 아이
   entryView:null,       // 한 줄을 길게 눌러 띄운 기록 (그 금액만 그림으로)
+  help:null,            // 사용법 페이지
+  tour:null,            // 처음 안내 {step}
   editGate:null,        // 초대 여닫는 중
   pickDate:null,        // 달력으로 날짜 고르는 중 {target, date, view}
   gate:null,            // {is_owner, open_until} — 설정 화면에서 한 번 물어본다
@@ -815,7 +865,108 @@ function useCache(){
   var c=cacheLoad(); if(!c) return false;
   S.family=c.family; S.children=c.children; S.entries=c.entries;
   if(!S.sel || !childOf(S.sel)) S.sel = S.children.length ? S.children[0].id : null;
-  S.offline=true; return true;
+  S.offline=true; tourInit(); return true;
+}
+
+/* ══════════════════════ 처음 안내 ══════════════════════
+   숨은 동작 셋(잔액 누르기 · 좌우 밀기 · 길게 누르기)을 처음 한 번, 그 자리에서 해 보게 한다.
+   화면을 살짝 어둡게 하고 눌러볼 곳만 밝게 둔 채 "눌러 보세요" — 하면 다음으로, 언제든 그만하기.
+   적어 둘 기록이 없어도 되게 길게 누르기는 안내 위에 놓인 예시 줄로 한다(기록은 하나도 안 만든다).
+   이 판을 처음 여는 기기에 이미 쓰던 흔적(캐시)이 있으면 본 것으로 — 아내·지인 폰에는 안 뜬다. 끝나거나 그만두면 다시 안 뜬다. */
+function tourInit(){                                   // cacheSave 전에 불러야 새 기기가 "쓰던 기기"로 안 읽힌다
+  var v=lsGet("yd_tour");
+  if(v==null){ var used = !!cacheLoad() || (store.kind==="local" && S.entries.length>0); v = used ? "done" : "new"; lsSet("yd_tour", v); }
+  if(v==="new" && !S.tour) S.tour={step:"bal"};       // 하다 말고 껐으면 처음부터 다시
+}
+function tourEnd(){ S.tour=null; lsSet("yd_tour","done"); }
+function tourTick(){                                   // 화면 상태를 보고 다음 단계로 — render 마다 한 번
+  var t=S.tour; if(!t) return;
+  if(t.step==="bal"){ if(S.kidView) t.opened=true; else if(t.opened){ t.opened=false; t.step = S.children.length>1 ? "swipe" : "press"; } }
+  else if(t.step==="press"){ if(S.entryView) t.opened=true; else if(t.opened){ t.opened=false; t.step="end"; } }
+}
+var TOUR_TEXT={ bal:["잔액을 눌러 보세요","아이에게 보여주는 그림이 열려요"],
+                swipe:["좌우로 밀어 보세요","다른 아이 통장으로 넘어가요. 이름을 눌러도 돼요"],
+                press:["이 줄을 길게 눌러 보세요","그 금액만 그림으로 보여요"],
+                end:["다 됐어요","설정 맨 아래 사용법에 다시 적혀 있어요"] };
+var tourL=null;                                        // 레이어 {box, spot, blocks[], pulse, sample, card, caret, text, dots, foot} · step
+function tourSync(){                                   // render 끝에서. 있어야 하면 만들고 자리를 맞추고, 아니면 숨기거나 치운다
+  var t=S.tour, show = !!t && S.screen==="home" && !S.kidView && !S.entryView && !S.help;
+  if(!t){ if(tourL){ var L=tourL.box; tourL=null; L.classList.add("out"); setTimeout(function(){ if(L.parentNode) L.parentNode.removeChild(L); }, 260); } return; }
+  if(!tourL){ tourL=tourBuild(); document.body.appendChild(tourL.box); requestAnimationFrame(function(){ if(tourL) tourL.box.classList.add("in"); }); }
+  tourL.box.classList.toggle("hide", !show);
+  if(show) tourLayout();
+}
+function tourBuild(){
+  var box=el("div","tour"), L={box:box, step:null};
+  L.spot=el("div","tour-spot"); box.appendChild(L.spot);
+  L.blocks=["t","b","l","r"].map(function(){ var d=el("div","tour-block"); box.appendChild(d); return d; });
+  L.pulse=el("div","tour-pulse"); L.pulse.appendChild(el("i")); L.pulse.appendChild(el("i")); box.appendChild(L.pulse);
+  L.sample=el("div","tour-sample");                    // 예시 줄 — 진짜 줄과 같은 생김새. 기록은 안 만든다
+  var r=el("button","row sample");
+  r.appendChild(el("span","d","오늘")); r.appendChild(el("span","m","젤리")); r.appendChild(el("span","a","\u2212800")); r.appendChild(el("span","t",""));
+  longPress(r, function(){ navOpen("entryView", function(){ S.entryView={id:"sample", child_id:S.sel, memo:"젤리", amount:-800}; }); });
+  r.onclick=function(){};                              // 짧게 누르는 건 아무 일 없다 — 고치기 시트가 뜨면 안내가 샌다
+  L.sample.appendChild(r); box.appendChild(L.sample);
+  L.card=el("div","tour-card"); L.caret=el("div","tc-caret"); L.card.appendChild(L.caret);
+  L.text=el("div","tc-text"); L.card.appendChild(L.text);
+  L.foot=el("div","tc-foot"); L.dots=el("div","dots"); L.foot.appendChild(L.dots);
+  L.skip=el("button","skip","건너뛰기"); L.skip.onclick=function(){ tourEnd(); render(); };
+  L.ok=el("button","ok","확인"); L.ok.onclick=function(){ tourEnd(); render(); };
+  L.foot.appendChild(L.skip); L.foot.appendChild(L.ok); L.card.appendChild(L.foot); box.appendChild(L.card);
+  // 밀기 단계에선 어두운 데서 밀어도 넘어간다 — 밝은 띠만 밀라는 건 너무 좁다
+  var x0=null;
+  L.blocks.forEach(function(d){
+    d.addEventListener("touchstart", function(e){ x0 = (S.tour && S.tour.step==="swipe" && e.touches.length===1) ? e.touches[0].clientX : null; }, {passive:true});
+    d.addEventListener("touchend", function(e){
+      if(x0==null || !e.changedTouches.length) return; var dx=e.changedTouches[0].clientX-x0; x0=null;
+      if(Math.abs(dx) < window.innerWidth*0.22) return;
+      var ids=S.children.map(function(c){ return c.id; }), j=ids.indexOf(S.sel)+(dx<0?1:-1);
+      if(j>=0 && j<ids.length) pickKid(ids[j]);
+    });
+  });
+  return L;
+}
+function tourLayout(){
+  var L=tourL, t=S.tour, step=t.step, vw=window.innerWidth, vh=window.innerHeight;
+  var hole=null, pulseAt=null, cardTop=null;
+  function pad(r,p){ return {x:r.left-p, y:r.top-p, w:r.width+2*p, h:r.height+2*p}; }
+  if(step==="bal"){ var n=document.querySelector(".balbtn"); if(n){ hole=pad(n.getBoundingClientRect(), 8); pulseAt={x:hole.x+hole.w/2, y:hole.y+hole.h/2}; } }
+  if(step==="swipe"){ var b1=document.querySelector(".bar"), e1=document.querySelector(".entry");
+    if(b1 && e1){ var r1=b1.getBoundingClientRect(), r2=e1.getBoundingClientRect(); hole={x:-20, y:r1.top-4, w:vw+40, h:r2.top-r1.top}; } }
+  if(step==="press"){ var e2=document.querySelector(".entry"), top=e2 ? e2.getBoundingClientRect().bottom+12 : 200;
+    L.sample.style.top=top+"px"; L.sample.classList.add("on");
+    var sr=L.sample.getBoundingClientRect(); hole=pad(sr, 6); pulseAt={x:sr.left+34, y:sr.top+sr.height/2}; }
+  else L.sample.classList.remove("on");
+  // 구멍(=밝은 곳). 끝 단계는 구멍을 가운데로 오므려 전부 어둡게
+  var sp=L.spot.style, rad = step==="swipe" ? 0 : (step==="end" ? "50%" : "14px");
+  if(hole){ sp.left=hole.x+"px"; sp.top=hole.y+"px"; sp.width=hole.w+"px"; sp.height=hole.h+"px"; }
+  else { sp.left=(vw/2)+"px"; sp.top=(vh/2)+"px"; sp.width="0px"; sp.height="0px"; }
+  sp.borderRadius=rad;
+  var H = hole || {x:vw/2, y:vh/2, w:0, h:0};
+  var bl=L.blocks, st=[[0,0,vw,Math.max(0,H.y)], [0,H.y+H.h,vw,Math.max(0,vh-H.y-H.h)], [0,H.y,Math.max(0,H.x),H.h], [H.x+H.w,H.y,Math.max(0,vw-H.x-H.w),H.h]];
+  st.forEach(function(q,i){ bl[i].style.left=q[0]+"px"; bl[i].style.top=q[1]+"px"; bl[i].style.width=q[2]+"px"; bl[i].style.height=q[3]+"px"; });
+  // 누를 곳에 번지는 테 — 밀기 단계는 없다(방향이 있는 동작이라 카드 안의 화살표가 맡는다)
+  if(pulseAt){ L.pulse.classList.remove("off"); L.pulse.style.left=pulseAt.x+"px"; L.pulse.style.top=pulseAt.y+"px"; }
+  else L.pulse.classList.add("off");
+  // 카드 — 글은 단계가 바뀔 때만 갈아 끼우고 살짝 떠오른다
+  if(L.step!==step){
+    L.step=step; L.text.innerHTML="";
+    var tt=el("div","tc-title",TOUR_TEXT[step][0]);
+    if(step==="swipe"){ var ch=el("span","tc-chev"); ["\u2039","\u2039","\u2039"].forEach(function(c){ ch.appendChild(el("i",null,c)); }); tt.appendChild(ch); }
+    L.text.appendChild(tt); L.text.appendChild(el("p","tc-body",TOUR_TEXT[step][1]));
+    L.text.classList.remove("swap"); void L.text.offsetWidth; L.text.classList.add("swap");
+    var order=["bal"].concat(S.children.length>1?["swipe"]:[]).concat(["press"]); L.dots.innerHTML="";
+    order.forEach(function(k){ L.dots.appendChild(el("i", k===step?"on":"")); });
+    L.dots.style.visibility = step==="end" ? "hidden" : "";
+    L.skip.style.display = step==="end" ? "none" : ""; L.ok.style.display = step==="end" ? "" : "none";
+  }
+  var ch2=L.card.offsetHeight;
+  if(step==="end") cardTop = vh - ch2 - 28 - sab();
+  else cardTop = Math.min(H.y+H.h+16, vh - ch2 - 16 - sab());
+  L.card.style.top=cardTop+"px";
+  if(hole && step!=="end"){ L.caret.style.opacity="1"; L.caret.style.left=Math.max(18, Math.min(vw-40-30, H.x+H.w/2-20-6))+"px"; }
+  else L.caret.style.opacity="0";
+  function sab(){ var v=parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--sab")); return isNaN(v)?0:v; }
 }
 
 /* ══════════════════════ 데이터 로드 ══════════════════════ */
@@ -847,6 +998,7 @@ function reload(again){
   return ensureFamily().then(function(ok){ if(!ok) throw new Error("no family"); return store.loadAll(); }).then(function(d){
     S.family=d.family; S.children=d.children; S.entries=d.entries; S.offline=false;
     if(!S.sel || !childOf(S.sel)) S.sel = S.children.length ? S.children[0].id : null;
+    tourInit();
     return ensureAllowances();
   }).then(function(n){
     if(n>0) return store.loadAll().then(function(d){ S.entries=d.entries; });
@@ -866,13 +1018,14 @@ function reload(again){
 
 /* ══════════════════════ 렌더 ══════════════════════ */
 function render(){
-  S.renderLater=false;
+  S.renderLater=false; tourTick();
   root.innerHTML="";
   if(S.screen==="loading") root.appendChild(renderLoading());
   else if(S.screen==="fail") root.appendChild(renderFail());
   else if(S.screen==="onboard") root.appendChild(renderOnboard());
   else if(S.screen==="settings") root.appendChild(renderSettings());
   else root.appendChild(renderHome());
+  if(S.help) root.appendChild(renderHelp());
   if(S.edit) root.appendChild(renderEditSheet());
   if(S.editOpen) root.appendChild(renderOpenSheet());
   if(S.editKid) root.appendChild(renderKidSheet());
@@ -881,6 +1034,7 @@ function render(){
   if(S.pickDate) root.appendChild(renderDateSheet());
   if(S.kidView) root.appendChild(renderKidView());
   if(S.entryView) root.appendChild(renderEntryView());
+  tourSync();                                                   // 처음 안내 레이어는 root 밖 — 그림이 떠 있는 동안은 숨는다
   var sheets=root.querySelectorAll(".sheet");
   if(sheets.length) sheetDrag(sheets[sheets.length-1]);      // 맨 위에 있는 시트만
 }
@@ -911,6 +1065,7 @@ function ghostOut(old, dir, front){
 }
 function pickKid(id){
   if(id===S.sel) return;
+  if(S.tour && S.tour.step==="swipe") S.tour.step="press";
   var ids=S.children.map(function(c){ return c.id; });
   homeSlide = ids.indexOf(id) > ids.indexOf(S.sel) ? "l" : "r";
   var old=root.querySelector(".screen.home");
@@ -1241,11 +1396,14 @@ function renderEditSheet(){
   var g1=el("div"); g1.appendChild(el("label",null,"금액"));
   var b1=el("div","box"); var ai=document.createElement("input"); ai.className=e.sign>0?"r in":"r"; ai.inputMode="numeric"; ai.value=Number(e.amountStr||0).toLocaleString("ko-KR");
   ai.oninput=function(){ e.amountStr=fmtMoney(ai); };
+  ai.enterKeyHint="next"; ai.onkeydown=function(ev){ if(ev.key==="Enter"){ ev.preventDefault(); mi.focus(); } };   // 홈 입력줄과 같은 순서: 금액 → 용도
   tapEnd(ai);
   b1.appendChild(ai); b1.appendChild(el("span",null,"원")); g1.appendChild(b1); f.appendChild(g1);
 
   var g2=el("div"); g2.appendChild(el("label",null,"용도"));
-  var b2=el("div","box"); var mi=document.createElement("input"); mi.type="text"; mi.value=e.memo||""; mi.oninput=function(){ e.memo=mi.value; }; b2.appendChild(mi); g2.appendChild(b2); f.appendChild(g2);
+  var b2=el("div","box"); var mi=document.createElement("input"); mi.type="text"; mi.value=e.memo||""; mi.oninput=function(){ e.memo=mi.value; };
+  mi.enterKeyHint="done"; mi.onkeydown=function(ev){ if(ev.key==="Enter"){ ev.preventDefault(); save.click(); } };
+  b2.appendChild(mi); g2.appendChild(b2); f.appendChild(g2);
 
   var g3=el("div"); g3.appendChild(el("label",null,"날짜"));
   var b3=el("button","box tapbox"); b3.appendChild(el("span","grow", shortDate(e.entry_date)));
@@ -1387,6 +1545,7 @@ function renderWeekSheet(){
     var bx=el("div","box"); var ai=document.createElement("input"); ai.className="r"; ai.inputMode="numeric"; ai.placeholder="0";
     ai.value=w.amountStr?Number(w.amountStr).toLocaleString("ko-KR"):"";
     ai.oninput=function(){ w.amountStr=fmtMoney(ai); };
+    ai.enterKeyHint="done"; ai.onkeydown=function(ev){ if(ev.key==="Enter"){ ev.preventDefault(); save.click(); } };
     tapEnd(ai);
     bx.appendChild(ai); bx.appendChild(el("span",null,"원")); g2.appendChild(bx); f.appendChild(g2);
   }
@@ -1446,6 +1605,7 @@ function renderOpenSheet(){
   var ai=document.createElement("input"); ai.className="r"; ai.inputMode="numeric";
   ai.value=Number(o.amountStr||0).toLocaleString("ko-KR");
   ai.oninput=function(){ o.amountStr=fmtMoney(ai); };
+  ai.enterKeyHint="done"; ai.onkeydown=function(ev){ if(ev.key==="Enter"){ ev.preventDefault(); save.click(); } };
   tapEnd(ai);
   bx.appendChild(ai); bx.appendChild(el("span",null,"원")); g.appendChild(bx); f.appendChild(g);
 
@@ -1638,10 +1798,36 @@ function renderSettings(){
     };
     foot.appendChild(add);
   } else foot.appendChild(el("span"));
+  var hb=el("button","help-link","사용법");
+  hb.onclick=function(){ navOpen("help", function(){ S.help=true; }); };
+  foot.appendChild(hb);
   foot.appendChild(el("span","ver","v"+APP_VERSION));
   wrap.appendChild(foot);
   return wrap;
   function fail(err){ toast("저장 실패: "+(err.message||err)); }
+}
+
+/* ── 사용법 — 숨은 동작을 찾아볼 수 있는 한 페이지. 그림 없이 글 아홉 줄. 지인이 두 번째 폰을 붙일 때 본인이 없어도 되게 동기화까지 ── */
+function renderHelp(){
+  var wrap=el("div","screen page help"); edgeSwipe(wrap, navBack);
+  var nav=el("div","nav");
+  var back=el("button","back","\u2039"); back.setAttribute("aria-label","뒤로"); back.onclick=navBack;
+  nav.appendChild(back); nav.appendChild(el("h2",null,"사용법")); wrap.appendChild(nav);
+  var lines=[
+    ["잔액을 누르면","아이에게 보여주는 그림"],
+    ["기록을 길게 누르면","그 금액만 그림"],
+    ["좌우로 밀면","다른 아이. 홈에서도, 그림 화면에서도"],
+    ["기록을 누르면","고치기. 자동 용돈은 이번 주만 건너뛸 수 있어요"],
+    ["맨 아래 처음 금액은","시작할 때 있던 돈"],
+    ["매주 용돈은","설정에서 요일과 금액"]];
+  if(store.kind==="supabase") lines.push(["다른 폰에서도 보려면","그 폰에서 이 앱을 열고 \u201C가족 코드로 참여\u201D에 설정 \u2192 동기화의 코드를 넣어요"]);
+  lines.push(["아이폰은","사파리 공유 버튼에서 홈 화면에 추가한 뒤 그 아이콘으로 열어야 해요"]);
+  lines.push(["기록 전체는","설정 \u2192 내보내기"]);
+  lines.forEach(function(l){ var q=el("p","hl"); q.appendChild(el("b",null,l[0]+" ")); q.appendChild(document.createTextNode(l[1])); wrap.appendChild(q); });
+  var again=el("button","link sm","처음 안내 다시 보기");          // 지인에게 보여줄 때
+  again.onclick=function(){ S.tour={step:"bal"}; lsSet("yd_tour","new"); history.go(-navStack.length); };   // 사용법·설정을 다 닫고 홈에서
+  wrap.appendChild(again);
+  return wrap;
 }
 
 function exportCSV(){
@@ -1697,6 +1883,11 @@ function renderOnboard(){
     var b1=el("button","btn pri","새로 시작하기"); b1.onclick=function(){ o.mode="new"; render(); }; st.appendChild(b1);
     if(store.kind==="supabase"){
       var b2=el("button","btn","가족 코드로 참여"); b2.onclick=function(){ o.mode="join"; render(); }; st.appendChild(b2);
+    }
+    if(installEvt){                                  // 안드로이드 크롬이 설치할 수 있다고 알려왔을 때만. 설치 안내는 설치할 때만
+      var b3=el("button","btn","홈 화면에 추가");
+      b3.onclick=function(){ var ev=installEvt; ev.prompt(); (ev.userChoice||Promise.resolve()).then(function(){ installEvt=null; render(); }, function(){}); };
+      st.appendChild(b3);
     }
     body.appendChild(st);
     wrap.appendChild(top); wrap.appendChild(body); return wrap;
@@ -1773,6 +1964,13 @@ function renderOnboard(){
   body.appendChild(f2);
   wrap.appendChild(top); wrap.appendChild(body); return wrap;
 }
+
+/* 안드로이드 크롬은 설치할 수 있게 되면 이 이벤트를 준다. 받아두면 시작 화면에 "홈 화면에 추가"가 생긴다. iOS 는 안 준다(경고문이 맡는다) */
+var installEvt=null;
+window.addEventListener("beforeinstallprompt", function(e){ e.preventDefault(); installEvt=e; if(S.screen==="onboard") render(); });
+window.addEventListener("appinstalled", function(){ installEvt=null; if(S.screen==="onboard") render(); });
+window.addEventListener("resize", function(){ if(S.tour) tourSync(); });    // 안내 중 회전으로 자리가 바뀌면 다시 잰다
+window.addEventListener("scroll", function(){ if(S.tour) tourSync(); }, {passive:true});
 
 /* ══════════════════════ 부팅 ══════════════════════ */
 function boot(){

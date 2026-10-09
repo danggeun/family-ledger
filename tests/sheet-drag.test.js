@@ -6,14 +6,14 @@ let pass=0,fail=0; const T=(n,ok)=>{ok?pass++:fail++;console.log((ok?'OK   ':'FA
 const b=await chromium.launch(process.env.PW_CHROMIUM?{executablePath:process.env.PW_CHROMIUM}:{});
 const ctx=await b.newContext({viewport:{width:390,height:844},deviceScaleFactor:2,isMobile:true,hasTouch:true});
 await ctx.addInitScript(require('./_env').LOCAL);
-const p=await ctx.newPage(); const errs=[];p.on('pageerror',e=>errs.push(e.message));
+const p=await ctx.newPage(); require('./_env').guard(p); const errs=[];p.on('pageerror',e=>errs.push(e.message));
 await p.goto('file://'+path.resolve(__dirname,'../index.html'));
 const t=new Date().toISOString().slice(0,10);
 await p.evaluate((t)=>localStorage.setItem('yd_local_v1',JSON.stringify({family:{id:'f1',code:'K'},children:[
  {id:'k1',name:'서윤',color:'pink',sort:0,opening_balance:10000,weekly_on:false,weekly_amount:0,created_at:'2026-01-01'}],
  entries:[{id:'e1',child_id:'k1',entry_date:t,memo:'젤리',amount:-800,auto_key:null,created_by:'me',created_at:t+'T09:00:00Z'},
           {id:'e2',child_id:'k1',entry_date:t,memo:'할머니',amount:5000,auto_key:null,created_by:'other',created_at:t+'T10:00:00Z'}]})), t);
-await p.reload(); await p.waitForTimeout(700);
+await p.waitForTimeout(150); await p.reload(); await p.waitForTimeout(700);
 const cdp=await ctx.newCDPSession(p);
 async function drag(from,to,steps,ms){
   await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:195,y:from}]});
@@ -50,6 +50,16 @@ T('받은 돈이면 금액도 초록', (await p.$eval('.sheet input.r',e=>getCom
 await p.click('.sheet .tabs button:has-text("쓴 돈")'); await p.waitForTimeout(250);
 T('쓴 돈으로 바꾸면 검정', (await p.$eval('.sheet .tabs button.on',e=>getComputedStyle(e).color))==='rgb(17, 19, 23)'
   && (await p.$eval('.sheet input.r',e=>getComputedStyle(e).color))==='rgb(17, 19, 23)');
+
+// ── 시트 안 Enter: 금액 → 용도, 용도 → 저장 (홈 입력줄과 같은 순서). 키보드의 "다음/완료"가 이것 ──
+await p.click('.sheet button:has-text("취소")'); await p.waitForTimeout(350);
+await p.click('.row:not(.auto) >> nth=0'); await p.waitForTimeout(350);
+T('시트 금액칸은 "다음", 용도칸은 "완료"', await p.$eval('.sheet input.r',e=>e.enterKeyHint==='next') && await p.$eval('.sheet input[type=text]',e=>e.enterKeyHint==='done'));
+await p.click('.sheet input.r'); await p.keyboard.press('Enter'); await p.waitForTimeout(150);
+T('금액칸에서 Enter → 용도칸으로', await p.evaluate(()=>document.activeElement && document.activeElement.type==='text' && document.activeElement.closest('.sheet')!==null));
+await p.keyboard.type(' 더'); await p.keyboard.press('Enter'); await p.waitForTimeout(400);
+T('용도칸에서 Enter → 저장되고 시트 닫힘', !(await p.$('.sheet')) && /더/.test(await p.textContent('.row:not(.auto) >> nth=0')));
+T('시트는 화면 높이 안에서 스크롤 (키보드가 뜨면 화면이 줄어든다)', await p.evaluate(()=>{ const m=document.querySelector('meta[name=viewport]').content; return /interactive-widget=resizes-content/.test(m); }));
 
 console.log(`\n${pass} passed, ${fail} failed`); console.log('errors:',errs.join('|')||'none');
 await b.close(); process.exit(fail?1:0);})();

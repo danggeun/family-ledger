@@ -9,8 +9,8 @@ const SEED=()=>{localStorage.setItem('yd_local_v1',JSON.stringify({family:{id:'f
 const b=await chromium.launch(process.env.PW_CHROMIUM?{executablePath:process.env.PW_CHROMIUM}:{});
 const ctx=await b.newContext({viewport:{width:390,height:844},deviceScaleFactor:2,isMobile:true,hasTouch:true});
 await ctx.addInitScript(require('./_env').LOCAL);
-const p=await ctx.newPage(); const errs=[]; p.on('pageerror',e=>errs.push(e.message));
-await p.goto('file://'+path.resolve(__dirname,'../index.html')); await p.evaluate(SEED); await p.reload(); await p.waitForTimeout(600);
+const p=await ctx.newPage(); require('./_env').guard(p); const errs=[]; p.on('pageerror',e=>errs.push(e.message));
+await p.goto('file://'+path.resolve(__dirname,'../index.html')); await p.evaluate(SEED); await p.waitForTimeout(150); await p.reload(); await p.waitForTimeout(600);
 const cdp=await ctx.newCDPSession(p);
 async function swipe(x0,y0,x1,y1,steps,ms){
   await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:x0,y:y0}]});

@@ -25,7 +25,7 @@ const BASE='http://127.0.0.1:'+srv.address().port+'/';
 const b=await chromium.launch(Object.assign({args:['--no-proxy-server']}, process.env.PW_CHROMIUM?{executablePath:process.env.PW_CHROMIUM}:{}));
 const ctx=await b.newContext({viewport:{width:390,height:844},deviceScaleFactor:2,isMobile:true,hasTouch:true});
 await ctx.addInitScript(require('./_env').LOCAL);
-const p=await ctx.newPage(); const errs=[]; p.on('pageerror',e=>errs.push(e.message));
+const p=await ctx.newPage(); require('./_env').guard(p); const errs=[]; p.on('pageerror',e=>errs.push(e.message));
 const seed=()=>localStorage.setItem('yd_local_v1',JSON.stringify({family:{id:'f1',code:'K7PM'},children:[
   {id:'k1',name:'서윤',color:'pink',sort:0,opening_balance:16300,weekly_on:false,weekly_amount:0,created_at:'2026-07-01'}],entries:[]}));
 
@@ -35,7 +35,8 @@ await p.evaluate(()=>navigator.serviceWorker.ready.then(()=>true));
 await p.waitForTimeout(1500);                                   // install 의 add 들이 끝날 시간
 const cached=await p.evaluate(async()=>{ const ks=await caches.keys(); const c=await caches.open(ks[0]);
   return {names:ks, index:!!(await c.match('./index.html')), config:!!(await c.match('./config.js')), splash:!!(await c.match('./splash.png')), pig:!!(await c.match('./logo-pig-sm.png'))}; });
-T('M6 캐시 이름 = yd-1.1.9', cached.names.length===1 && cached.names[0]==='yd-1.1.9');
+const VER=(fs.readFileSync(path.join(ROOT,'index.html'),'utf8').match(/APP_VERSION = "([^"]+)"/)||[])[1];
+T('M6 캐시 이름 = yd-'+VER+' (index.html 의 APP_VERSION 과 같다)', cached.names.length===1 && cached.names[0]==='yd-'+VER);
 T('M6 하나가 404 여도 설치되고 나머지는 캐시됨', cached.index && cached.config && cached.pig && !cached.splash);
 await p.reload(); await p.waitForTimeout(800);
 T('워커가 페이지를 맡는다', await p.evaluate(()=>!!navigator.serviceWorker.controller));

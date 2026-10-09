@@ -4,7 +4,7 @@ const path=require('path');
 const b=await chromium.launch(process.env.PW_CHROMIUM?{executablePath:process.env.PW_CHROMIUM}:{});
 const ctx=await b.newContext({viewport:{width:390,height:844},deviceScaleFactor:2,isMobile:true,hasTouch:true});
 await ctx.addInitScript(require('./_env').LOCAL);
-const p=await ctx.newPage();
+const p=await ctx.newPage(); require('./_env').guard(p);
 const errs=[];p.on('pageerror',e=>errs.push(e.message));
 p.on('console',m=>{if(m.type()==='error'&&!/ERR_|Failed to load resource/.test(m.text()))errs.push('console: '+m.text());});
 await p.goto('file://'+path.resolve(__dirname,'../index.html'));await p.waitForTimeout(700);
@@ -37,7 +37,7 @@ await p.fill('.sheet input.r','12000');
 await p.click('.sheet button:has-text("저장")'); await p.waitForTimeout(400);
 T('고친 뒤 잔액 11,200', (await bal())==='11,200');
 T('줄에도 반영', /12,000/.test(await p.$eval('.row.open',e=>e.textContent)));
-await p.reload(); await p.waitForTimeout(800);
+await p.waitForTimeout(150); await p.reload(); await p.waitForTimeout(800);
 T('새로고침 후 유지', (await bal())==='11,200');
 
 // 4) 설정 정리 확인
@@ -84,7 +84,7 @@ T('2단계 확인', (await p.$('.sheet button:has-text("정말 지우기")'))!==
 await p.click('.sheet button:has-text("정말 지우기")'); await p.waitForTimeout(400);
 T('아이 1명 남음', (await p.$$('.srow .nm')).length===1);
 T('1명이면 ⋯ 사라짐', (await p.$$('.kmore')).length===0);
-await p.reload(); await p.waitForTimeout(800);
+await p.waitForTimeout(150); await p.reload(); await p.waitForTimeout(800);
 await p.click('.gear'); await p.waitForTimeout(350);
 T('새로고침해도 안 돌아옴', (await p.$$('.srow .nm')).length===1);
 await p.click('.nav .back'); await p.waitForTimeout(400);

@@ -9,9 +9,9 @@ const SEED=(a,b)=>{localStorage.setItem('yd_local_v1',JSON.stringify({family:{id
 const b=await chromium.launch(process.env.PW_CHROMIUM?{executablePath:process.env.PW_CHROMIUM}:{});
 const ctx=await b.newContext({viewport:{width:390,height:844},deviceScaleFactor:2,isMobile:true,hasTouch:true});
 await ctx.addInitScript(require('./_env').LOCAL);
-const p=await ctx.newPage(); const errs=[]; p.on('pageerror',e=>errs.push(e.message));
+const p=await ctx.newPage(); require('./_env').guard(p); const errs=[]; p.on('pageerror',e=>errs.push(e.message));
 await p.goto('file://'+path.resolve(__dirname,'../index.html'));
-await p.evaluate((s)=>eval(s),`(${SEED.toString()})(16300,0)`); await p.reload(); await p.waitForTimeout(600);
+await p.evaluate((s)=>eval(s),`(${SEED.toString()})(16300,0)`); await p.waitForTimeout(150); await p.reload(); await p.waitForTimeout(600);
 const rows=()=>p.$$eval('.kid .money .row',es=>es.map(e=>({n:e.querySelectorAll('svg').length, t:e.querySelector('svg text')?.textContent, x:e.querySelector('.xn')?.textContent||''})));
 
 T('잔액이 버튼', !!(await p.$('button.balbtn')));
@@ -35,25 +35,25 @@ T('아무 데나 누르면 닫힘', !(await p.$('.kid')));
 await p.click('.balbtn'); await p.waitForTimeout(200); await p.click('.kid .x'); await p.waitForTimeout(200);
 T('✕로도 닫힘', !(await p.$('.kid')));
 
-await p.evaluate((s)=>eval(s),`(${SEED.toString()})(84950,0)`); await p.reload(); await p.waitForTimeout(500);
+await p.evaluate((s)=>eval(s),`(${SEED.toString()})(84950,0)`); await p.waitForTimeout(150); await p.reload(); await p.waitForTimeout(500);
 await p.click('.balbtn'); await p.waitForTimeout(300); r=await rows();
 T('84,950 = 6줄', r.length===6 && r.map(x=>x.t).join()==='50000,10000,1000,500,100,50');
 T('1만 3장·1천 4장 부채꼴', r[1].n===3 && r[2].n===4);
 T('한 화면에 들어감', await p.$eval('.kid',e=>e.scrollHeight<=e.clientHeight+1));
 await p.click('.kid'); await p.waitForTimeout(150);
 
-await p.evaluate((s)=>eval(s),`(${SEED.toString()})(300000,0)`); await p.reload(); await p.waitForTimeout(500);
+await p.evaluate((s)=>eval(s),`(${SEED.toString()})(300000,0)`); await p.waitForTimeout(150); await p.reload(); await p.waitForTimeout(500);
 await p.click('.balbtn'); await p.waitForTimeout(300); r=await rows();
 T('30만 = 50000 한 장 + ×6 (다섯 장 넘으면 세지 않는다)', r.length===1 && r[0].n===1 && r[0].x==='×6');
 await p.click('.kid'); await p.waitForTimeout(150);
 
 // 줄이 많으면 돼지를 줄여서라도 한 화면에
-await p.evaluate((s)=>eval(s),`(${SEED.toString()})(99990,0)`); await p.reload(); await p.waitForTimeout(500);
+await p.evaluate((s)=>eval(s),`(${SEED.toString()})(99990,0)`); await p.waitForTimeout(150); await p.reload(); await p.waitForTimeout(500);
 await p.click('.balbtn'); await p.waitForTimeout(400);
 T('99,990 = 8줄, 돼지를 줄여 한 화면에', (await rows()).length===8
   && await p.$eval('.kid',e=>e.classList.contains('tight') && e.scrollHeight<=e.clientHeight+1));
 await p.click('.kid'); await p.waitForTimeout(150);
-await p.evaluate((s)=>eval(s),`(${SEED.toString()})(16300,0)`); await p.reload(); await p.waitForTimeout(500);
+await p.evaluate((s)=>eval(s),`(${SEED.toString()})(16300,0)`); await p.waitForTimeout(150); await p.reload(); await p.waitForTimeout(500);
 await p.click('.balbtn'); await p.waitForTimeout(350);
 T('금액이 작으면 돼지는 원래 크기', await p.$eval('.kid img.pig',e=>e.getBoundingClientRect().width===222));
 await p.click('.kid'); await p.waitForTimeout(150);
@@ -70,7 +70,7 @@ const marks=()=>p.$$eval('.kid .money svg',es=>es.map(e=>{const n=e.querySelecto
           parts:e.querySelectorAll('rect,circle,path').length, tf:t.getAttribute('fill')};}));
 await p.evaluate((s)=>eval(s),`(${SEED.toString()})(-2000,-12500)`);
 await p.evaluate(()=>localStorage.setItem('yd_sel','k1'));
-await p.reload(); await p.waitForTimeout(600);
+await p.waitForTimeout(150); await p.reload(); await p.waitForTimeout(600);
 await p.click('.balbtn'); await p.waitForTimeout(350);
 T('마이너스 숫자는 −2,000', (await p.textContent('.kid .ka b'))==='−2,000');
 T('숫자는 그대로 검정 (빨강·옅은 색 아님)', await p.$eval('.kid .ka b',e=>getComputedStyle(e).color==='rgb(43, 29, 20)'));
@@ -89,7 +89,7 @@ T('동전도 빈 자리', m[m.length-1].fill==='#FDF6E7' && m[m.length-1].dash==
 await p.click('.kid .x'); await p.waitForTimeout(200);
 await p.evaluate((s)=>eval(s),`(${SEED.toString()})(-300000,0)`);
 await p.evaluate(()=>localStorage.setItem('yd_sel','k1'));
-await p.reload(); await p.waitForTimeout(600);
+await p.waitForTimeout(150); await p.reload(); await p.waitForTimeout(600);
 await p.click('.balbtn'); await p.waitForTimeout(350);
 T('빚이 커도 한 장 + ×6, 가로로 안 잘린다', (await rows())[0].x==='×6' && await p.$eval('.kid',e=>e.scrollWidth<=e.clientWidth+1));
 T('빈 자리의 ×n 은 옅은 톤', await p.$eval('.kid .money .xn',e=>getComputedStyle(e).color!=='rgb(107, 74, 0)'));
@@ -108,7 +108,7 @@ const swipe=async(x0,y0,x1,y1,ms=180)=>{
 const who=()=>p.textContent('.kid .kn');
 await p.evaluate((s)=>eval(s),`(${SEED.toString()})(16300,5000)`);
 await p.evaluate(()=>localStorage.setItem('yd_sel','k1'));      // 앞 구간이 하준을 골라둔 상태를 초기화
-await p.reload(); await p.waitForTimeout(600);
+await p.waitForTimeout(150); await p.reload(); await p.waitForTimeout(600);
 await p.click('.balbtn'); await p.waitForTimeout(350);
 T('서윤 화면에서 시작', (await who())==='서윤');
 await swipe(300,500,90,500);
@@ -133,7 +133,7 @@ T('가장자리에서 시작하면 안 바뀐다', (await who())==='서윤' && !
 await p.click('.kid .x'); await p.waitForTimeout(250);
 // 아이가 한 명이면 아무 일도 없다
 await p.evaluate(()=>{const d=JSON.parse(localStorage.getItem('yd_local_v1')); d.children=[d.children[0]]; localStorage.setItem('yd_local_v1',JSON.stringify(d));});
-await p.reload(); await p.waitForTimeout(600); await p.click('.balbtn'); await p.waitForTimeout(350);
+await p.waitForTimeout(150); await p.reload(); await p.waitForTimeout(600); await p.click('.balbtn'); await p.waitForTimeout(350);
 await swipe(300,500,90,500);
 T('아이가 한 명이면 그대로', (await who())==='서윤' && !!(await p.$('.kid')));
 

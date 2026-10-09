@@ -8,8 +8,8 @@ const SEED=()=>{localStorage.setItem('yd_local_v1',JSON.stringify({family:{id:'f
 const b=await chromium.launch(process.env.PW_CHROMIUM?{executablePath:process.env.PW_CHROMIUM}:{});
 const ctx=await b.newContext({viewport:{width:390,height:844},deviceScaleFactor:2,isMobile:true,hasTouch:true});
 await ctx.addInitScript(require('./_env').LOCAL);
-const p=await ctx.newPage(); const errs=[];p.on('pageerror',e=>errs.push(e.message));
-await p.goto('file://'+path.resolve(__dirname,'../index.html')); await p.evaluate(SEED); await p.reload(); await p.waitForTimeout(600);
+const p=await ctx.newPage(); require('./_env').guard(p); const errs=[];p.on('pageerror',e=>errs.push(e.message));
+await p.goto('file://'+path.resolve(__dirname,'../index.html')); await p.evaluate(SEED); await p.waitForTimeout(150); await p.reload(); await p.waitForTimeout(600);
 const row=()=>p.$('.srow.tap:has-text("잠깐 열어두기")');
 const rowVal=()=>p.$eval('.srow.tap:has-text("잠깐 열어두기") .val',e=>e.textContent);
 const until=()=>p.evaluate(()=>JSON.parse(localStorage.getItem('yd_local_v1')).openUntil||null);
@@ -32,13 +32,13 @@ T('잠그면 되돌아간다', (await rowVal())==='잠김' && (await until())===
 // 시간이 지나면 저절로 잠긴 것으로 보인다
 await p.evaluate(()=>{const d=JSON.parse(localStorage.getItem('yd_local_v1'));
   d.openUntil=new Date(Date.now()-60000).toISOString(); localStorage.setItem('yd_local_v1',JSON.stringify(d));});
-await p.reload(); await p.waitForTimeout(500); await p.click('.gear'); await p.waitForTimeout(400);
+await p.waitForTimeout(150); await p.reload(); await p.waitForTimeout(500); await p.click('.gear'); await p.waitForTimeout(400);
 T('지난 시각이면 잠김으로 보인다', (await rowVal())==='잠김');
 
 // 주인이 아니면 줄 자체가 없다
 await p.evaluate(()=>{const d=JSON.parse(localStorage.getItem('yd_local_v1')); delete d.family;
   localStorage.setItem('yd_local_v1',JSON.stringify(d));});
-await p.reload(); await p.waitForTimeout(600);
+await p.waitForTimeout(150); await p.reload(); await p.waitForTimeout(600);
 const gear=await p.$('.gear'); if(gear){ await gear.click(); await p.waitForTimeout(400); }
 T('주인이 아니면 줄이 없다', !(await row()));
 

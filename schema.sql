@@ -149,10 +149,22 @@ begin
   return fid;
 end $$;
 
-grant execute on function create_family(text)  to anon, authenticated;
-grant execute on function open_families(int)  to anon, authenticated;
-grant execute on function gate_state()        to anon, authenticated;
-grant execute on function join_family(text)   to anon, authenticated;
+-- 함수는 로그인한 사용자만 부른다. 익명 로그인도 로그인이라 authenticated 다 — 로그인 전(anon)과 public 은 뺀다.
+-- (Security Advisor 0028 "anon 이 SECURITY DEFINER 함수를 실행할 수 있음" 이 이것. authenticated 쪽 경고(0029)는 이 함수들이 곧 API 라 의도한 것)
+revoke execute on function create_family(text)  from public, anon;
+revoke execute on function open_families(int)   from public, anon;
+revoke execute on function gate_state()         from public, anon;
+revoke execute on function join_family(text)    from public, anon;
+revoke execute on function is_member(uuid)      from public, anon;   -- RLS 정책이 쓰는 함수. 정책은 요청한 역할(authenticated)로 평가되므로 그쪽 권한은 남긴다
+grant execute on function create_family(text)  to authenticated;
+grant execute on function open_families(int)   to authenticated;
+grant execute on function gate_state()         to authenticated;
+grant execute on function join_family(text)    to authenticated;
+grant execute on function is_member(uuid)      to authenticated;
+-- Supabase 프로젝트 옵션(auto RLS)이 만든 함수. 우리 것이 아니고 API 로 부를 일이 없다 — 없으면 그냥 지나간다
+do $$ begin
+  revoke execute on function public.rls_auto_enable() from public, anon, authenticated;
+exception when undefined_function then null; end $$;
 
 -- ── 실시간 (두 폰이 바로 같이 보이게) ─────────────────────
 do $$ begin

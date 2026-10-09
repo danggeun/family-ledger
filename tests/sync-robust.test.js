@@ -8,6 +8,7 @@ const CDN='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/su
 
 const FAKE=(opt)=>{
   try{ Object.defineProperty(window,'APP_CONFIG',{value:{SUPABASE_URL:'https://x.supabase.co/rest/v1/',SUPABASE_ANON_KEY:'k'},writable:false,configurable:false}); }catch(_){}
+  try{ localStorage.setItem('yd_tour','done'); }catch(e){}
   const F=window.__fake={
     mode: opt.mode||'live',                                   // live | dead(데이터 전부 실패) | noinit(가족 확인만 실패)
     session: opt.session===undefined ? {user:{id:'u1'}} : opt.session,
@@ -82,9 +83,9 @@ async function open(opt, seedCache, blockCdn){
   if(blockCdn){ await ctx.route(CDN, r=>r.abort());
     await ctx.addInitScript(()=>{ Object.defineProperty(window,'APP_CONFIG',{value:{SUPABASE_URL:'https://x.supabase.co',SUPABASE_ANON_KEY:'k'},writable:false,configurable:false}); }); }
   else await ctx.addInitScript(FAKE, opt||{});
-  const p=await ctx.newPage(); p.on('pageerror',e=>errs.push(e.message));
+  const p=await ctx.newPage(); require('./_env').guard(p); p.on('pageerror',e=>errs.push(e.message));
   await p.goto(APP); if(seedCache) await p.evaluate(CACHE);
-  await p.reload(); await p.waitForTimeout(blockCdn?1500:2500);
+  await p.waitForTimeout(150); await p.reload(); await p.waitForTimeout(blockCdn?1500:2500);
   return {ctx,p};
 }
 const fake=(p,fn)=>p.evaluate(fn);
