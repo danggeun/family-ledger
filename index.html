@@ -286,7 +286,7 @@ button.srow{width:100%; text-align:left}
 
 /* ─── 처음 안내 — 화면을 살짝 어둡게 하고 눌러볼 곳만 밝게. 한 번에 한 가지, 해 보면 다음으로. 언제든 건너뛰기.
    레이어는 root 밖에 하나만 두고 자리만 옮긴다 — 그래야 단계가 바뀔 때 밝은 구멍과 카드가 미끄러져 간다 ─── */
-.tour{position:fixed; inset:0; z-index:50; opacity:0; transition:opacity .25s; pointer-events:none}   /* 상자 자체는 터치를 안 받는다 — 구멍이 뚫려야 하니까 */
+.tour{position:fixed; inset:0; z-index:70; opacity:0; transition:opacity .25s; pointer-events:none}   /* 상자 자체는 터치를 안 받는다 — 구멍이 뚫려야 하니까 */
 .tour.in{opacity:1}
 .tour-block,.tour-sample,.tour-card{pointer-events:auto}
 .tour.hide,.tour.out,.tour.hide *,.tour.out *{opacity:0; pointer-events:none}
@@ -306,6 +306,10 @@ button.srow{width:100%; text-align:left}
   border:1px solid var(--hair); border-radius:5px; padding:1px 5px; margin-left:6px; vertical-align:1px}
 .tour-card{position:fixed; left:20px; right:20px; background:var(--paper); color:var(--ink); border-radius:18px; padding:18px 18px 14px;
   box-shadow:0 18px 44px -12px rgba(0,0,0,.45); transition:top .4s cubic-bezier(.2,.8,.2,1)}
+.tour-card.up .tc-caret{top:auto; bottom:-6px}
+.tour-card.hint{pointer-events:none; padding:14px 18px} .tour-card.hint .tc-foot,.tour-card.hint .skip{display:none}
+.tour-card.hint .tc-title{font-size:var(--t4); font-weight:600; padding-right:0; text-align:center}
+.tour-card.hint .tc-body{margin-top:2px; text-align:center}
 .tour-card .tc-caret{position:absolute; top:-6px; width:12px; height:12px; background:var(--paper); border-radius:2px; transform:rotate(45deg);
   transition:left .4s cubic-bezier(.2,.8,.2,1), opacity .2s}
 .tour-card .tc-title{font-size:var(--t5); font-weight:700; letter-spacing:-.02em; line-height:1.3}
@@ -873,36 +877,54 @@ function tourInit(){                                   // cacheSave 전에 불�
   if(v==="new" && !S.tour) S.tour={step:"sign"};      // 하다 말고 껐으면 처음부터 다시
 }
 function tourEnd(){ S.tour=null; lsSet("yd_tour","done"); if(!S.draft.memo && !S.draft.amount) resetDraft(); }   // 안내에서 바꾼 부호는 되돌린다
-var TOUR_LOOK={color:1, week:1, export:1};             // 설정 안에서 보여주기만 하는 단계 — "다음"으로 넘어간다
+var TOUR_LOOK={color:1, export:1};                     // 설정 안에서 보여주기만 하는 단계 — "다음"으로 넘어간다
+function tourSub(){                                    // 단계 안의 곁화면: 그림이 떠 있으면 "kid"(살짝 알려주기), 시트가 떠 있으면 "sheet"(설명)
+  var t=S.tour; if(!t) return null;
+  if(t.step==="bal" && S.kidView) return "kid";
+  if(t.step==="press" && S.entryView) return "kid";
+  if(t.step==="edit" && S.edit && S.edit.id==="sample" && !S.pickDate) return "sheet";
+  if(t.step==="week" && S.editWeek) return "sheet";
+  return null;
+}
 function tourTick(){                                   // 화면 상태를 보고 다음 단계로 — render 마다 한 번
   var t=S.tour; if(!t) return;
-  if(t.step==="bal"){ if(S.kidView) t.opened=true; else if(t.opened){ t.opened=false; t.step = S.children.length>1 ? "swipe" : "press"; } }
-  else if(t.step==="press"){ if(S.entryView) t.opened=true; else if(t.opened){ t.opened=false; t.step="gear"; } }
+  function did(open, next){ if(open) t.opened=true; else if(t.opened){ t.opened=false; t.step=next; } }
+  if(t.step==="bal") did(S.kidView, S.children.length>1 ? "swipe" : "press");
+  else if(t.step==="press") did(S.entryView, "edit");
+  else if(t.step==="edit") did(S.edit && S.edit.id==="sample", "gear");
   else if(t.step==="gear"){ if(S.screen==="settings") t.step="color"; }
-  else if(TOUR_LOOK[t.step] || t.step==="back"){ if(S.screen!=="settings") tourEnd(); }   // 설정에서 나가면 끝 — 어느 단계에서든
+  else if(t.step==="week" && S.screen==="settings") did(S.editWeek, "export");
+  if(t.step==="back"){ if(S.screen==="home") t.step="done"; }                       // 나오면 마지막 한 장 — 이제 진짜로 적어 보라고
+  else if((TOUR_LOOK[t.step] || t.step==="week") && S.screen!=="settings") tourEnd();   // 중간에 나가면 그냥 끝
 }
 function tourText(step){
-  var many=S.children.length>1;
+  var many=S.children.length>1, first=S.children[0] ? S.children[0].name : "아이";
   return { sign:["− 를 눌러 받은 돈으로 바꿔 보세요","쓴 돈은 −, 받은 돈은 +. 한 번 받은 돈으로 적은 말은 다음부터 치기만 해도 + 가 돼요"],
-           bal:["잔액을 눌러 보세요", many ? "아이에게 보여주는 그림이에요. 거기서도 좌우로 밀면 다른 아이, 아무 데나 누르면 닫혀요"
-                                        : "아이에게 보여주는 그림이에요. 아무 데나 누르면 닫혀요"],
+           bal:["잔액을 눌러 보세요","아이에게 보여주는 그림이에요"],
+           balView:many ? ["아무 데나 누르면 닫혀요","좌우로 밀면 다른 아이"] : ["아무 데나 누르면 닫혀요"],
            swipe:["화면 아무 데서나 좌우로 밀어 보세요","다른 아이 통장으로 넘어가요. 이름을 눌러도 돼요"],
-           press:["이 줄을 길게 눌러 보세요","그 금액만 그림으로 보여요. 짧게 누르면 고치기예요"],
+           press:["이 줄을 길게 눌러 보세요","그 금액만 그림으로 보여요"],
+           pressView:["아무 데나 누르면 닫혀요"],
+           edit:["이번엔 짧게 눌러 보세요","고치기가 열려요"],
+           editView:["고치기","날짜·용도·금액을 고치거나 지워요. 자동으로 들어온 용돈은 이번 주만 건너뛸 수도 있어요"],
            gear:["⚙ 를 눌러 설정으로","나머지는 설정에 있어요. 잠깐만 둘러볼게요"],
            color:["아이 이름과 색","색을 고르면 홈 탭과 아이 그림이 그 색이 돼요"],
-           week:["매주 용돈","요일과 금액을 정해 두면 그날 저절로 적혀요"],
-           export:["기록 전체는 내보내기","엑셀로 열 수 있는 파일로 받아요"],
-           back:["‹ 로 나가면 끝이에요","잊어버리면 설정 맨 아래 사용법에 다 있어요"] }[step];
+           week:[first+" 줄을 눌러 보세요","매주 용돈을 정하는 곳이에요"],
+           weekView:["매주 용돈","요일과 금액을 정해 두면 그날 저절로 적혀요. 쓸 때는 안 켜도 돼요"],
+           export:["기록 전체는 내보내기","엑셀로 열 수 있는 파일로 저장돼요"],
+           back:["‹ 로 나가면 끝이에요","생각 안 나면 설정의 처음 안내 다시 보기"],
+           done:["다 됐어요. 이제 진짜로 적어 보세요","금액과 용도를 넣고 ✓"] }[step];
 }
-function tourOrder(){ return ["sign","bal"].concat(S.children.length>1?["swipe"]:[]).concat(["press","gear","color","week","export","back"]); }
+function tourOrder(){ return ["sign","bal"].concat(S.children.length>1?["swipe"]:[]).concat(["press","edit","gear","color","week","export","back"]); }
 var tourL=null;                                        // 레이어 {box, spot, blocks[], pulse, sample, card, caret, text, dots, foot} · step
 function tourSync(){                                   // render 끝에서. 있어야 하면 만들고 자리를 맞추고, 아니면 숨기거나 치운다
-  var t=S.tour, show = !!t && (S.screen==="home" || S.screen==="settings") && !S.kidView && !S.entryView
-                       && !S.edit && !S.editOpen && !S.pickDate && !S.editKid && !S.editWeek && !S.editGate;
+  var t=S.tour, sub=tourSub();
+  var show = !!t && (S.screen==="home" || S.screen==="settings") && (sub ||
+             (!S.kidView && !S.entryView && !S.edit && !S.editOpen && !S.pickDate && !S.editKid && !S.editWeek && !S.editGate));
   if(!t){ if(tourL){ var L=tourL.box; tourL=null; L.classList.add("out"); setTimeout(function(){ if(L.parentNode) L.parentNode.removeChild(L); }, 260); } return; }
   if(!tourL){ tourL=tourBuild(); document.body.appendChild(tourL.box); requestAnimationFrame(function(){ if(tourL) tourL.box.classList.add("in"); }); }
   tourL.box.classList.toggle("hide", !show);
-  if(show) tourLayout();
+  if(show) tourLayout(sub);
 }
 function tourBuild(){
   var box=el("div","tour"), L={box:box, step:null};
@@ -911,18 +933,24 @@ function tourBuild(){
   L.pulse=el("div","tour-pulse"); L.pulse.appendChild(el("i")); L.pulse.appendChild(el("i")); box.appendChild(L.pulse);
   L.sample=el("div","tour-sample");                    // 예시 줄 — 진짜 줄과 같은 생김새. 기록은 안 만든다
   var r=el("button","row sample");
-  r.appendChild(el("span","d","오늘")); r.appendChild(el("span","m","젤리")); r.appendChild(el("span","a","\u2212800")); r.appendChild(el("span","t",""));
+  r.appendChild(el("span","d","오늘")); r.appendChild(el("span","m","젤리")); r.appendChild(el("span","a","−800")); r.appendChild(el("span","t",""));
   longPress(r, function(){ navOpen("entryView", function(){ S.entryView={id:"sample", child_id:S.sel, memo:"젤리", amount:-800}; }); });
-  r.onclick=function(){};                              // 짧게 누르는 건 아무 일 없다 — 고치기 시트가 뜨면 안내가 샌다
+  r.onclick=function(){                                // 짧게 누르기는 고치기 단계에서만 — 예시 시트는 막 뒤라 저장이 안 된다
+    if(S.tour && S.tour.step==="edit")
+      navOpen("edit", function(){ S.edit={id:"sample", child_id:S.sel, memo:"젤리", amount:-800, amountStr:"800", sign:-1, entry_date:today(), arm:false}; });
+  };
   L.sample.appendChild(r); box.appendChild(L.sample);
   L.card=el("div","tour-card"); L.caret=el("div","tc-caret"); L.card.appendChild(L.caret);
   L.text=el("div","tc-text"); L.card.appendChild(L.text);
   L.foot=el("div","tc-foot"); L.dots=el("div","dots"); L.foot.appendChild(L.dots);
-  // 왼쪽 "그만하기"는 안내 전체를 끝내고, 오른쪽 "다음"은 안 해 보고 다음 단계로 — "건너뛰기" 하나로는 둘 중 뭔지 헷갈렸다
-  L.skip=el("button","skip","\u00D7"); L.skip.setAttribute("aria-label","그만하기"); L.skip.onclick=function(){ tourEnd(); render(); };
-  L.ok=el("button","ok","다음"); L.ok.onclick=function(){ var o=tourOrder(), i=o.indexOf(S.tour.step);
-    if(S.tour.step==="gear") navOpen("settings", function(){ S.screen="settings"; });   // 설정 단계는 설정 안에서만 — 대신 열어 준다
-    else if(i<o.length-1){ S.tour.step=o[i+1]; S.tour.opened=false; tourSync(); } else { tourEnd(); render(); } };
+  // 구석의 × 는 안내 전체를 끝내고, "다음"은 안 해 보고 다음 단계로 — "건너뛰기" 하나로는 둘 중 뭔지 헷갈렸다
+  L.skip=el("button","skip","×"); L.skip.setAttribute("aria-label","그만하기"); L.skip.onclick=function(){ tourEnd(); render(); };
+  L.ok=el("button","ok","다음"); L.ok.onclick=function(){ var st=S.tour.step;
+    if(tourSub()==="sheet"){ navBack(); return; }                                      // 시트를 닫으면 tick 이 다음으로
+    if(st==="gear"){ navOpen("settings", function(){ S.screen="settings"; }); return; } // 설정 단계는 설정 안에서만 — 대신 열어 준다
+    if(st==="back"){ leaveSettings(); return; }                                      // 끝 = 설정에서 나가는 것 (나오면 마지막 한 장)
+    if(st==="done"){ tourEnd(); render(); var m=document.querySelector("input.memo"); if(m) m.focus(); return; }   // 펜을 건넨다
+    var o=tourOrder(), i=o.indexOf(st); S.tour.step=o[i+1]; S.tour.opened=false; tourSync(); };
   L.card.appendChild(L.skip); L.foot.appendChild(L.ok); L.card.appendChild(L.foot); box.appendChild(L.card);
   // 밀기 단계에선 어두운 데서 밀어도 넘어간다 — 밝은 띠만 밀라는 건 너무 좁다
   var x0=null;
@@ -937,52 +965,62 @@ function tourBuild(){
   });
   return L;
 }
-function tourLayout(){
+function tourLayout(sub){
   var L=tourL, t=S.tour, step=t.step, vw=window.innerWidth, vh=window.innerHeight;
-  var hole=null, pulseAt=null, cardTop=null;
+  var hole=null, pulseAt=null, cardTop=null, key=step, blockAll=false, full=false, above=false;
   function pad(r,p){ return {x:r.left-p, y:r.top-p, w:r.width+2*p, h:r.height+2*p}; }
-  if(step==="sign"){ var en=document.querySelector(".entry"), sg=document.querySelector(".entry .sign");
-    if(en && sg){ hole=pad(en.getBoundingClientRect(), 6); var sr0=sg.getBoundingClientRect(); pulseAt={x:sr0.left+sr0.width/2, y:sr0.top+sr0.height/2}; } }
-  if(step==="bal"){ var n=document.querySelector(".balbtn"); if(n){ hole=pad(n.getBoundingClientRect(), 8); pulseAt={x:hole.x+hole.w/2, y:hole.y+hole.h/2}; } }
-  if(step==="swipe"){ hole={x:-20, y:-20, w:vw+40, h:vh+40}; }   // 어디서든 되는 동작이라 밝힐 곳을 안 정한다 — 막 없이 카드만
-  if(step==="gear" || step==="back"){ var g=document.querySelector(step==="gear" ? ".gear" : ".nav .back");
+  if(sub==="kid"){ key = step==="bal" ? "balView" : "pressView"; full=true; }                 // 그림 위엔 막 없이 한 줄만 — 그림은 글자 없는 화면이다
+  else if(sub==="sheet"){ key = step==="edit" ? "editView" : "weekView"; blockAll=true; above=true;   // 시트는 보여주기만 — 만지지는 못하고 카드가 위에서 설명
+    var shv=document.querySelector(".sheet"); if(shv) hole=pad(shv.getBoundingClientRect(), 0); }
+  else if(step==="sign" || step==="done"){ var en=document.querySelector(".entry"), sg=document.querySelector(".entry .sign");
+    if(en){ hole=pad(en.getBoundingClientRect(), 6); if(sg && step==="sign"){ var sr0=sg.getBoundingClientRect(); pulseAt={x:sr0.left+sr0.width/2, y:sr0.top+sr0.height/2}; } } }
+  else if(step==="bal"){ var n=document.querySelector(".balbtn"); if(n){ hole=pad(n.getBoundingClientRect(), 8); pulseAt={x:hole.x+hole.w/2, y:hole.y+hole.h/2}; } }
+  else if(step==="swipe"){ full=true; }                 // 어디서든 되는 동작이라 밝힐 곳을 안 정한다 — 막 없이 카드만
+  else if(step==="gear" || step==="back"){ if(step==="back") window.scrollTo(0,0);   // 내보내기까지 내려와 있었으면 ‹ 가 화면 밖이다
+    var g=document.querySelector(step==="gear" ? ".gear" : ".nav .back");
     if(g){ hole=pad(g.getBoundingClientRect(), 4); pulseAt={x:hole.x+hole.w/2, y:hole.y+hole.h/2}; } }
-  if(TOUR_LOOK[step]){ var c=document.querySelector(".card."+step);   // 설정의 한 묶음 — 제목 줄부터 카드까지. 화면 밖이면 보이게 올린다
+  else if(TOUR_LOOK[step] || step==="week"){ var c=document.querySelector(".card."+step);   // 설정의 한 묶음 — 제목 줄부터 카드까지. 화면 밖이면 보이게 올린다
     if(c){ var h=c.previousElementSibling, r1=c.getBoundingClientRect();
       if(r1.top<60 || r1.bottom>vh-180){ c.scrollIntoView({block:"center"}); r1=c.getBoundingClientRect(); }
       var r2=h ? h.getBoundingClientRect() : r1, top0=Math.min(r1.top,r2.top);
-      hole={x:r1.left-8, y:top0-6, w:r1.width+16, h:r1.bottom-top0+12}; } }
-  if(step==="press"){ var e2=document.querySelector(".entry"), top=e2 ? e2.getBoundingClientRect().bottom+12 : 200;
+      hole={x:r1.left-8, y:top0-6, w:r1.width+16, h:r1.bottom-top0+12};
+      if(step==="week"){ var fr=c.querySelector(".srow"); if(fr){ var fb=fr.getBoundingClientRect(); pulseAt={x:fb.left+40, y:fb.top+fb.height/2}; } } } }
+  if(step==="press" || step==="edit"){ var e2=document.querySelector(".entry"), top=e2 ? e2.getBoundingClientRect().bottom+12 : 200;
     L.sample.style.top=top+"px"; L.sample.classList.add("on");
-    var sr=L.sample.getBoundingClientRect(); hole=pad(sr, 6); pulseAt={x:sr.left+34, y:sr.top+sr.height/2}; }
+    if(!sub){ var sr=L.sample.getBoundingClientRect(); hole=pad(sr, 6); pulseAt={x:sr.left+34, y:sr.top+sr.height/2}; } }
   else L.sample.classList.remove("on");
-  // 구멍(=밝은 곳). 끝 단계는 구멍을 가운데로 오므려 전부 어둡게
-  var sp=L.spot.style, rad = step==="swipe" ? 0 : (step==="sign" ? "18px" : "14px");
+  if(full) hole={x:-20, y:-20, w:vw+40, h:vh+40};
+  // 구멍(=밝은 곳)
+  var sp=L.spot.style, rad = full ? 0 : (step==="sign" || step==="done" ? "18px" : (sub==="sheet" ? "22px 22px 0 0" : "14px"));
   if(hole){ sp.left=hole.x+"px"; sp.top=hole.y+"px"; sp.width=hole.w+"px"; sp.height=hole.h+"px"; }
   else { sp.left=(vw/2)+"px"; sp.top=(vh/2)+"px"; sp.width="0px"; sp.height="0px"; }
   sp.borderRadius=rad;
-  var H = hole || {x:vw/2, y:vh/2, w:0, h:0};
-  var bl=L.blocks, st=[[0,0,vw,Math.max(0,H.y)], [0,H.y+H.h,vw,Math.max(0,vh-H.y-H.h)], [0,H.y,Math.max(0,H.x),H.h], [H.x+H.w,H.y,Math.max(0,vw-H.x-H.w),H.h]];
+  var H = hole || {x:vw/2, y:vh/2, w:0, h:0}, B = blockAll ? {x:0, y:0, w:0, h:0} : H;
+  var bl=L.blocks, st=[[0,0,vw,Math.max(0,B.y)], [0,B.y+B.h,vw,Math.max(0,vh-B.y-B.h)], [0,B.y,Math.max(0,B.x),B.h], [B.x+B.w,B.y,Math.max(0,vw-B.x-B.w),B.h]];
   st.forEach(function(q,i){ bl[i].style.left=q[0]+"px"; bl[i].style.top=q[1]+"px"; bl[i].style.width=q[2]+"px"; bl[i].style.height=q[3]+"px"; });
   // 누를 곳에 번지는 테 — 밀기 단계는 없다(방향이 있는 동작이라 카드 안의 화살표가 맡는다)
   if(pulseAt){ L.pulse.classList.remove("off"); L.pulse.style.left=pulseAt.x+"px"; L.pulse.style.top=pulseAt.y+"px"; }
   else L.pulse.classList.add("off");
   // 카드 — 글은 단계가 바뀔 때만 갈아 끼우고 살짝 떠오른다
-  if(L.step!==step){
-    L.step=step; L.text.innerHTML="";
-    var tx=tourText(step), tt=el("div","tc-title",tx[0]);
-    if(step==="swipe"){ var ch=el("span","tc-chev"); ["\u2039","\u2039","\u2039"].forEach(function(c){ ch.appendChild(el("i",null,c)); }); tt.appendChild(ch); }
-    L.text.appendChild(tt); L.text.appendChild(el("p","tc-body",tx[1]));
+  if(L.step!==key){
+    L.step=key; L.text.innerHTML="";
+    var tx=tourText(key), tt=el("div","tc-title",tx[0]);
+    if(step==="swipe"){ var ch=el("span","tc-chev"); ["‹","‹","‹"].forEach(function(c){ ch.appendChild(el("i",null,c)); }); tt.appendChild(ch); }
+    L.text.appendChild(tt); if(tx[1]) L.text.appendChild(el("p","tc-body",tx[1]));
     L.text.classList.remove("swap"); void L.text.offsetWidth; L.text.classList.add("swap");
     var order=tourOrder(); L.dots.innerHTML="";
     order.forEach(function(k){ L.dots.appendChild(el("i", k===step?"on":"")); });
-    L.ok.textContent = step==="back" ? "끝" : "다음";
+    L.ok.textContent = step==="back" ? "끝" : (step==="done" ? "시작" : "다음");
+    L.dots.style.visibility = step==="done" ? "hidden" : "";
+    L.card.classList.toggle("hint", sub==="kid");        // 그림 위의 한 줄: 발치도 × 도 없고, 눌러도 그림이 눌린다
+    L.card.classList.toggle("up", above);
   }
   var ch2=L.card.offsetHeight;
-  if(step==="swipe") cardTop = vh - ch2 - 28 - sab();
+  if(full) cardTop = vh - ch2 - 28 - sab();
+  else if(above) cardTop = Math.max(12, H.y - ch2 - 16);
   else cardTop = Math.min(H.y+H.h+16, vh - ch2 - 16 - sab());
   L.card.style.top=cardTop+"px";
-  if(hole && step!=="swipe"){ L.caret.style.opacity="1"; L.caret.style.left=Math.max(18, Math.min(vw-40-30, H.x+H.w/2-20-6))+"px"; }
+  if(hole && !full){ L.caret.style.opacity="1"; L.caret.style.left=Math.max(18, Math.min(vw-40-30, H.x+H.w/2-20-6))+"px"; }
   else L.caret.style.opacity="0";
   function sab(){ var v=parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--sab")); return isNaN(v)?0:v; }
 }
@@ -1831,6 +1869,17 @@ function exportCSV(){
     withTotals(c.id).reverse().forEach(function(e){ lines.push([c.name,e.entry_date,'"'+(e.memo||"").replace(/"/g,'""')+'"',e.amount,e.total].join(",")); });
   });
   var text=lines.join("\n");
+  // 파일로 내려받는다 — "내보내기"를 누르면 파일이 생기는 게 자연스럽다. 공유 창(어디로 보낼지부터 고르는)은 한 단계 돌아가는 느낌이었다.
+  // 앞의 BOM 은 엑셀이 한글을 깨지 않고 열게 한다
+  try{
+    var a=document.createElement("a");
+    if("download" in a){
+      var url=URL.createObjectURL(new Blob(["\uFEFF"+text], {type:"text/csv;charset=utf-8"}));
+      a.href=url; a.download="용돈기입장 "+today()+".csv"; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 10000);
+      toast("파일로 저장했어요"); return;
+    }
+  }catch(e){}
   if(navigator.share){ navigator.share({title:"용돈기입장 기록",text:text}).catch(function(){}); return; }
   if(navigator.clipboard){ navigator.clipboard.writeText(text)
       .then(function(){ toast("복사했어요"); }, function(){ showText(text); }); return; }
