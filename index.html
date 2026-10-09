@@ -269,6 +269,7 @@ input{border:0; background:none; outline:none; min-width:0}
 .link:active{color:var(--muted)}
 .link.sm{font-size:var(--t3); color:var(--ink-2); border-bottom:0; padding:14px 0 0}
 .code{font-family:ui-monospace,Menlo,monospace; font-size:var(--t5); font-weight:600; letter-spacing:.08em}
+.srow .val.code{font-size:var(--t4); font-weight:500; color:var(--ink-3)}   /* 설정의 코드는 값 톤 — 매번 눈에 걸리지 않게 */
 .srow .copy{flex:none; font-size:var(--t3); font-weight:600; color:var(--ink-2);
   background:var(--wash); border-radius:9px; padding:7px 12px; margin-left:var(--s3)}
 .srow .copy:active{background:var(--hair)}
@@ -1828,25 +1829,6 @@ function renderSettings(){
   });
   wrap.appendChild(wCard);
 
-  wrap.appendChild(el("div","sec-h","동기화"));
-  if(store.kind==="supabase"){
-    var cCard=el("div","card"), cr=el("div","srow");
-    var lab=el("span","grow"); lab.appendChild(el("span","syncdot on")); lab.appendChild(document.createTextNode("가족 코드"));   // 연결됨 표시는 가족 코드 줄 안에 — 따로 한 줄 안 쓴다
-    cr.appendChild(lab);
-    cr.appendChild(el("span","code",S.family?S.family.code:"—"));
-    var cp=el("button","copy","복사");
-    cp.onclick=function(){
-      var t=S.family?S.family.code:"";
-      if(navigator.clipboard) navigator.clipboard.writeText(t).then(function(){ toast("복사했어요"); }, function(){ toast(t); });
-      else toast(t);
-    };
-    cr.appendChild(cp); cCard.appendChild(cr); wrap.appendChild(cCard);
-  } else {
-    var st2=el("p","note"); st2.appendChild(el("span","syncdot"));
-    st2.appendChild(document.createTextNode("연결 안 됨. 이 기기에만 저장돼요."));
-    wrap.appendChild(st2);
-  }
-
   wrap.appendChild(el("div","sec-h","기록"));
   var eCard=el("div","card export"), er=el("button","srow tap");
   er.appendChild(el("span","grow","내보내기"));
@@ -1854,11 +1836,25 @@ function renderSettings(){
   er.onclick=exportCSV;
   eCard.appendChild(er); wrap.appendChild(eCard);
 
-  wrap.appendChild(el("div","sec-h","앱"));                      // 글로 된 사용법은 안 둔다 — 읽어서 알게 되는 앱이 아니라, 해 보면 아는 앱
-  var hCard=el("div","card"), hr=el("button","srow tap help-link");
-  hr.appendChild(el("span","grow","처음 안내 다시 보기")); hr.appendChild(el("span","chev","\u203A"));
-  hr.onclick=function(){ S.tour={step:"sign"}; lsSet("yd_tour","new"); history.go(-navStack.length); };   // 설정을 닫고 홈에서부터
-  hCard.appendChild(hr); wrap.appendChild(hCard);
+  wrap.appendChild(el("div","sec-h","동기화"));
+  if(store.kind==="supabase"){
+    // 코드는 다른 줄들처럼 오른쪽 값으로 조용히. 숨겨서 얻는 안전은 없다(초대가 열린 10분에만 들어온다). 줄을 누르면 복사
+    var cCard=el("div","card"), cr=el("button","srow tap code-row");
+    var lab=el("span","grow"); lab.appendChild(el("span","syncdot on")); lab.appendChild(document.createTextNode("가족 코드"));   // 연결됨 표시는 가족 코드 줄 안에 — 따로 한 줄 안 쓴다
+    cr.appendChild(lab);
+    cr.appendChild(el("span","val code",S.family?S.family.code:"\u2014"));
+    cr.appendChild(el("span","chev","\u203A"));
+    cr.onclick=function(){
+      var t=S.family?S.family.code:"";
+      if(navigator.clipboard) navigator.clipboard.writeText(t).then(function(){ toast("복사했어요"); }, function(){ toast(t); });
+      else toast(t);
+    };
+    cCard.appendChild(cr); wrap.appendChild(cCard);
+  } else {
+    var st2=el("p","note"); st2.appendChild(el("span","syncdot"));
+    st2.appendChild(document.createTextNode("연결 안 됨. 이 기기에만 저장돼요."));
+    wrap.appendChild(st2);
+  }
 
   if(S.gate && S.gate.is_owner){            // 맨 처음 만든 가족(주인)만 보이고 쓸 수 있다
     wrap.appendChild(el("div","sec-h","초대"));
@@ -1870,6 +1866,12 @@ function renderSettings(){
     gr.onclick=function(){ navOpen("editGate", function(){ S.editGate={}; }); };
     gCard.appendChild(gr); wrap.appendChild(gCard);
   }
+
+  wrap.appendChild(el("div","sec-h","앱"));                      // 글로 된 사용법은 안 둔다 — 읽어서 알게 되는 앱이 아니라, 해 보면 아는 앱
+  var hCard=el("div","card"), hr=el("button","srow tap help-link");
+  hr.appendChild(el("span","grow","처음 안내 다시 보기")); hr.appendChild(el("span","chev","\u203A"));
+  hr.onclick=function(){ S.tour={step:"sign"}; lsSet("yd_tour","new"); history.go(-navStack.length); };   // 설정을 닫고 홈에서부터
+  hCard.appendChild(hr); wrap.appendChild(hCard);
 
   // 아이 추가는 한 집에서 한두 번 있는 일이다. 매번 보이는 자리를 차지할 일이 아니라
   // 맨 아래 버전과 같은 줄, 같은 톤으로 내려놓는다. 없는 기능이 되지는 않는다.
