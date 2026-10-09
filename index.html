@@ -1846,7 +1846,9 @@ function renderSettings(){
     cr.appendChild(el("span","chev","\u203A"));
     cr.onclick=function(){
       var t=S.family?S.family.code:"";
-      if(navigator.clipboard) navigator.clipboard.writeText(t).then(function(){ toast("복사했어요"); }, function(){ toast(t); });
+      // 안드로이드 13+ 는 복사하면 시스템이 "클립보드에 복사했어요" 를 띄운다 — 우리 것까지 겹치면 둘이 된다
+      var m=/Android (\d+)/.exec(navigator.userAgent), sys = !!m && +m[1]>=13;
+      if(navigator.clipboard) navigator.clipboard.writeText(t).then(function(){ if(!sys) toast("복사했어요"); }, function(){ toast(t); });
       else toast(t);
     };
     cCard.appendChild(cr); wrap.appendChild(cCard);
