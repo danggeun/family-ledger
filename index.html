@@ -327,9 +327,14 @@ button.srow{width:100%; text-align:left}
 .tour-card .dots i.on{background:var(--ink)}
 .tour-card .skip{position:absolute; top:8px; right:8px; width:34px; height:34px; border-radius:50%; font-size:20px; line-height:1; color:var(--muted)}   /* 그만하기는 카드 구석의 × — 발치에 두면 다음 옆에 덩그러니 떠 보였다 */
 .tour-card .skip:active{background:var(--wash); color:var(--ink)}
+/* 첫 카드에서만, × 위에 붙는 작은 말풍선 — 읽게 하지 않고 가리킨다. 다음 카드부터는 없다 */
+.tour-card .skip-hint{position:absolute; top:-30px; right:10px; background:var(--ink); color:#fff; font-size:var(--t2); font-weight:600;
+  padding:5px 9px; border-radius:8px; white-space:nowrap; pointer-events:none; animation:thint .4s cubic-bezier(.2,.8,.2,1) .5s both}
+.tour-card .skip-hint::after{content:""; position:absolute; right:10px; bottom:-4px; width:8px; height:8px; background:var(--ink); transform:rotate(45deg); border-radius:1px}
+@keyframes thint{from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:none}}
 .tour-card .tc-title{padding-right:34px}
 .tour-card .ok{background:var(--ink); color:#fff; border-radius:11px; padding:9px 18px; font-size:var(--t3); font-weight:600}
-.tour-card .ok.soft{background:var(--wash); color:var(--ink-3)}        /* 해 볼 단계의 "넘어가기" — 안 해도 되지만 주인공은 아니다 */
+.tour-card .ok.soft{background:var(--wash); color:var(--ink-3)}        /* 해 볼 단계의 "다음" — 안 해 보고도 갈 수 있지만 주인공은 화면 쪽 */
 .tour-card .prev{font-size:var(--t3); font-weight:600; color:var(--muted); padding:9px 10px; margin-right:2px}
 .tour-card .prev:active{color:var(--ink)}
 .tour-card .tc-foot .btns{display:flex; align-items:center}
@@ -884,9 +889,13 @@ function useCache(){
 function tourInit(){                                   // cacheSave 전에 불러야 새 기기가 "쓰던 기기"로 안 읽힌다
   var v=lsGet("yd_tour");
   if(v==null){ var used = !!cacheLoad() || (store.kind==="local" && S.entries.length>0); v = used ? "done" : "new"; lsSet("yd_tour", v); }
-  if(v==="new" && !S.tour) S.tour={step:"sign"};      // 하다 말고 껐으면 처음부터 다시
+  if(v==="new" && !S.tour) S.tour={step:"sign", sel0:S.sel};   // 하다 말고 껐으면 처음부터 다시. sel0 = 끝나면 돌아갈 아이
 }
-function tourEnd(){ S.tour=null; lsSet("yd_tour","done"); if(!S.draft.memo && !S.draft.amount) resetDraft(); }   // 안내에서 바꾼 부호는 되돌린다
+function tourEnd(){                                    // 안내에서 바꾼 것(부호, 밀어서 바뀐 아이)은 되돌린다 — 끝나면 시작하던 그 아이 홈
+  var t=S.tour; S.tour=null; lsSet("yd_tour","done");
+  if(t && t.sel0 && childOf(t.sel0) && t.sel0!==S.sel){ S.sel=t.sel0; lsSet("yd_sel",S.sel); S.limit=60; resetDraft(); }
+  else if(!S.draft.memo && !S.draft.amount) resetDraft();
+}
 var TOUR_LOOK={color:1, export:1};                     // 설정 안에서 보여주기만 하는 단계 — "다음"으로 넘어간다
 function tourSub(){                                    // 단계 안의 곁화면: 그림이 떠 있으면 "kid"(살짝 알려주기), 시트가 떠 있으면 "sheet"(설명)
   var t=S.tour; if(!t) return null;
@@ -926,7 +935,7 @@ function tourText(step){
            back:["‹ 로 나가면 끝이에요","생각 안 나면 설정의 처음 안내 다시 보기"],
            done:["다 됐어요. 이제 진짜로 적어 보세요","금액과 용도를 넣고 ✓"] }[step];
 }
-var TOUR_DO={sign:1, bal:1, swipe:1, press:1, edit:1, gear:1, week:1, back:1};   // 해 보는 단계 — 오른쪽 버튼은 "넘어가기"(연하게)
+var TOUR_DO={sign:1, bal:1, swipe:1, press:1, edit:1, gear:1, week:1, back:1};   // 해 보는 단계 — 오른쪽 "다음"이 연하다
 function tourPrev(){                                   // 한 단계 뒤로. 곁화면이 떠 있으면 그것만 닫는다(다음으로 안 넘어가게 opened 를 끈다)
   var t=S.tour, o=tourOrder(), i=o.indexOf(t.step);
   if(tourSub()){ t.opened=false; navBack(); return; }
@@ -974,7 +983,8 @@ function tourBuild(){
     var o=tourOrder(), i=o.indexOf(st); S.tour.step=o[i+1]; S.tour.opened=false; tourSync(); };
   L.prev=el("button","prev","이전"); L.prev.onclick=tourPrev;
   var btns=el("div","btns"); btns.appendChild(L.prev); btns.appendChild(L.ok);
-  L.card.appendChild(L.skip); L.foot.appendChild(btns); L.card.appendChild(L.foot); box.appendChild(L.card);
+  L.skipHint=el("span","skip-hint","언제든 그만두기");
+  L.card.appendChild(L.skip); L.card.appendChild(L.skipHint); L.foot.appendChild(btns); L.card.appendChild(L.foot); box.appendChild(L.card);
   // 밀기 단계에선 어두운 데서 밀어도 넘어간다 — 밝은 띠만 밀라는 건 너무 좁다
   var x0=null;
   L.blocks.forEach(function(d){
@@ -1035,9 +1045,10 @@ function tourLayout(sub){
     var order=tourOrder(); L.dots.innerHTML="";
     order.forEach(function(k){ L.dots.appendChild(el("i", k===step?"on":"")); });
     var doing = !!TOUR_DO[step] && !sub && key!=="signDone";   // 해 볼 단계(곁화면이 떠 있거나 이미 했으면 설명 단계)
-    L.ok.textContent = step==="back" ? "끝" : (step==="done" ? "시작" : (doing ? "넘어가기" : "다음"));
+    L.ok.textContent = step==="back" ? "끝" : (step==="done" ? "시작" : "다음");   // 말은 늘 "다음" — 해 볼 단계인지는 버튼의 진하기가 말한다("넘어가기"는 말 자체가 어색했다)
     L.ok.classList.toggle("soft", doing && step!=="back");
     L.prev.style.display = (step==="sign" || step==="done") ? "none" : "";
+    L.skipHint.style.display = key==="sign" ? "" : "none";
     L.dots.style.visibility = step==="done" ? "hidden" : "";
     L.card.classList.toggle("done", step==="done");
     if(step==="done"){ var pg=document.createElement("img"); pg.className="tc-pig"; pg.src="logo-pig-sm.png"; pg.alt=""; L.text.insertBefore(pg, L.text.firstChild); }
@@ -1047,7 +1058,7 @@ function tourLayout(sub){
   var ch2=L.card.offsetHeight;
   if(full) cardTop = vh - ch2 - 28 - sab();
   else if(above) cardTop = Math.max(12, H.y - ch2 - 16);
-  else cardTop = Math.min(H.y+H.h+16, vh - ch2 - 16 - sab());
+  else cardTop = Math.min(H.y+H.h+(key==="sign" ? 40 : 16), vh - ch2 - 16 - sab());   // 첫 카드는 × 말풍선이 들어갈 틈만큼 더 띄운다
   L.card.style.top=cardTop+"px";
   if(hole && !full){ L.caret.style.opacity="1"; L.caret.style.left=Math.max(18, Math.min(vw-40-30, H.x+H.w/2-20-6))+"px"; }
   else L.caret.style.opacity="0";
@@ -1872,7 +1883,7 @@ function renderSettings(){
   wrap.appendChild(el("div","sec-h","앱"));                      // 글로 된 사용법은 안 둔다 — 읽어서 알게 되는 앱이 아니라, 해 보면 아는 앱
   var hCard=el("div","card"), hr=el("button","srow tap help-link");
   hr.appendChild(el("span","grow","처음 안내 다시 보기")); hr.appendChild(el("span","chev","\u203A"));
-  hr.onclick=function(){ S.tour={step:"sign"}; lsSet("yd_tour","new"); history.go(-navStack.length); };   // 설정을 닫고 홈에서부터
+  hr.onclick=function(){ S.tour={step:"sign", sel0:S.sel}; lsSet("yd_tour","new"); history.go(-navStack.length); };   // 설정을 닫고 홈에서부터
   hCard.appendChild(hr); wrap.appendChild(hCard);
 
   // 아이 추가는 한 집에서 한두 번 있는 일이다. 매번 보이는 자리를 차지할 일이 아니라
