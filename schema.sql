@@ -161,3 +161,7 @@ exception when duplicate_object then null; end $$;
 do $$ begin
   alter publication supabase_realtime add table children;
 exception when duplicate_object then null; end $$;
+-- 삭제도 다른 폰에 실시간으로 가게. 기본(replica identity default)은 지워진 줄의 PK 만 보내서
+-- family_id 필터에 걸리지 않아 DELETE 이벤트가 버려진다 — 다른 폰은 앱을 갔다 와야 줄이 사라졌다.
+alter table entries  replica identity full;
+alter table children replica identity full;

@@ -44,6 +44,7 @@ URL은 `https://<ref>.supabase.co` 까지만. `/rest/v1` 이 붙으면 안 된�
 ## 업데이트
 
 파일을 덮어쓰고 push. `config.js`는 건드리지 않는다.
+CHANGELOG 에 "쓰던 프로젝트라면 …" SQL 이 적힌 버전은 **그 SQL 을 Supabase SQL Editor 에서 먼저 실행하고** push 한다.
 화면과 기능은 앱을 두 번 열면 반영된다. `index.html`의 `APP_VERSION`과 `sw.js`의 `CACHE`는 같은 값으로 맞춘다.
 
 아이콘이나 `splash.png`가 바뀌면 홈 화면 앱을 지우고 다시 추가해야 한다 — 설치할 때 구워지기 때문이다.
@@ -58,7 +59,8 @@ npx playwright install chromium
 npm test
 ```
 
-테스트는 실제 화면을 띄워서 확인한다. 서버 없이 로컬 모드로 돈다.
+테스트는 실제 화면을 띄워서 확인한다. `config.js`가 실제 서버를 가리키고 있어도 테스트는 로컬 모드로 돈다(`tests/_env.js`).
+서버가 필요한 경로(끊김·복구·세션 유실·되돌리기)는 서버를 흉내 내서 확인하고(`sync-robust`), 서비스워커는 테스트 안에서 http 서버를 띄워 확인한다(`sw`).
 
 ### 파일
 - `index.html` — 앱 전체

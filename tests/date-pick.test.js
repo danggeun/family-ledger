@@ -9,6 +9,7 @@ const pad=n=>String(n).padStart(2,'0');
 (async()=>{
 const b=await chromium.launch(process.env.PW_CHROMIUM?{executablePath:process.env.PW_CHROMIUM}:{});
 const ctx=await b.newContext({viewport:{width:390,height:844},deviceScaleFactor:2,isMobile:true,hasTouch:true});
+await ctx.addInitScript(require('./_env').LOCAL);
 const p=await ctx.newPage(); const errs=[];p.on('pageerror',e=>errs.push(e.message));
 await p.goto('file://'+path.resolve(__dirname,'../index.html'));
 await p.evaluate(SEED); await p.reload(); await p.waitForTimeout(600);

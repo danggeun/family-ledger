@@ -2,7 +2,9 @@ const {chromium}=require('playwright');
 const path=require('path');
 (async()=>{
 const b=await chromium.launch(process.env.PW_CHROMIUM?{executablePath:process.env.PW_CHROMIUM}:{});
-const p=await (await b.newContext({viewport:{width:390,height:844},deviceScaleFactor:2,isMobile:true,hasTouch:true})).newPage();
+const ctx=await b.newContext({viewport:{width:390,height:844},deviceScaleFactor:2,isMobile:true,hasTouch:true});
+await ctx.addInitScript(require('./_env').LOCAL);
+const p=await ctx.newPage();
 const errs=[];p.on('pageerror',e=>errs.push(e.message));
 let pass=0,fail=0;
 const T=(l,c)=>{c?pass++:fail++;console.log((c?'OK  ':'FAIL')+' '+l);};

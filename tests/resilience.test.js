@@ -6,7 +6,7 @@ const APP='file://'+path.resolve(__dirname,'../index.html');
 
 // 서버를 흉내 낸다. mode: live(정상) / nodata(데이터만 실패) / noinit(처음부터 실패)
 const FAKE=(mode)=>{
-  window.APP_CONFIG={SUPABASE_URL:'https://x.supabase.co',SUPABASE_ANON_KEY:'k'};
+  Object.defineProperty(window,'APP_CONFIG',{value:{SUPABASE_URL:'https://x.supabase.co',SUPABASE_ANON_KEY:'k'},writable:false,configurable:false});   // config.js 가 덮어쓰지 못하게
   const dead=()=>Promise.reject(new Error('Failed to fetch'));
   const ok=(data)=>Promise.resolve({data,error:null});
   const live = mode==='live';
@@ -67,6 +67,7 @@ await a.ctx.close();
 
 // 4) 매주 용돈 — 아주 오래된 시작일이어도 최근 주까지 채운다
 const ctx=await b.newContext({viewport:{width:390,height:844}});
+await ctx.addInitScript(require('./_env').LOCAL);
 const p=await ctx.newPage(); await p.goto(APP);
 const lastSat=()=>{const d=new Date(); d.setDate(d.getDate()-((d.getDay()+1)%7)); 
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};

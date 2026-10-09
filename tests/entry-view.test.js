@@ -15,6 +15,7 @@ const SEED=(entries,color)=>{localStorage.setItem('yd_local_v1',JSON.stringify({
 (async()=>{
 const b=await chromium.launch(process.env.PW_CHROMIUM?{executablePath:process.env.PW_CHROMIUM}:{});
 const ctx=await b.newContext({viewport:{width:390,height:844},deviceScaleFactor:2,isMobile:true,hasTouch:true});
+await ctx.addInitScript(require('./_env').LOCAL);
 const p=await ctx.newPage(); const errs=[]; p.on('pageerror',e=>errs.push(e.message));
 const cdp=await ctx.newCDPSession(p);
 await p.goto('file://'+path.resolve(__dirname,'../index.html'));
@@ -95,17 +96,11 @@ await p.click('input.amt',{position:{x:6,y:12}}); await p.waitForTimeout(100);  
 T('금액칸 왼쪽을 눌러도 커서는 끝', await p.$eval('input.amt',a=>a.selectionStart===a.value.length));
 await p.keyboard.type('6'); await p.waitForTimeout(100);
 T('그 상태에서 치면 끝에 붙는다', (await p.$eval('input.amt',a=>a.value))==='123,456');
-// 일부러 옮긴 커서(길게 눌러 끌기 = click 없음)는 존중하고, 거기서 쳐도 콤마 때문에 끝으로 튀지 않는다
-await p.evaluate(()=>{const a=document.querySelector('input.amt'); a.setSelectionRange(1,1);}); await p.waitForTimeout(50);
-T('일부러 옮긴 커서는 그 자리', await p.$eval('input.amt',a=>a.selectionStart===1));
-await p.keyboard.type('9'); await p.waitForTimeout(100);
-T('가운데서 치면 가운데에 들어간다 (1,923,456)', (await p.$eval('input.amt',a=>a.value))==='1,923,456');
-T('콤마가 늘어도 커서는 친 숫자 바로 뒤', await p.$eval('input.amt',a=>a.selectionStart===3));
+// 길게 눌러 끌어 가운데로 옮겨도 끝으로 돌아온다
+await p.evaluate(()=>{const a=document.querySelector('input.amt'); a.setSelectionRange(1,1);}); await p.waitForTimeout(80);
+T('커서를 가운데로 옮겨도 끝으로 돌아온다', await p.$eval('input.amt',a=>a.selectionStart===a.value.length));
 await p.keyboard.press('Backspace'); await p.waitForTimeout(100);
-T('지워도 제자리 (123,456 · 커서 1)', (await p.$eval('input.amt',a=>a.value))==='123,456' && await p.$eval('input.amt',a=>a.selectionStart===1));
-await p.evaluate(()=>{const a=document.querySelector('input.amt'); a.setSelectionRange(4,4);});   // 콤마 바로 뒤
-await p.keyboard.press('Backspace'); await p.waitForTimeout(100);
-T('콤마 위에서 ⌫ 는 콤마 앞 숫자를 지운다 (12,456 · 커서 2)', (await p.$eval('input.amt',a=>a.value))==='12,456' && await p.$eval('input.amt',a=>a.selectionStart===2));
+T('⌫ 는 끝에서 지운다 (12,345)', (await p.$eval('input.amt',a=>a.value))==='12,345');
 
 // ── 2) 이름 크기·색 ───────────────────────────────────────
 await load([E('e1','간식',-800,'2026-09-18')]);

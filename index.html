@@ -316,13 +316,12 @@ button.srow{width:100%; text-align:left}
 <div id="app"></div>
 <div id="toast" class="toast"></div>
 <script src="config.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script>
 (function(){
 "use strict";
 
 /* ══════════════════════ 유틸 ══════════════════════ */
-var APP_VERSION = "1.1.8";   // 올릴 때 sw.js 의 CACHE 도 같이
+var APP_VERSION = "1.1.9";   // 올릴 때 sw.js 의 CACHE 도 같이
 
 /* hex = 탭 밑줄·점(면), name = 이름 글자, mid = 작은 글자용 예비값(지금 쓰는 곳은 없다).
    아이들이 "내 색"을 바로 알아보는 게 이 색의 유일한 목적이라 채도를 살린다.
@@ -365,18 +364,19 @@ function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
 function LocalStore(){
   this.kind = "local";
   this.userId = "me";
+  this.familyId = null;
   this.key = "yd_local_v1";
   this.db = JSON.parse(lsGet(this.key) || "null") || {family:null, children:[], entries:[]};
 }
 LocalStore.prototype = {
   save: function(){ lsSet(this.key, JSON.stringify(this.db)); },
-  init: function(){ return Promise.resolve(this.db.family ? {familyId:this.db.family.id, code:this.db.family.code} : null); },
-  createFamily: function(code){ this.db.family={id:uid(), code:code}; this.save(); return Promise.resolve(this.db.family.id); },
+  init: function(){ var f=this.db.family; if(f) this.familyId=f.id; return Promise.resolve(f ? {familyId:f.id, code:f.code} : null); },
+  createFamily: function(code){ this.db.family={id:uid(), code:code}; this.familyId=this.db.family.id; this.save(); return Promise.resolve(this.db.family.id); },
   joinFamily: function(){ return Promise.reject(new Error("로컬 모드에서는 코드 참여가 안 돼요. config.js에 Supabase 정보를 넣어주세요.")); },
   gateState: function(){ return Promise.resolve({is_owner:!!this.db.family, open_until:this.db.openUntil||null}); },
   openFamilies: function(min){ this.db.openUntil = min>0 ? new Date(Date.now()+min*60000).toISOString() : null;
     this.save(); return Promise.resolve(this.db.openUntil); },
-  loadAll: function(){ var d=this.db; return Promise.resolve({family:d.family, children:d.children.slice().sort(function(a,b){return a.sort-b.sort;}), entries:d.entries.slice()}); },
+  loadAll: function(){ var d=this.db; return Promise.resolve({family:d.family, children:d.children.slice().sort(function(a,b){return (a.sort-b.sort) || (a.created_at<b.created_at?-1:1);}), entries:d.entries.slice()}); },
   upsertChild: function(c){ var i=this.db.children.findIndex(function(x){return x.id===c.id;}); if(i<0){ c.id=c.id||uid(); c.created_at=c.created_at||new Date().toISOString(); this.db.children.push(c);} else this.db.children[i]=Object.assign({},this.db.children[i],c); this.save(); return Promise.resolve(c); },
   deleteChild: function(id){ this.db.children=this.db.children.filter(function(x){return x.id!==id;}); this.db.entries=this.db.entries.filter(function(x){return x.child_id!==id;}); this.save(); return Promise.resolve(); },
   addEntry: function(e){ e.id=uid(); e.created_by="me"; e.updated_by="me"; e.created_at=new Date().toISOString(); e.updated_at=e.created_at; this.db.entries.push(e); this.save(); return Promise.resolve(e); },
@@ -390,9 +390,11 @@ LocalStore.prototype = {
 function SupaStore(cfg){
   this.kind = "supabase";
   this.userId = null;
-  this.sb = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
+  this.sb = window.supabase.createClient(normalizeUrl(cfg.SUPABASE_URL), cfg.SUPABASE_ANON_KEY);
   this.familyId = null;
+  this.subscribed = false;
 }
+function normalizeUrl(u){ return String(u||"").trim().replace(/\/rest\/v1\/?$/,"").replace(/\/+$/,""); }   // 끝 슬래시·/rest/v1 은 떼어낸다
 SupaStore.prototype = {
   init: function(){
     var self=this, sb=this.sb;
@@ -434,7 +436,7 @@ SupaStore.prototype = {
     var sb=this.sb, fid=this.familyId;
     return Promise.all([
       sb.from("families").select("id, code").eq("id", fid).single(),
-      sb.from("children").select("*").eq("family_id", fid).order("sort"),
+      sb.from("children").select("*").eq("family_id", fid).order("sort").order("created_at"),   // sort 가 겹쳐도 순서가 흔들리지 않게
       this.allEntries()
     ]).then(function(rs){
       if(rs[0].error) throw rs[0].error;
@@ -459,7 +461,25 @@ SupaStore.prototype = {
 
 /* ══════════════════════ 상태 ══════════════════════ */
 var CFG = window.APP_CONFIG || {};
-var store = (CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY && window.supabase) ? new SupaStore(CFG) : new LocalStore();
+/* supabase-js 는 설정이 있을 때만, 그때 받는다. 전에는 <script> 로 무조건 받고 못 받으면 조용히 로컬 모드가 됐다 —
+   지인 새 폰에서 CDN 이 막힌 첫 접속이면 "가족 코드로 참여"가 안 보이고 로컬 가족이 생겨 나중에 기록이 따로 논다.
+   이제 못 받으면 서버 실패와 같은 길(캐시 있으면 홈+배너, 없으면 "연결이 안 돼요"). 테스트가 미리 심은 window.supabase 는 그대로 쓴다. */
+var SUPABASE_CDN="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js";
+function loadSupabase(){
+  if(window.supabase) return Promise.resolve();
+  return new Promise(function(ok, no){
+    var sc=document.createElement("script"); sc.src=SUPABASE_CDN;
+    sc.onload=function(){ window.supabase ? ok() : no(new Error("supabase-js 를 받지 못했어요")); };
+    sc.onerror=function(){ no(new Error("supabase-js 를 받지 못했어요")); };
+    document.head.appendChild(sc);
+  });
+}
+var store=null;
+function makeStore(){
+  if(store) return Promise.resolve();                       // "다시 시도"로 boot 를 다시 돌 때 클라이언트를 또 만들지 않는다
+  if(!(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY)){ store=new LocalStore(); return Promise.resolve(); }
+  return loadSupabase().then(function(){ store=new SupaStore(CFG); });
+}
 var S = {
   screen:"loading", family:null, children:[], entries:[],
   sel: lsGet("yd_sel") || null,
@@ -799,11 +819,32 @@ function useCache(){
 }
 
 /* ══════════════════════ 데이터 로드 ══════════════════════ */
+/* 가족 확인 — 부팅·reload·온보딩이 전부 여기를 지난다. true=가족 있음, false=정말 처음인 기기.
+   ① 부팅 때 서버 확인이 실패해 familyId 가 비어 있으면 "다시"와 앱 복귀가 여기서 init 부터 다시 한다.
+      전에는 reload 가 loadAll 만 되풀이해 .eq("id", null) 로 영원히 실패했다 — 무료 플랜 멈춤 → Resume 뒤 강제 종료 전까지 "연결이 안 돼요".
+   ② 토큰 갱신이 재시도 불가 에러로 실패하면 supabase-js 가 세션을 지우고 새 익명 유저가 된다 → 가족이 없다고 나온다.
+      이 폰은 그 가족이다 — 캐시에 남은 가족 코드로 조용히 다시 참여한다(join_family 는 초대 잠금과 무관). 전에는 시작 화면이 떴다.
+   ③ 가족이 확인되면 실시간 구독을 한 번만 건다. 전에는 부팅 성공 경로에서만 걸어서, 온보딩으로 들어온 그 세션엔 구독이 없었다. */
+function ensureFamily(){
+  return makeStore().then(function(){                      // CDN 을 못 받아 store 가 아직 없으면 여기서 다시 받는다
+    if(store.familyId) return true;
+    return store.init().then(function(fam){
+      if(fam) return true;
+      var c=cacheLoad(), code=c && c.family && c.family.code;
+      if(!code) return false;
+      return store.joinFamily(code).then(function(){ return true; });
+    });
+  }).then(function(ok){
+    if(ok && !store.subscribed){ store.subscribed=true; store.subscribe(function(){ clearTimeout(window.__rt); window.__rt=setTimeout(reload, 300); }); }
+    return ok;
+  });
+}
+function typing(){ var a=document.activeElement; return !!(a && a.closest && a.closest(".entry")); }
 var loading=false, pendingReload=false;
 function reload(again){
   if(loading){ pendingReload=true; return Promise.resolve(); }
   loading=true; var failed=null;
-  return store.loadAll().then(function(d){
+  return ensureFamily().then(function(ok){ if(!ok) throw new Error("no family"); return store.loadAll(); }).then(function(d){
     S.family=d.family; S.children=d.children; S.entries=d.entries; S.offline=false;
     if(!S.sel || !childOf(S.sel)) S.sel = S.children.length ? S.children[0].id : null;
     return ensureAllowances();
@@ -817,12 +858,15 @@ function reload(again){
     // 사용자에게 알릴 일이 아니라 다시 해보면 되는 일이라, 조용히 한 번 더 하고 그래도 안 되면 그때 알린다.
     if(failed && !again){ return new Promise(function(go){ setTimeout(go, 800); }).then(function(){ return reload(true); }); }
     if(failed){ S.offline=true; if(!S.children.length) useCache(); }   // 화면에 배너로 남는다. 토스트로 스쳐 지나가지 않게
-    render(); if(pendingReload){ pendingReload=false; reload(); }
+    // 적는 중에 다른 폰의 변경이나 앱 복귀로 다시 그리면 키보드가 내려간다 — 입력줄을 떠날 때 그린다
+    if(typing()) S.renderLater=true; else render();
+    if(pendingReload){ pendingReload=false; reload(); }
   });
 }
 
 /* ══════════════════════ 렌더 ══════════════════════ */
 function render(){
+  S.renderLater=false;
   root.innerHTML="";
   if(S.screen==="loading") root.appendChild(renderLoading());
   else if(S.screen==="fail") root.appendChild(renderFail());
@@ -1012,8 +1056,10 @@ function renderHome(){
     r.appendChild(el("span","m"+(e.memo?"":" empty"), e.memo||"—"));
     r.appendChild(el("span","a"+(e.amount>0?" in":""), fmtSigned(e.amount)));
     r.appendChild(el("span","t",fmt(e.total)));
-    r.onclick=function(){ navOpen("edit", function(){ S.edit=Object.assign({}, e, {amountStr:String(Math.abs(e.amount)), sign:e.amount>0?1:-1, arm:false}); }); };
-    longPress(r, function(){ navOpen("entryView", function(){ S.entryView=e; }); });
+    if(String(e.id).indexOf("tmp-")!==0){            // 저장 중인 줄(낙관 반영)은 아직 id 가 없다 — 고치기가 서버에서 실패한다
+      r.onclick=function(){ navOpen("edit", function(){ S.edit=Object.assign({}, e, {amountStr:String(Math.abs(e.amount)), sign:e.amount>0?1:-1, arm:false}); }); };
+      longPress(r, function(){ navOpen("entryView", function(){ S.entryView=e; }); });
+    }
     wrap.appendChild(r);
   });
   if(rows.length > shown.length){
@@ -1069,6 +1115,7 @@ function renderNewRow(){
     if(!d.signByHand) setSign(signForMemo(d.memo) || -1);    // 손으로 부호를 바꿨으면 그 뒤로는 안 건드린다
   };
   memo.onfocus=function(){ if(!S.memoFocus){ S.memoFocus=true; S.datePick=false; redrawChips(); } };
+  memo.onblur=leaveEntry;
   memo.onkeydown=function(ev){ if(ev.key==="Enter"){ ev.preventDefault(); amt.focus(); } };
   row.appendChild(memo);
 
@@ -1088,6 +1135,8 @@ function renderNewRow(){
   amt.oninput=function(){ d.amount=fmtMoney(amt); updateOk(); };
   tapEnd(amt);
   amt.onfocus=function(){ if(S.memoFocus||S.datePick){ S.memoFocus=false; S.datePick=false; redrawChips(); } };
+  amt.onblur=leaveEntry;
+  function leaveEntry(){ setTimeout(function(){ if(S.renderLater && !typing()){ render(); } }, 0); }   // 적는 중 미뤄둔 다시 그리기
   amt.onkeydown=function(ev){ if(ev.key==="Enter"){ ev.preventDefault(); submitNew(); } };
   acell.appendChild(amt); row.appendChild(acell);
 
@@ -1135,13 +1184,17 @@ function renderNewRow(){
    금액은 고치는 게 아니라 지우고 다시 치는 것. 1의 자리를 노리다 ✓ 를 누르는 일도 같이 없어진다.
    길게 눌러 끌어도 끝으로 돌아온다(selectionchange). 전체 선택만 예외 — 고칠 자리가 보이니 바꿔 치기는 된다.
    브라우저가 커서를 놓은 뒤 옮겨야 해서 한 틱 늦춘다. */
-function tapEnd(inp){
-  function end(){ setTimeout(function(){ var n=inp.value.length, a=inp.selectionStart, z=inp.selectionEnd;
+var moneyInp=null;                       // 지금 포커스된 금액칸. document 리스너는 하나뿐이다 — 칸마다 달면 옛 화면이 통째로 메모리에 남는다
+document.addEventListener("selectionchange", function(){ if(moneyInp && document.activeElement===moneyInp) caretEnd(moneyInp); });
+function caretEnd(inp){ setTimeout(function(){ var n=inp.value.length, a=inp.selectionStart, z=inp.selectionEnd;
     if(document.activeElement!==inp || (a===n && z===n)) return;
     if(a===0 && z===n && n>0) return;            // 전체 선택은 둔다 — 통째로 바꿔 치는 건 어디를 고칠지 눈에 보인다
     try{ inp.setSelectionRange(n,n); }catch(_){} }, 0); }
-  ["focus","click","select","keyup"].forEach(function(t){ inp.addEventListener(t, end); });
-  document.addEventListener("selectionchange", function(){ if(document.activeElement===inp) end(); });
+function tapEnd(inp){
+  function end(){ caretEnd(inp); }
+  inp.addEventListener("focus", function(){ moneyInp=inp; end(); });
+  inp.addEventListener("blur", function(){ if(moneyInp===inp) moneyInp=null; });
+  ["click","select","keyup"].forEach(function(t){ inp.addEventListener(t, end); });
 }
 /* 콤마를 다시 찍으면서 커서가 끝으로 튀지 않게 — 커서 앞에 숫자가 몇 개였는지 세어 그 뒤에 다시 놓는다.
    (999 → 9,999 처럼 콤마가 늘 때 value 를 새로 넣으면 브라우저가 커서를 끝으로 보낸다) */
@@ -1166,6 +1219,12 @@ function submitNew(){
   store.addEntry(e).then(function(saved){
     var i=S.entries.indexOf(tmp); if(i>=0) S.entries[i]=saved; render();
   }).catch(function(err){ S.entries=S.entries.filter(function(x){return x!==tmp;}); render(); toast("저장 실패: "+(err.message||err)); });
+}
+
+/* 낙관 반영은 실패하면 되돌린다. 캐시로 되돌리면 그 사이 성공한 다른 편집까지 지워 보이므로 바꾸기 직전 값만 되돌린다.
+   전에는 .catch(reload) 였는데 오프라인이면 reload 도 실패해 고친 값이 화면에 남고, 배너는 "마지막으로 받은 내용"이라 말했다. */
+function tryStore(req, undo, msg){
+  return req().catch(function(err){ undo(); render(); toast((msg||"저장 실패")+": "+(err.message||err)); return reload(); });
 }
 
 /* ── 편집 시트 ── */
@@ -1209,10 +1268,12 @@ function renderEditSheet(){
     if(isAuto){
       // 자동 줄은 지우면 다시 생기므로, 남겨두고 숨긴다
       var t=S.entries.find(function(x){return x.id===id;}); if(t) t.skipped=true; render();
-      store.updateEntry(id,{skipped:true}).catch(function(err){ toast("실패: "+(err.message||err)); reload(); });
+      tryStore(function(){ return store.updateEntry(id,{skipped:true}); }, function(){ if(t) t.skipped=false; }, "실패");
     } else {
+      var at=S.entries.findIndex(function(x){return x.id===id;}), removed=S.entries[at];
       S.entries=S.entries.filter(function(x){return x.id!==id;}); render();
-      store.deleteEntry(id).catch(function(err){ toast("삭제 실패: "+(err.message||err)); reload(); });
+      tryStore(function(){ return store.deleteEntry(id); },
+        function(){ if(removed && S.entries.indexOf(removed)<0) S.entries.splice(Math.min(at,S.entries.length),0,removed); }, "삭제 실패");
     }
   };
   var cancel=el("button","btn","취소"); cancel.onclick=navBack;
@@ -1220,9 +1281,10 @@ function renderEditSheet(){
     var n=Number(e.amountStr); if(!(n>0)){ toast("금액을 넣어주세요"); return; }
     var patch={entry_date:e.entry_date, memo:(e.memo||"").trim(), amount:e.sign*n, updated_by:store.userId};
     var id=e.id; navBack();
-    var t=S.entries.find(function(x){return x.id===id;}); if(t) Object.assign(t,patch);
+    var t=S.entries.find(function(x){return x.id===id;}), before=t?Object.assign({},t):null;
+    if(t) Object.assign(t,patch);
     render();
-    store.updateEntry(id,patch).catch(function(err){ toast("저장 실패: "+(err.message||err)); reload(); });
+    tryStore(function(){ return store.updateEntry(id,patch); }, function(){ if(t) Object.assign(t,before); });
   };
   btns.appendChild(del); btns.appendChild(cancel); btns.appendChild(save); f.appendChild(btns);
   sh.appendChild(f); frag.appendChild(sh);
@@ -1335,8 +1397,9 @@ function renderWeekSheet(){
     if(w.on && !(v>0)){ toast("금액을 넣어주세요"); return; }
     var patch={id:w.id, weekly_on:w.on, weekly_dow:w.dow, weekly_amount:v};
     if(w.on && (!c.weekly_on || c.weekly_dow!==w.dow)) patch.weekly_start=today();   // 켜거나 요일을 바꾸면 오늘부터
+    var before=Object.assign({}, c);
     Object.assign(c, patch); navBack();
-    store.upsertChild(patch).then(reload).catch(function(err){ toast("저장 실패: "+(err.message||err)); reload(); });
+    tryStore(function(){ return store.upsertChild(patch).then(function(){ return reload(); }); }, function(){ Object.assign(c, before); });
   };
   btns.appendChild(cancel); btns.appendChild(save); f.appendChild(btns);
   sh.appendChild(f); frag.appendChild(sh);
@@ -1358,11 +1421,13 @@ function renderKidSheet(){
   del.onclick=function(){
     if(!k.arm){ k.arm=true; render(); return; }
     var id=c.id; navBack();
+    var prevC=S.children, prevE=S.entries, prevSel=S.sel;
     S.children=S.children.filter(function(x){return x.id!==id;});
     S.entries=S.entries.filter(function(e){return e.child_id!==id;});
     if(S.sel===id){ S.sel=S.children[0]?S.children[0].id:null; lsSet("yd_sel",S.sel||""); }
     S.limit=60; render();
-    store.deleteChild(id).catch(function(err){ toast("지우기 실패: "+(err.message||err)); reload(); });
+    tryStore(function(){ return store.deleteChild(id); },
+      function(){ S.children=prevC; S.entries=prevE; S.sel=prevSel; lsSet("yd_sel",S.sel||""); }, "지우기 실패");
   };
   var cancel=el("button","btn","취소"); cancel.onclick=navBack;
   btns.appendChild(del); btns.appendChild(cancel); f.appendChild(btns);
@@ -1388,9 +1453,9 @@ function renderOpenSheet(){
   var cancel=el("button","btn","취소"); cancel.onclick=navBack;
   var save=el("button","btn pri","저장"); save.onclick=function(){
     var v=Number(digits(o.amountStr))||0, id=o.id;
-    var c=childOf(id); if(c) c.opening_balance=v;
+    var c=childOf(id), prev=c?c.opening_balance:0; if(c) c.opening_balance=v;
     navBack();
-    store.upsertChild({id:id, opening_balance:v}).catch(function(err){ toast("저장 실패: "+(err.message||err)); reload(); });
+    tryStore(function(){ return store.upsertChild({id:id, opening_balance:v}); }, function(){ if(c) c.opening_balance=prev; });
   };
   btns.appendChild(cancel); btns.appendChild(save); f.appendChild(btns);
   sh.appendChild(f); frag.appendChild(sh);
@@ -1425,13 +1490,20 @@ function sheetDrag(sh){
    화면을 열 때 방문 기록을 하나 쌓고(navOpen), 닫는 건 전부 navBack() → popstate 한 곳에서 처리한다.
    iOS 홈 화면 앱은 뒤로 가기가 없어서 스와이프(edgeSwipe)가 대신한다. */
 var navStack = [];                       // 열려 있는 화면들. 방문 기록 한 칸 = 이 배열 한 칸
-function navOpen(key, open){ open(); navStack.push(key); try{ history.pushState({d:navStack.length}, ""); }catch(e){} render(); }
-function navBack(){ if(navStack.length) history.back(); }   // 닫는 건 popstate 한 곳에서
+var navBase = (history.state && history.state.d) || 0;   // 설정을 연 채 새로고침하면 그 칸이 바닥이 된다 — 거기서부터 센다
+function navOpen(key, open){ open(); navStack.push(key); try{ history.pushState({d:navBase+navStack.length}, ""); }catch(e){} render(); }
+var backing=false;                       // history.back() 은 비동기라 popstate 전까지 navStack 이 안 줄어든다 — 두 번 두드리면 두 칸 간다
+function navBack(){ if(navStack.length && !backing){ backing=true; history.back(); } }   // 닫는 건 popstate 한 곳에서
 function navCloseTop(){
   var k=navStack.pop(); if(!k) return;
   if(k==="settings") S.screen="home"; else S[k]=null;       // 자기가 연 것만 닫는다
 }
-window.addEventListener("popstate", function(){ navCloseTop(); render(); });
+window.addEventListener("popstate", function(e){
+  backing=false;
+  var d=((e.state && e.state.d)||0)-navBase;                // 방문 기록이 몇 칸을 건너뛰었든 그 깊이까지 닫는다
+  while(navStack.length>Math.max(0,d)) navCloseTop();
+  render();
+});
 
 /* ── 왼쪽 가장자리 스와이프로 뒤로 (홈화면 앱엔 사파리 제스처가 없어서 직접) ── */
 function edgeSwipe(node, onBack){
@@ -1479,13 +1551,15 @@ function renderSettings(){
     var r=el("div","srow");
     var dot=el("span","dot"); dot.style.background=(COLORS[c.color]||COLORS.blue).hex; r.appendChild(dot);
     var nm=document.createElement("input"); nm.className="nm"; nm.type="text"; nm.value=c.name;
-    nm.onchange=function(){ if(nm.value.trim()){ c.name=nm.value.trim(); store.upsertChild({id:c.id,name:c.name}).then(render).catch(fail); } };
+    nm.onchange=function(){ if(nm.value.trim()){ var prev=c.name; c.name=nm.value.trim();
+      tryStore(function(){ return store.upsertChild({id:c.id,name:c.name}).then(function(){ render(); }); }, function(){ c.name=prev; }); } };
     r.appendChild(nm);
     var sw=el("div","swatch");
     Object.keys(COLORS).forEach(function(k){
       var b=el("button",k===c.color?"on":""); b.style.background=COLORS[k].hex;
       b.setAttribute("aria-label",k);
-      b.onclick=function(){ c.color=k; store.upsertChild({id:c.id,color:k}).then(render).catch(fail); };
+      b.onclick=function(){ var prev=c.color; c.color=k; render();
+        tryStore(function(){ return store.upsertChild({id:c.id,color:k}); }, function(){ c.color=prev; }); };
       sw.appendChild(b);
     });
     r.appendChild(sw);
@@ -1557,9 +1631,10 @@ function renderSettings(){
     var add=el("button","addk","아이 추가하기");
     add.onclick=function(){
       var n=S.children.length, keys=Object.keys(COLORS);
+      var sortv=S.children.reduce(function(m,x){ return Math.max(m, x.sort||0); }, -1)+1;   // 가운데를 지운 뒤 추가해도 안 겹치게
       store.upsertChild({name:["첫째","둘째","셋째","넷째"][n]||"아이", color:keys[n%keys.length],
-        sort:n, opening_balance:0, weekly_on:false, weekly_amount:0})
-        .then(reload).then(function(){ toast("추가했어요"); }).catch(fail);   // 목록 맨 아래라 늘어난 게 안 보일 수 있다
+        sort:sortv, opening_balance:0, weekly_on:false, weekly_amount:0})
+        .then(function(){ return reload(); }).then(function(){ toast("추가했어요"); }).catch(fail);   // 목록 맨 아래라 늘어난 게 안 보일 수 있다
     };
     foot.appendChild(add);
   } else foot.appendChild(el("span"));
@@ -1684,7 +1759,7 @@ function renderOnboard(){
     if(names.some(function(x){ return !x; })){ toast("이름을 넣어주세요"); return; }
     go2.disabled=true;
     var code=genCode(), keys=Object.keys(COLORS);
-    store.createFamily(code).then(function(){
+    (store.familyId ? Promise.resolve() : store.createFamily(code)).then(function(){   // 아이 저장이 실패해 다시 누를 때 가족을 또 만들지 않는다
       return names.reduce(function(pr,nm,i){
         return pr.then(function(){
           return store.upsertChild({name:nm, color:keys[i%keys.length], sort:i,
@@ -1701,13 +1776,12 @@ function renderOnboard(){
 
 /* ══════════════════════ 부팅 ══════════════════════ */
 function boot(){
- return store.init().then(function(fam){
-  // init 이 null 을 준 것과 실패한 것은 완전히 다른 일이다.
-  // null = 이 기기는 아직 어느 가족에도 안 들어갔다 → 시작 화면.
-  // 실패 = 서버에 못 물어봤다 → 시작 화면을 보여주면 "기록이 없어졌다"로 읽힌다.
-  if(!fam){ S.screen="onboard"; render(); return; }
+ return ensureFamily().then(function(ok){
+  // "가족 없음"과 "실패"는 완전히 다른 일이다.
+  // 없음 = 이 기기는 아직 어느 가족에도 안 들어갔다(캐시에 코드도 없다) → 시작 화면.
+  // 실패 = 서버에 못 물어봤다(CDN 포함) → 시작 화면을 보여주면 "기록이 없어졌다"로 읽힌다.
+  if(!ok){ S.screen="onboard"; render(); return; }
   S.screen="home";
-  store.subscribe(function(){ clearTimeout(window.__rt); window.__rt=setTimeout(reload, 300); });
   return reload();
  }).catch(function(e){
   console.error(e);
