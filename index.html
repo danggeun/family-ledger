@@ -968,7 +968,7 @@ function tourBuild(){
     if(tourSub()==="sheet"){ navBack(); return; }                                      // 시트를 닫으면 tick 이 다음으로
     if(st==="gear"){ navOpen("settings", function(){ S.screen="settings"; }); return; } // 설정 단계는 설정 안에서만 — 대신 열어 준다
     if(st==="back"){ leaveSettings(); return; }                                      // 끝 = 설정에서 나가는 것 (나오면 마지막 한 장)
-    if(st==="done"){ tourEnd(); render(); var m=document.querySelector("input.memo"); if(m) m.focus(); return; }   // 펜을 건넨다
+    if(st==="done"){ tourEnd(); render(); return; }                                  // 그냥 홈 — 키보드까지 띄우는 건 떠미는 느낌이었다
     var o=tourOrder(), i=o.indexOf(st); S.tour.step=o[i+1]; S.tour.opened=false; tourSync(); };
   L.prev=el("button","prev","이전"); L.prev.onclick=tourPrev;
   var btns=el("div","btns"); btns.appendChild(L.prev); btns.appendChild(L.ok);
@@ -1006,10 +1006,10 @@ function tourLayout(sub){
       var r2=h ? h.getBoundingClientRect() : r1, top0=Math.min(r1.top,r2.top);
       hole={x:r1.left-8, y:top0-6, w:r1.width+16, h:r1.bottom-top0+12};
       if(step==="week"){ var fr=c.querySelector(".srow"); if(fr){ var fb=fr.getBoundingClientRect(); pulseAt={x:fb.left+40, y:fb.top+fb.height/2}; } } } }
-  if(step==="press" || step==="edit"){ var e2=document.querySelector(".entry"), top=e2 ? e2.getBoundingClientRect().bottom+12 : 200;
+  if((step==="press" || step==="edit") && !sub){ var e2=document.querySelector(".entry"), top=e2 ? e2.getBoundingClientRect().bottom+12 : 200;
     L.sample.style.top=top+"px"; L.sample.classList.add("on");
-    if(!sub){ var sr=L.sample.getBoundingClientRect(); hole=pad(sr, 6); pulseAt={x:sr.left+34, y:sr.top+sr.height/2}; } }
-  else L.sample.classList.remove("on");
+    var sr=L.sample.getBoundingClientRect(); hole=pad(sr, 6); pulseAt={x:sr.left+34, y:sr.top+sr.height/2}; }
+  else L.sample.classList.remove("on");                 // 그림·시트가 떠 있는 동안은 예시 줄도 치운다 (그림 위에 줄이 겹쳐 보였다)
   if(full) hole={x:-20, y:-20, w:vw+40, h:vh+40};
   // 구멍(=밝은 곳)
   var sp=L.spot.style, rad = full ? 0 : (step==="sign" || step==="done" ? "18px" : (sub==="sheet" ? "22px 22px 0 0" : "14px"));
