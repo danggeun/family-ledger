@@ -1758,7 +1758,7 @@ function renderSettings(){
     };
     cr.appendChild(cp); cCard.appendChild(cr); wrap.appendChild(cCard);
     var st=el("p","note"); st.appendChild(el("span","syncdot on"));
-    st.appendChild(document.createTextNode("연결됨. 다른 기기에서 이 코드로 참여하면 같은 기록이 보여요."));
+    st.appendChild(document.createTextNode("연결됨"));   // 다른 폰 붙이는 법은 사용법에 있다 — 여기 또 적으면 두 줄로 늘어져 "요." 가 혼자 남는다
     wrap.appendChild(st);
   } else {
     var st2=el("p","note"); st2.appendChild(el("span","syncdot"));
