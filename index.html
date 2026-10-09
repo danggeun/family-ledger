@@ -284,12 +284,6 @@ button.srow{width:100%; text-align:left}
 .foot .addk{font-size:var(--t2); color:var(--faint); padding:0; text-align:left}
 .foot .addk:active{color:var(--ink-2)}
 
-/* ─── 사용법 — 설정 위에 얹히는 한 페이지. 설정과 같은 머리·같은 나가는 법 ─── */
-.page.help{position:fixed; inset:0; z-index:20; overflow:auto; background:var(--paper)}
-.help .hl{margin:0; padding:15px 0; border-bottom:1px solid var(--hair); font-size:var(--t4); line-height:1.6; color:var(--ink-2)}
-.help .hl:last-child{border-bottom:0}
-.help .hl b{color:var(--ink); font-weight:700}
-
 /* ─── 처음 안내 — 화면을 살짝 어둡게 하고 눌러볼 곳만 밝게. 한 번에 한 가지, 해 보면 다음으로. 언제든 건너뛰기.
    레이어는 root 밖에 하나만 두고 자리만 옮긴다 — 그래야 단계가 바뀔 때 밝은 구멍과 카드가 미끄러져 간다 ─── */
 .tour{position:fixed; inset:0; z-index:50; opacity:0; transition:opacity .25s; pointer-events:none}   /* 상자 자체는 터치를 안 받는다 — 구멍이 뚫려야 하니까 */
@@ -326,8 +320,9 @@ button.srow{width:100%; text-align:left}
 .tour-card .dots{display:flex; gap:6px}
 .tour-card .dots i{width:6px; height:6px; border-radius:50%; background:var(--hair); transition:background .3s}
 .tour-card .dots i.on{background:var(--ink)}
-.tour-card .skip{font-size:var(--t3); font-weight:600; color:var(--muted); padding:4px 2px}
-.tour-card .skip:active{color:var(--ink)}
+.tour-card .skip{position:absolute; top:8px; right:8px; width:34px; height:34px; border-radius:50%; font-size:20px; line-height:1; color:var(--muted)}   /* 그만하기는 카드 구석의 × — 발치에 두면 다음 옆에 덩그러니 떠 보였다 */
+.tour-card .skip:active{background:var(--wash); color:var(--ink)}
+.tour-card .tc-title{padding-right:34px}
 .tour-card .ok{background:var(--ink); color:#fff; border-radius:11px; padding:9px 18px; font-size:var(--t3); font-weight:600}
 @media (prefers-reduced-motion: reduce){ .tour-spot,.tour-card,.tour-pulse,.tour-card .tc-caret{transition:none} .tour-pulse i,.tc-chev i,.tour-card .tc-text.swap{animation:none} }
 .syncdot{width:6px; height:6px; border-radius:50%; background:var(--faint);
@@ -539,7 +534,6 @@ var S = {
   editWeek:null,        // 매주 용돈 고치는 중
   kidView:null,         // 아이에게 보여주는 화면에 띄운 아이
   entryView:null,       // 한 줄을 길게 눌러 띄운 기록 (그 금액만 그림으로)
-  help:null,            // 사용법 페이지
   tour:null,            // 처음 안내 {step}
   editGate:null,        // 초대 여닫는 중
   pickDate:null,        // 달력으로 날짜 고르는 중 {target, date, view}
@@ -879,20 +873,32 @@ function tourInit(){                                   // cacheSave 전에 불�
   if(v==="new" && !S.tour) S.tour={step:"sign"};      // 하다 말고 껐으면 처음부터 다시
 }
 function tourEnd(){ S.tour=null; lsSet("yd_tour","done"); if(!S.draft.memo && !S.draft.amount) resetDraft(); }   // 안내에서 바꾼 부호는 되돌린다
+var TOUR_LOOK={color:1, week:1, export:1};             // 설정 안에서 보여주기만 하는 단계 — "다음"으로 넘어간다
 function tourTick(){                                   // 화면 상태를 보고 다음 단계로 — render 마다 한 번
   var t=S.tour; if(!t) return;
   if(t.step==="bal"){ if(S.kidView) t.opened=true; else if(t.opened){ t.opened=false; t.step = S.children.length>1 ? "swipe" : "press"; } }
-  else if(t.step==="press"){ if(S.entryView) t.opened=true; else if(t.opened){ t.opened=false; t.step="end"; } }
+  else if(t.step==="press"){ if(S.entryView) t.opened=true; else if(t.opened){ t.opened=false; t.step="gear"; } }
+  else if(t.step==="gear"){ if(S.screen==="settings") t.step="color"; }
+  else if(TOUR_LOOK[t.step] || t.step==="back"){ if(S.screen!=="settings") tourEnd(); }   // 설정에서 나가면 끝 — 어느 단계에서든
 }
-var TOUR_TEXT={ sign:["\u2212 를 눌러 받은 돈으로 바꿔 보세요","쓴 돈은 \u2212, 받은 돈은 +. 한 번 받은 돈으로 적은 말은 다음부터 치기만 해도 + 가 돼요"],
-                bal:["잔액을 눌러 보세요","아이에게 보여주는 그림이 열려요. 아무 데나 누르면 닫혀요"],
-                swipe:["화면 아무 데서나 좌우로 밀어 보세요","다른 아이 통장으로 넘어가요. 이름을 눌러도 돼요"],
-                press:["이 줄을 길게 눌러 보세요","그 금액만 그림으로 보여요. 짧게 누르면 고치기예요"],
-                end:["다 됐어요","매주 용돈과 다른 폰 참여는 설정에, 사용법도 거기 맨 아래에 있어요"] };
-function tourOrder(){ return ["sign","bal"].concat(S.children.length>1?["swipe"]:[]).concat(["press"]); }
+function tourText(step){
+  var many=S.children.length>1;
+  return { sign:["− 를 눌러 받은 돈으로 바꿔 보세요","쓴 돈은 −, 받은 돈은 +. 한 번 받은 돈으로 적은 말은 다음부터 치기만 해도 + 가 돼요"],
+           bal:["잔액을 눌러 보세요", many ? "아이에게 보여주는 그림이에요. 거기서도 좌우로 밀면 다른 아이, 아무 데나 누르면 닫혀요"
+                                        : "아이에게 보여주는 그림이에요. 아무 데나 누르면 닫혀요"],
+           swipe:["화면 아무 데서나 좌우로 밀어 보세요","다른 아이 통장으로 넘어가요. 이름을 눌러도 돼요"],
+           press:["이 줄을 길게 눌러 보세요","그 금액만 그림으로 보여요. 짧게 누르면 고치기예요"],
+           gear:["⚙ 를 눌러 설정으로","나머지는 설정에 있어요. 잠깐만 둘러볼게요"],
+           color:["아이 이름과 색","색을 고르면 홈 탭과 아이 그림이 그 색이 돼요"],
+           week:["매주 용돈","요일과 금액을 정해 두면 그날 저절로 적혀요"],
+           export:["기록 전체는 내보내기","엑셀로 열 수 있는 파일로 받아요"],
+           back:["‹ 로 나가면 끝이에요","잊어버리면 설정 맨 아래 사용법에 다 있어요"] }[step];
+}
+function tourOrder(){ return ["sign","bal"].concat(S.children.length>1?["swipe"]:[]).concat(["press","gear","color","week","export","back"]); }
 var tourL=null;                                        // 레이어 {box, spot, blocks[], pulse, sample, card, caret, text, dots, foot} · step
 function tourSync(){                                   // render 끝에서. 있어야 하면 만들고 자리를 맞추고, 아니면 숨기거나 치운다
-  var t=S.tour, show = !!t && S.screen==="home" && !S.kidView && !S.entryView && !S.help && !S.edit && !S.editOpen && !S.pickDate;
+  var t=S.tour, show = !!t && (S.screen==="home" || S.screen==="settings") && !S.kidView && !S.entryView
+                       && !S.edit && !S.editOpen && !S.pickDate && !S.editKid && !S.editWeek && !S.editGate;
   if(!t){ if(tourL){ var L=tourL.box; tourL=null; L.classList.add("out"); setTimeout(function(){ if(L.parentNode) L.parentNode.removeChild(L); }, 260); } return; }
   if(!tourL){ tourL=tourBuild(); document.body.appendChild(tourL.box); requestAnimationFrame(function(){ if(tourL) tourL.box.classList.add("in"); }); }
   tourL.box.classList.toggle("hide", !show);
@@ -912,9 +918,12 @@ function tourBuild(){
   L.card=el("div","tour-card"); L.caret=el("div","tc-caret"); L.card.appendChild(L.caret);
   L.text=el("div","tc-text"); L.card.appendChild(L.text);
   L.foot=el("div","tc-foot"); L.dots=el("div","dots"); L.foot.appendChild(L.dots);
-  L.skip=el("button","skip","건너뛰기"); L.skip.onclick=function(){ tourEnd(); render(); };
-  L.ok=el("button","ok","확인"); L.ok.onclick=function(){ tourEnd(); render(); };
-  L.foot.appendChild(L.skip); L.foot.appendChild(L.ok); L.card.appendChild(L.foot); box.appendChild(L.card);
+  // 왼쪽 "그만하기"는 안내 전체를 끝내고, 오른쪽 "다음"은 안 해 보고 다음 단계로 — "건너뛰기" 하나로는 둘 중 뭔지 헷갈렸다
+  L.skip=el("button","skip","\u00D7"); L.skip.setAttribute("aria-label","그만하기"); L.skip.onclick=function(){ tourEnd(); render(); };
+  L.ok=el("button","ok","다음"); L.ok.onclick=function(){ var o=tourOrder(), i=o.indexOf(S.tour.step);
+    if(S.tour.step==="gear") navOpen("settings", function(){ S.screen="settings"; });   // 설정 단계는 설정 안에서만 — 대신 열어 준다
+    else if(i<o.length-1){ S.tour.step=o[i+1]; S.tour.opened=false; tourSync(); } else { tourEnd(); render(); } };
+  L.card.appendChild(L.skip); L.foot.appendChild(L.ok); L.card.appendChild(L.foot); box.appendChild(L.card);
   // 밀기 단계에선 어두운 데서 밀어도 넘어간다 — 밝은 띠만 밀라는 건 너무 좁다
   var x0=null;
   L.blocks.forEach(function(d){
@@ -936,12 +945,19 @@ function tourLayout(){
     if(en && sg){ hole=pad(en.getBoundingClientRect(), 6); var sr0=sg.getBoundingClientRect(); pulseAt={x:sr0.left+sr0.width/2, y:sr0.top+sr0.height/2}; } }
   if(step==="bal"){ var n=document.querySelector(".balbtn"); if(n){ hole=pad(n.getBoundingClientRect(), 8); pulseAt={x:hole.x+hole.w/2, y:hole.y+hole.h/2}; } }
   if(step==="swipe"){ hole={x:-20, y:-20, w:vw+40, h:vh+40}; }   // 어디서든 되는 동작이라 밝힐 곳을 안 정한다 — 막 없이 카드만
+  if(step==="gear" || step==="back"){ var g=document.querySelector(step==="gear" ? ".gear" : ".nav .back");
+    if(g){ hole=pad(g.getBoundingClientRect(), 4); pulseAt={x:hole.x+hole.w/2, y:hole.y+hole.h/2}; } }
+  if(TOUR_LOOK[step]){ var c=document.querySelector(".card."+step);   // 설정의 한 묶음 — 제목 줄부터 카드까지. 화면 밖이면 보이게 올린다
+    if(c){ var h=c.previousElementSibling, r1=c.getBoundingClientRect();
+      if(r1.top<60 || r1.bottom>vh-180){ c.scrollIntoView({block:"center"}); r1=c.getBoundingClientRect(); }
+      var r2=h ? h.getBoundingClientRect() : r1, top0=Math.min(r1.top,r2.top);
+      hole={x:r1.left-8, y:top0-6, w:r1.width+16, h:r1.bottom-top0+12}; } }
   if(step==="press"){ var e2=document.querySelector(".entry"), top=e2 ? e2.getBoundingClientRect().bottom+12 : 200;
     L.sample.style.top=top+"px"; L.sample.classList.add("on");
     var sr=L.sample.getBoundingClientRect(); hole=pad(sr, 6); pulseAt={x:sr.left+34, y:sr.top+sr.height/2}; }
   else L.sample.classList.remove("on");
   // 구멍(=밝은 곳). 끝 단계는 구멍을 가운데로 오므려 전부 어둡게
-  var sp=L.spot.style, rad = step==="swipe" ? 0 : (step==="end" ? "50%" : (step==="sign" ? "18px" : "14px"));
+  var sp=L.spot.style, rad = step==="swipe" ? 0 : (step==="sign" ? "18px" : "14px");
   if(hole){ sp.left=hole.x+"px"; sp.top=hole.y+"px"; sp.width=hole.w+"px"; sp.height=hole.h+"px"; }
   else { sp.left=(vw/2)+"px"; sp.top=(vh/2)+"px"; sp.width="0px"; sp.height="0px"; }
   sp.borderRadius=rad;
@@ -954,20 +970,19 @@ function tourLayout(){
   // 카드 — 글은 단계가 바뀔 때만 갈아 끼우고 살짝 떠오른다
   if(L.step!==step){
     L.step=step; L.text.innerHTML="";
-    var tt=el("div","tc-title",TOUR_TEXT[step][0]);
+    var tx=tourText(step), tt=el("div","tc-title",tx[0]);
     if(step==="swipe"){ var ch=el("span","tc-chev"); ["\u2039","\u2039","\u2039"].forEach(function(c){ ch.appendChild(el("i",null,c)); }); tt.appendChild(ch); }
-    L.text.appendChild(tt); L.text.appendChild(el("p","tc-body",TOUR_TEXT[step][1]));
+    L.text.appendChild(tt); L.text.appendChild(el("p","tc-body",tx[1]));
     L.text.classList.remove("swap"); void L.text.offsetWidth; L.text.classList.add("swap");
     var order=tourOrder(); L.dots.innerHTML="";
     order.forEach(function(k){ L.dots.appendChild(el("i", k===step?"on":"")); });
-    L.dots.style.visibility = step==="end" ? "hidden" : "";
-    L.skip.style.display = step==="end" ? "none" : ""; L.ok.style.display = step==="end" ? "" : "none";
+    L.ok.textContent = step==="back" ? "끝" : "다음";
   }
   var ch2=L.card.offsetHeight;
-  if(step==="end" || step==="swipe") cardTop = vh - ch2 - 28 - sab();
+  if(step==="swipe") cardTop = vh - ch2 - 28 - sab();
   else cardTop = Math.min(H.y+H.h+16, vh - ch2 - 16 - sab());
   L.card.style.top=cardTop+"px";
-  if(hole && step!=="end" && step!=="swipe"){ L.caret.style.opacity="1"; L.caret.style.left=Math.max(18, Math.min(vw-40-30, H.x+H.w/2-20-6))+"px"; }
+  if(hole && step!=="swipe"){ L.caret.style.opacity="1"; L.caret.style.left=Math.max(18, Math.min(vw-40-30, H.x+H.w/2-20-6))+"px"; }
   else L.caret.style.opacity="0";
   function sab(){ var v=parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--sab")); return isNaN(v)?0:v; }
 }
@@ -1028,7 +1043,6 @@ function render(){
   else if(S.screen==="onboard") root.appendChild(renderOnboard());
   else if(S.screen==="settings") root.appendChild(renderSettings());
   else root.appendChild(renderHome());
-  if(S.help) root.appendChild(renderHelp());
   if(S.edit) root.appendChild(renderEditSheet());
   if(S.editOpen) root.appendChild(renderOpenSheet());
   if(S.editKid) root.appendChild(renderKidSheet());
@@ -1709,7 +1723,7 @@ function renderSettings(){
   if(S.offline) wrap.appendChild(offlineBar());
 
   wrap.appendChild(el("div","sec-h","아이"));
-  var kidCard=el("div","card");
+  var kidCard=el("div","card color");
   S.children.forEach(function(c){
     var r=el("div","srow");
     var dot=el("span","dot"); dot.style.background=(COLORS[c.color]||COLORS.blue).hex; r.appendChild(dot);
@@ -1737,7 +1751,7 @@ function renderSettings(){
 
   wrap.appendChild(el("div","sec-h","매주 용돈"));
   // 한 아이에 한 줄. 값은 요약("토요일 · 3,000원")으로 보여주고, 고치는 건 시트에서 — 설정 앱들이 하는 방식
-  var wCard=el("div","card");
+  var wCard=el("div","card week");
   S.children.forEach(function(c){
     var r=el("button","srow tap"); r.appendChild(el("span","grow",c.name));
     var on=c.weekly_on && c.weekly_dow!=null && c.weekly_amount>0;
@@ -1751,7 +1765,8 @@ function renderSettings(){
   wrap.appendChild(el("div","sec-h","동기화"));
   if(store.kind==="supabase"){
     var cCard=el("div","card"), cr=el("div","srow");
-    cr.appendChild(el("span","grow","가족 코드"));
+    var lab=el("span","grow"); lab.appendChild(el("span","syncdot on")); lab.appendChild(document.createTextNode("가족 코드"));   // 연결됨 표시는 가족 코드 줄 안에 — 따로 한 줄 안 쓴다
+    cr.appendChild(lab);
     cr.appendChild(el("span","code",S.family?S.family.code:"—"));
     var cp=el("button","copy","복사");
     cp.onclick=function(){
@@ -1760,9 +1775,6 @@ function renderSettings(){
       else toast(t);
     };
     cr.appendChild(cp); cCard.appendChild(cr); wrap.appendChild(cCard);
-    var st=el("p","note"); st.appendChild(el("span","syncdot on"));
-    st.appendChild(document.createTextNode("연결됨"));   // 다른 폰 붙이는 법은 사용법에 있다 — 여기 또 적으면 두 줄로 늘어져 "요." 가 혼자 남는다
-    wrap.appendChild(st);
   } else {
     var st2=el("p","note"); st2.appendChild(el("span","syncdot"));
     st2.appendChild(document.createTextNode("연결 안 됨. 이 기기에만 저장돼요."));
@@ -1770,11 +1782,17 @@ function renderSettings(){
   }
 
   wrap.appendChild(el("div","sec-h","기록"));
-  var eCard=el("div","card"), er=el("button","srow tap");
+  var eCard=el("div","card export"), er=el("button","srow tap");
   er.appendChild(el("span","grow","내보내기"));
   er.appendChild(el("span","chev","\u203A"));
   er.onclick=exportCSV;
   eCard.appendChild(er); wrap.appendChild(eCard);
+
+  wrap.appendChild(el("div","sec-h","앱"));                      // 글로 된 사용법은 안 둔다 — 읽어서 알게 되는 앱이 아니라, 해 보면 아는 앱
+  var hCard=el("div","card"), hr=el("button","srow tap help-link");
+  hr.appendChild(el("span","grow","처음 안내 다시 보기")); hr.appendChild(el("span","chev","\u203A"));
+  hr.onclick=function(){ S.tour={step:"sign"}; lsSet("yd_tour","new"); history.go(-navStack.length); };   // 설정을 닫고 홈에서부터
+  hCard.appendChild(hr); wrap.appendChild(hCard);
 
   if(S.gate && S.gate.is_owner){            // 맨 처음 만든 가족(주인)만 보이고 쓸 수 있다
     wrap.appendChild(el("div","sec-h","초대"));
@@ -1786,12 +1804,6 @@ function renderSettings(){
     gr.onclick=function(){ navOpen("editGate", function(){ S.editGate={}; }); };
     gCard.appendChild(gr); wrap.appendChild(gCard);
   }
-
-  wrap.appendChild(el("div","sec-h","앱"));                      // 사용법은 눌러서 가는 페이지 — 다른 줄들과 같은 모양으로
-  var hCard=el("div","card"), hr=el("button","srow tap help-link");
-  hr.appendChild(el("span","grow","사용법")); hr.appendChild(el("span","chev","\u203A"));
-  hr.onclick=function(){ navOpen("help", function(){ S.help=true; }); };
-  hCard.appendChild(hr); wrap.appendChild(hCard);
 
   // 아이 추가는 한 집에서 한두 번 있는 일이다. 매번 보이는 자리를 차지할 일이 아니라
   // 맨 아래 버전과 같은 줄, 같은 톤으로 내려놓는다. 없는 기능이 되지는 않는다.
@@ -1811,29 +1823,6 @@ function renderSettings(){
   wrap.appendChild(foot);
   return wrap;
   function fail(err){ toast("저장 실패: "+(err.message||err)); }
-}
-
-/* ── 사용법 — 숨은 동작을 찾아볼 수 있는 한 페이지. 그림 없이 글 아홉 줄. 지인이 두 번째 폰을 붙일 때 본인이 없어도 되게 동기화까지 ── */
-function renderHelp(){
-  var wrap=el("div","screen page help"); edgeSwipe(wrap, navBack);
-  var nav=el("div","nav");
-  var back=el("button","back","\u2039"); back.setAttribute("aria-label","뒤로"); back.onclick=navBack;
-  nav.appendChild(back); nav.appendChild(el("h2",null,"사용법")); wrap.appendChild(nav);
-  var lines=[
-    ["잔액을 누르면","아이에게 보여주는 그림"],
-    ["기록을 길게 누르면","그 금액만 그림"],
-    ["좌우로 밀면","다른 아이. 홈에서도, 그림 화면에서도"],
-    ["기록을 누르면","고치기. 자동 용돈은 이번 주만 건너뛸 수 있어요"],
-    ["맨 아래 처음 금액은","시작할 때 있던 돈"],
-    ["매주 용돈은","설정에서 요일과 금액"]];
-  if(store.kind==="supabase") lines.push(["다른 폰에서도 보려면","그 폰에서 이 앱을 열고 \u201C가족 코드로 참여\u201D에 설정 \u2192 동기화의 코드를 넣어요"]);
-  lines.push(["아이폰은","사파리 공유 버튼에서 홈 화면에 추가한 뒤 그 아이콘으로 열어야 해요"]);
-  lines.push(["기록 전체는","설정 \u2192 내보내기"]);
-  lines.forEach(function(l){ var q=el("p","hl"); q.appendChild(el("b",null,l[0]+" ")); q.appendChild(document.createTextNode(l[1])); wrap.appendChild(q); });
-  var again=el("button","link sm","처음 안내 다시 보기");          // 지인에게 보여줄 때
-  again.onclick=function(){ S.tour={step:"sign"}; lsSet("yd_tour","new"); history.go(-navStack.length); };   // 사용법·설정을 다 닫고 홈에서
-  wrap.appendChild(again);
-  return wrap;
 }
 
 function exportCSV(){
