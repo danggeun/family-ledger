@@ -1877,7 +1877,7 @@ function exportCSV(){
       var url=URL.createObjectURL(new Blob(["\uFEFF"+text], {type:"text/csv;charset=utf-8"}));
       a.href=url; a.download="용돈기입장 "+today()+".csv"; document.body.appendChild(a); a.click(); document.body.removeChild(a);
       setTimeout(function(){ URL.revokeObjectURL(url); }, 10000);
-      toast("파일로 저장했어요"); return;
+      return;                                            // 알림은 안 띄운다 — 폰이 내려받기 표시를 어차피 띄우고, 우리 토스트는 그 뒤에 가려 거슬리기만 했다
     }
   }catch(e){}
   if(navigator.share){ navigator.share({title:"용돈기입장 기록",text:text}).catch(function(){}); return; }
