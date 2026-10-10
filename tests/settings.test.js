@@ -44,16 +44,17 @@ T('새로고침 후 유지', (await bal())==='11,200');
 await p.click('.gear'); await p.waitForTimeout(400);
 const txt=await p.$eval('.screen.page',e=>e.textContent);
 const heads=await p.$$eval('.sec-h',es=>es.map(e=>e.textContent));
-T('기본 4섹션이 이 순서로', JSON.stringify(heads.filter(h=>h!=='초대'))===JSON.stringify(['아이','매주 용돈','동기화','기록']));
-T('초대는 주인에게만 (그 외 섹션은 늘지 않는다)', heads.length===(await p.$('.srow.tap:has-text("잠깐 열어두기")') ? 5 : 4));
+T('기본 4섹션이 이 순서로', JSON.stringify(heads.filter(h=>h!=='초대'))===JSON.stringify(['아이','매주 용돈','기록','동기화','앱']));
+T('초대는 주인에게만, 있으면 맨 아래 (그 외 섹션은 늘지 않는다)', (await p.$('.srow.tap:has-text("잠깐 열어두기")')) ? (heads.length===6 && heads[4]==='앱' && heads[5]==='초대') : heads.length===5);
 T('시작 잔액 섹션 없음', !/시작 잔액/.test(txt));
 T('홈 화면에 추가 안내 없음', !/홈 화면에 추가/.test(txt));
 T('종이에 적어두셨던 문구 없음', !/종이에 적어/.test(txt));
 T('붙여넣어 두면 안심 문구 없음', !/안심이에요/.test(txt));
 T('며칠 안 열어봐도 문구 없음', !/며칠 안 열어/.test(txt));
 T('두 폰이 같이 보는 중 문구 없음', !/두 폰이 같이/.test(txt));
-T('내보내기가 눌리는 행', (await p.$('.srow.tap:has-text("내보내기")'))!==null
-   && /\u203A/.test(await p.$eval('.srow.tap:has-text("내보내기")',e=>e.textContent)));
+T('내보내기 · 엑셀 파일 › — 다른 줄들과 같은 모양', (await p.textContent('.card.export .srow.tap'))==='내보내기엑셀 파일\u203A');
+// 1.2.1 — 가족 코드 줄은 글자와 코드만 (로컬 모드라 여기선 없음). 내보내기는 한 번 누르면 바로 파일
+T('설정에 설명 줄이 없다 (동기화 안내 한 줄 없음)', !/이 코드로 참여/.test(await p.$eval('.screen.page',e=>e.textContent)));
 T('버전 오른정렬', (await p.$eval('.ver',e=>getComputedStyle(e).textAlign))==='right');
 T('아이 추가는 맨 아래 버전 줄 왼쪽에', await p.$eval('.foot',e=>{
   const a=e.querySelector('.addk'), v=e.querySelector('.ver');
