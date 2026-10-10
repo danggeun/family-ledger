@@ -193,7 +193,7 @@ input{border:0; background:none; outline:none; min-width:0}
 .row.open .t{color:var(--muted); font-weight:500}
 
 /* ─── 입력 줄 (통장 맨 윗줄) ─── */
-.entry{display:grid; grid-template-columns:2.9333em 1fr 6.5333em 2.4em; gap:8px; align-items:center;   /* = 44 · 98 · 36px */
+.entry{display:grid; grid-template-columns:2.9333em 1fr 6.8667em 2.4em; gap:8px; align-items:center;   /* = 44 · 103 · 36px (1.2.6: 부호가 5px 커진 만큼) */
   background:#FFFFFF; border-radius:14px; padding:10px 11px; margin:12px -11px 4px;
   box-shadow:0 1px 2px rgba(40,34,24,.05), 0 8px 20px -14px rgba(40,34,24,.28)}
 .entry .dbtn{font-size:var(--t2); font-weight:600; line-height:1.15; color:var(--ink-2);
@@ -202,12 +202,13 @@ input{border:0; background:none; outline:none; min-width:0}
 .entry input.memo{font-size:var(--t5); font-weight:500; padding:7px 2px; letter-spacing:-.01em}
 .entry input.memo::placeholder{color:var(--faint); font-weight:400}
 .entry .acell{display:flex; align-items:center; gap:6px; justify-content:flex-end}
-.entry .sign{width:25px; height:25px; border-radius:50%; background:var(--ink); color:#fff;
+.entry .sign{width:30px; height:30px; border-radius:50%; background:var(--ink); color:#fff;   /* 1.2.6: 25→30. 날짜 버튼 높이와 같고 ✓(36)보다 한 단계 작다 — ✓ 가 주인공인 위계는 그대로 */
   font-size:var(--t5); line-height:1; display:flex; align-items:center; justify-content:center; flex:none}
 .entry .sign.plus{background:var(--in)}
 .entry input.amt{font-size:var(--t5); font-weight:600; text-align:right; width:100%;
   padding:7px 0; letter-spacing:-.02em}
 .entry input.amt::placeholder{color:var(--faint); font-weight:400}
+.entry input.amt.in{color:var(--in)}   /* 받은 돈이면 숫자도 초록 — 목록(+3,000)·시트(.r.in)와 같게. 입력줄만 검정이 예외였다 */
 .entry .ok{width:36px; height:36px; border-radius:11px; background:var(--ink); color:#fff;
   font-size:var(--t5); display:flex; align-items:center; justify-content:center}
 .entry .ok[disabled]{background:var(--hair); color:var(--faint)}
@@ -410,7 +411,7 @@ button.srow{width:100%; text-align:left}
 "use strict";
 
 /* ══════════════════════ 유틸 ══════════════════════ */
-var APP_VERSION = "1.2.5";   // 올릴 때 sw.js 의 CACHE 도 같이
+var APP_VERSION = "1.2.6";   // 올릴 때 sw.js 의 CACHE 도 같이
 
 /* hex = 탭 밑줄·점(면), name = 이름 글자, mid = 작은 글자용 예비값(지금 쓰는 곳은 없다).
    아이들이 "내 색"을 바로 알아보는 게 이 색의 유일한 목적이라 채도를 살린다.
@@ -1443,16 +1444,17 @@ function renderNewRow(){
 
   var acell=el("div","acell");
   var sign=el("button","sign");
+  var amt=el("input","amt"); amt.type="text"; amt.inputMode="numeric"; amt.placeholder="0";
   function setSign(v){            // 화면을 다시 그리지 않는다 — render() 를 부르면 키보드가 내려간다
     d.sign=v;
     sign.textContent = v>0?"+":"\u2212";
     sign.className = "sign"+(v>0?" plus":"");
+    amt.className = "amt"+(v>0?" in":"");
     sign.setAttribute("aria-label", v>0?"받은 돈":"쓴 돈");
   }
   setSign(d.sign);
   sign.onclick=function(){ d.signByHand=true; setSign(-d.sign); if(S.tour && S.tour.step==="sign") tourSync(); };
   acell.appendChild(sign);
-  var amt=el("input","amt"); amt.type="text"; amt.inputMode="numeric"; amt.placeholder="0";
   amt.value=d.amount?Number(d.amount).toLocaleString("ko-KR"):""; amt.enterKeyHint="done";
   amt.oninput=function(){ d.amount=fmtMoney(amt); updateOk(); };
   tapEnd(amt);
@@ -1570,18 +1572,7 @@ function renderEditSheet(){
   [["받은 돈",1],["쓴 돈",-1]].forEach(function(p){ var b=el("button",null,p[0]); if(e.sign===p[1]) b.className="on"; b.onclick=function(){ e.sign=p[1]; render(); }; seg.appendChild(b); });
   f.appendChild(seg);
 
-  var g1=el("div"); g1.appendChild(el("label",null,"금액"));
-  var b1=el("div","box"); var ai=document.createElement("input"); ai.className=e.sign>0?"r in":"r"; ai.inputMode="numeric"; ai.value=Number(e.amountStr||0).toLocaleString("ko-KR");
-  ai.oninput=function(){ e.amountStr=fmtMoney(ai); };
-  ai.enterKeyHint="next"; ai.onkeydown=function(ev){ if(ev.key==="Enter"){ ev.preventDefault(); mi.focus(); } };   // 홈 입력줄과 같은 순서: 금액 → 용도
-  tapEnd(ai);
-  b1.appendChild(ai); b1.appendChild(el("span",null,"원")); g1.appendChild(b1); f.appendChild(g1);
-
-  var g2=el("div"); g2.appendChild(el("label",null,"용도"));
-  var b2=el("div","box"); var mi=document.createElement("input"); mi.type="text"; mi.value=e.memo||""; mi.oninput=function(){ e.memo=mi.value; };
-  mi.enterKeyHint="done"; mi.onkeydown=function(ev){ if(ev.key==="Enter"){ ev.preventDefault(); save.click(); } };
-  b2.appendChild(mi); g2.appendChild(b2); f.appendChild(g2);
-
+  // 입력줄과 같은 순서: 날짜 → 용도 → 금액 (1.2.6. 전엔 금액이 맨 위라 같은 기록을 두 화면이 다른 순서로 보여줬다). Enter 도 용도 → 금액 → 저장
   if(!e.auto_key){                                     // 자동 용돈 줄은 날짜를 안 바꾼다 — 그 날짜가 곧 그 줄(w:날짜)이라, 옮기면 토요일 용돈이 화요일에 있게 된다
     var g3=el("div"); g3.appendChild(el("label",null,"날짜"));
     var b3=el("button","box tapbox"); b3.appendChild(el("span","grow", shortDate(e.entry_date)));
@@ -1589,6 +1580,18 @@ function renderEditSheet(){
     b3.onclick=function(){ openDatePick("edit", e.entry_date); };
     g3.appendChild(b3); f.appendChild(g3);
   }
+
+  var g2=el("div"); g2.appendChild(el("label",null,"용도"));
+  var b2=el("div","box"); var mi=document.createElement("input"); mi.type="text"; mi.value=e.memo||""; mi.oninput=function(){ e.memo=mi.value; };
+  mi.enterKeyHint="next"; mi.onkeydown=function(ev){ if(ev.key==="Enter"){ ev.preventDefault(); ai.focus(); } };
+  b2.appendChild(mi); g2.appendChild(b2); f.appendChild(g2);
+
+  var g1=el("div"); g1.appendChild(el("label",null,"금액"));
+  var b1=el("div","box"); var ai=document.createElement("input"); ai.className=e.sign>0?"r in":"r"; ai.inputMode="numeric"; ai.value=Number(e.amountStr||0).toLocaleString("ko-KR");
+  ai.oninput=function(){ e.amountStr=fmtMoney(ai); };
+  ai.enterKeyHint="done"; ai.onkeydown=function(ev){ if(ev.key==="Enter"){ ev.preventDefault(); save.click(); } };
+  tapEnd(ai);
+  b1.appendChild(ai); b1.appendChild(el("span",null,"원")); g1.appendChild(b1); f.appendChild(g1);
 
   if((e.updated_by || e.created_by) && !e.auto_key){   // 마지막으로 손댄 사람. 자동 줄은 사람이 적은 게 아니라 뺀다
     var who = e.updated_by || e.created_by;            // 옛 줄은 updated_by 가 없어서 적은 사람으로 폴백
