@@ -425,7 +425,7 @@ button.srow{width:100%; text-align:left}
           ③ 저장은 낙관 반영 + 실패하면 직전 값만 되돌린다(tryStore). 자세한 지도는 README "코드 지도".
    ───────────────────────────────────────────────────────────────────────────── */
 /* ══════════════════════ 유틸 ══════════════════════ */
-var APP_VERSION = "1.3.0";   // 올릴 때 sw.js 의 CACHE 도 같이
+var APP_VERSION = "1.3.1";   // 올릴 때 sw.js 의 CACHE 도 같이
 
 /* hex = 탭 밑줄·점(면), name = 이름 글자.
    아이들이 "내 색"을 바로 알아보는 게 이 색의 유일한 목적이라 채도를 살린다.
@@ -1412,15 +1412,21 @@ function pickKid(id){
    ③ 적는 중(키보드 떠 있음)이거나 입력줄·칩 위에서 시작한 끌기는 무시 — 밖을 누르면 나가기만 하는 것과 같은 규칙.
       칩은 가로로 스크롤되는 줄이고, 입력칸 안에서 가로로 끄는 건 글자 고르기다
    가장자리 40px 는 안드로이드 뒤로 가기 몫. 세로가 우세하면 스크롤에 양보. 끌었으면 그 터치의 click 하나는 버린다 */
+/* 적는 중 = 칩이 열렸거나 입력줄의 글자칸(용도·금액)에 커서가 있다. 버튼(−/+·날짜·✓)에 남은 포커스는 아니다 —
+   안 그러면 −/+ 를 누른 뒤 다른 데를 누르기 전까지 좌우 밀기가 안 먹고, 목록 줄 탭도 한 번 먹힌다 */
+function writingEntry(){
+  var a=document.activeElement;
+  return !!(S.memoFocus || S.datePick || (a && a.matches && a.matches(".entry input")));
+}
 function homeSwipe(node){
   var x0=0, y0=0, t0=0, on=false, moved=false, go=false;
   node.addEventListener("touchstart", function(e){
     on=false;
     if(e.touches.length!==1 || S.children.length<2) return;
-    var t=e.touches[0], a=document.activeElement;
+    var t=e.touches[0];
     if(t.clientX<=SWIPE.EDGE || t.clientX>=window.innerWidth-SWIPE.EDGE) return;
     if(e.target.closest && e.target.closest(".entry, .chips")) return;
-    if(S.memoFocus || S.datePick || (a && a.closest && a.closest(".entry"))) return;
+    if(writingEntry()) return;
     on=true; moved=false; go=false; x0=t.clientX; y0=t.clientY; t0=e.timeStamp;
   }, {passive:true});
   node.addEventListener("touchmove", function(e){
@@ -1484,8 +1490,7 @@ function renderHome(){
   var wasTyping=false;
   wrap.addEventListener("pointerdown", function(ev){
     S.ui.homeDragClick=false;                       // 새로 누르면 지난 끌기 표시는 버린다 (click 이 안 오는 기기도 있다)
-    var a=document.activeElement;
-    wasTyping = S.memoFocus || S.datePick || !!(a && a.closest && a.closest(".entry"));
+    wasTyping = writingEntry();
   }, true);
   wrap.addEventListener("click", function(ev){
     if(S.ui.homeDragClick){ S.ui.homeDragClick=false; ev.preventDefault(); ev.stopPropagation(); return; }   // 끌기가 만든 click

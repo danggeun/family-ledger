@@ -78,6 +78,20 @@ await p.click('.row >> nth=0'); await p.waitForTimeout(300);
 T('민 직후 일부러 누른 줄은 열린다', !!(await p.$('.sheet')));
 await p.click('.sheet button:has-text("취소")'); await p.waitForTimeout(300);
 
+// 1.3.1: −/+ 를 누르면 그 버튼에 포커스가 남는다 — 그걸 "적는 중"으로 읽어 밀기가 안 먹었다 (1.1.7 부터)
+const tap=async(sel)=>{ const r=await p.$eval(sel,e=>{const b=e.getBoundingClientRect(); return {x:b.x+b.width/2,y:b.y+b.height/2};});
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[r]}); await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]}); await p.waitForTimeout(300); };
+await load(KIDS,ENTRIES);
+await tap('.entry .sign');
+T('부호를 누르면 + 가 되고 그 버튼에 포커스가 남는다(실제 폰과 같은 조건)', (await p.textContent('.entry .sign'))==='+' && await p.evaluate(()=>document.activeElement.classList.contains('sign')));
+y=await rowY();
+await swipe(300,y,90,y);
+T('부호를 누른 뒤 밀어도 옆 아이로 간다 (부호는 탭처럼 비워진다)', (await who())==='하준' && (await p.textContent('.entry .sign'))==='\u2212');
+await tap('.entry .sign'); await tap('.entry .sign');
+await tap('.row');
+T('부호를 누른 뒤 목록 줄을 누르면 고치기 시트가 바로 열린다', !!(await p.$('.sheet')));
+if(await p.$('.sheet')){ await p.click('.sheet button:has-text("취소")'); await p.waitForTimeout(300); }
+
 // 아이가 하나면 아무 일 없다
 await load([KIDS[0]],ENTRIES);
 y=await rowY();
