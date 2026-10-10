@@ -180,3 +180,16 @@ exception when duplicate_object then null; end $$;
 -- family_id 필터에 걸리지 않아 DELETE 이벤트가 버려진다 — 다른 폰은 앱을 갔다 와야 줄이 사라졌다.
 alter table entries  replica identity full;
 alter table children replica identity full;
+
+-- ══════════════════════════════════════════════════════════════════
+-- 쓰던 프로젝트 올리기 — 위 전체를 처음 만든 뒤 버전이 올라가며 손으로 실행해 온 것들.
+-- 어느 버전에서 왔든 이 절을 통째로 실행하면 된다(전부 재실행해도 안전: if not exists / or replace / revoke·grant 는 멱등).
+-- 새 프로젝트는 위 본문에 이미 다 들어 있으므로 실행할 필요 없다.
+-- ══════════════════════════════════════════════════════════════════
+alter table entries add column if not exists created_by uuid default auth.uid();        -- 1.1.x
+alter table entries add column if not exists updated_by uuid default auth.uid();        -- 1.1.3
+alter table entries add column if not exists skipped boolean not null default false;    -- 1.1.x
+alter table entries  replica identity full;                                              -- 1.1.9 (삭제도 실시간으로)
+alter table children replica identity full;
+-- 1.2.0 함수 권한(위 "함수는 로그인한 사용자만" 블록) · 1.2.3 gate_state(주인에게만 open_until) 는 위 본문의
+-- create or replace / revoke / grant 를 다시 실행하면 그대로 반영된다 — 즉 위 본문 전체를 한 번 더 돌리는 것이 가장 확실하다.

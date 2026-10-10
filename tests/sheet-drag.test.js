@@ -54,11 +54,12 @@ T('쓴 돈으로 바꾸면 검정', (await p.$eval('.sheet .tabs button.on',e=>g
 // ── 시트 안 Enter: 금액 → 용도, 용도 → 저장 (홈 입력줄과 같은 순서). 키보드의 "다음/완료"가 이것 ──
 await p.click('.sheet button:has-text("취소")'); await p.waitForTimeout(350);
 await p.click('.row:not(.auto) >> nth=0'); await p.waitForTimeout(350);
-T('시트 금액칸은 "다음", 용도칸은 "완료"', await p.$eval('.sheet input.r',e=>e.enterKeyHint==='next') && await p.$eval('.sheet input[type=text]',e=>e.enterKeyHint==='done'));
-await p.click('.sheet input.r'); await p.keyboard.press('Enter'); await p.waitForTimeout(150);
-T('금액칸에서 Enter → 용도칸으로', await p.evaluate(()=>document.activeElement && document.activeElement.type==='text' && document.activeElement.closest('.sheet')!==null));
-await p.keyboard.type(' 더'); await p.keyboard.press('Enter'); await p.waitForTimeout(400);
-T('용도칸에서 Enter → 저장되고 시트 닫힘', !(await p.$('.sheet')) && /더/.test(await p.textContent('.row:not(.auto) >> nth=0')));
+T('시트 순서는 입력줄과 같다: 날짜 → 용도 → 금액 (1.2.6)', (await p.$$eval('.sheet .f label',es=>es.map(e=>e.textContent).join(' '))).startsWith('날짜 용도 금액'));
+T('시트 용도칸은 "다음", 금액칸은 "완료"', await p.$eval('.sheet input[type=text]',e=>e.enterKeyHint==='next') && await p.$eval('.sheet input.r',e=>e.enterKeyHint==='done'));
+await p.click('.sheet input[type=text]'); await p.keyboard.press('End'); await p.keyboard.type(' 더'); await p.keyboard.press('Enter'); await p.waitForTimeout(150);
+T('용도칸에서 Enter → 금액칸으로', await p.evaluate(()=>document.activeElement && document.activeElement.classList.contains('r') && document.activeElement.closest('.sheet')!==null));
+await p.keyboard.press('Enter'); await p.waitForTimeout(400);
+T('금액칸에서 Enter → 저장되고 시트 닫힘', !(await p.$('.sheet')) && /더/.test(await p.textContent('.row:not(.auto) >> nth=0')));
 T('시트는 화면 높이 안에서 스크롤 (키보드가 뜨면 화면이 줄어든다)', await p.evaluate(()=>{ const m=document.querySelector('meta[name=viewport]').content; return /interactive-widget=resizes-content/.test(m); }));
 
 console.log(`\n${pass} passed, ${fail} failed`); console.log('errors:',errs.join('|')||'none');

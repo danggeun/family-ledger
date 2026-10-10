@@ -110,7 +110,7 @@ c=await p.evaluate(()=>{ document.body.style.fontSize='19.5px'; return getComput
 T('글자 130%: 칸도 130% (57 · 112 · 101)', Math.abs(c[0]-57.2)<.2 && Math.abs(c[2]-111.8)<.2 && Math.abs(c[3]-101.4)<.2);
 await p.evaluate(()=>{ document.body.style.fontSize=''; });
 const ec=await p.$eval('.entry',e=>getComputedStyle(e).gridTemplateColumns.split(' ').map(parseFloat));
-T('입력줄 칸: 44 · 98 · 36', Math.abs(ec[0]-44)<.1 && Math.abs(ec[2]-98)<.1 && Math.abs(ec[3]-36)<.1);
+T('입력줄 칸: 44 · 103 · 36 (1.2.6 부호 30px 만큼)', Math.abs(ec[0]-44)<.1 && Math.abs(ec[2]-103)<.1 && Math.abs(ec[3]-36)<.1);
 
 // ── 8. iOS 실행 화면은 기종별 — media 가 붙은 link 열두 줄, 파일 실재 ──
 const links=await p.$$eval('link[rel="apple-touch-startup-image"]',ls=>ls.map(l=>({m:l.media,h:l.getAttribute('href')})));

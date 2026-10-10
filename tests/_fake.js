@@ -1,4 +1,4 @@
-// 가짜 Supabase(window.supabase) — sync-robust.test.js 와 quality2.test.js 가 같이 쓴다. addInitScript 로 심는 함수라 바깥을 참조하지 않는다.
+// 가짜 Supabase(window.supabase) — sync-robust·regress-1.2.3·regress-1.2.5 등이 같이 쓴다. addInitScript 로 심는 함수라 바깥을 참조하지 않는다.
 const FAKE=(opt)=>{
   try{ Object.defineProperty(window,'APP_CONFIG',{value:{SUPABASE_URL:'https://x.supabase.co/rest/v1/',SUPABASE_ANON_KEY:'k'},writable:false,configurable:false}); }catch(_){}
   try{ localStorage.setItem('yd_tour','done'); }catch(e){}
@@ -10,8 +10,8 @@ const FAKE=(opt)=>{
                        {id:'k2',family_id:'f1',name:'하준',color:'yellow',sort:1,opening_balance:5000,weekly_on:false,weekly_amount:0,created_at:'2026-07-02T00:00:00Z'}],
     ents: opt.ents || [{id:'e1',family_id:'f1',child_id:'k1',entry_date:'2026-09-14',memo:'젤리',amount:-800,auto_key:null,skipped:false,created_by:'u1',updated_by:'u1',created_at:'2026-09-14T09:00:00Z'},
                        {id:'e2',family_id:'f1',child_id:'k1',entry_date:'2026-09-13',memo:'용돈',amount:3000,auto_key:'w:2026-09-13',skipped:false,created_by:'u1',updated_by:'u1',created_at:'2026-09-13T09:00:00Z'}],
-    calls:{join:0,create:0,subscribe:0,anon:0,insert:0,update:0,delete:0,upsert:0}, n:1,
-    createFail:false, childFail:false, insertDelay:0, createClientArgs:null, signedOut:false, authCb:null
+    calls:{join:0,create:0,subscribe:0,anon:0,insert:0,update:0,delete:0,upsert:0}, n:100,   // 새 id 는 e101… — 시드(e1·e2)와 겹치지 않게
+    createFail:false, childFail:false, insertDelay:0, insertFail:false, joinError:null, createClientArgs:null, signedOut:false, authCb:null
   };
   const dead=()=>Promise.reject(new Error('Failed to fetch'));
   const ok=(data)=>Promise.resolve({data,error:null});
@@ -38,10 +38,11 @@ const FAKE=(opt)=>{
       }
       if(table==='entries'){
         if(st.op==='insert'){ F.calls.insert++; const e=Object.assign({id:'e'+(++F.n),created_at:new Date().toISOString(),skipped:false},st.payload);
+          if(F.insertFail) return Promise.resolve({data:null,error:{message:'Failed to fetch'}});
           return wait(F.insertDelay).then(()=>{ F.ents.push(e); return {data:e,error:null}; }); }
         if(st.op==='update'){ F.calls.update++; const e=F.ents.find(x=>x.id===st.filters.id); if(e) Object.assign(e,st.payload); return ok(null); }
         if(st.op==='delete'){ F.calls.delete++; F.ents=F.ents.filter(x=>x.id!==st.filters.id); return ok(null); }
-        if(st.op==='upsert') return ok([]);
+        if(st.op==='upsert'){ F.calls.upsertRows=(F.calls.upsertRows||0)+(st.payload||[]).length; F.lastUpsert=st.payload; return ok([]); }
       }
       if(table==='children'){
         if(st.op==='insert'){ F.calls.upsert++; if(F.childFail) return Promise.resolve({data:null,error:{message:'boom'}});
@@ -59,7 +60,7 @@ const FAKE=(opt)=>{
           onAuthStateChange:(cb)=>{ F.authCb=cb; return {data:{subscription:{unsubscribe(){}}}}; }},
     from:q,
     rpc:(name,args)=>{
-      if(name==='join_family'){ F.calls.join++; if(F.mode==='dead') return dead(); F.members=[{family_id:'f1',families:{code:args.p_code}}]; return ok('f1'); }
+      if(name==='join_family'){ F.calls.join++; if(F.mode==='dead') return dead(); if(F.joinError) return Promise.resolve({data:null,error:{message:F.joinError}}); F.members=[{family_id:'f1',families:{code:args.p_code}}]; return ok('f1'); }
       if(name==='create_family'){ F.calls.create++; if(F.createFail) return Promise.resolve({data:null,error:{message:'gate'}}); F.members=[{family_id:'f1',families:{code:args.p_code}}]; return ok('f1'); }
       if(name==='gate_state') return ok({is_owner:true,open_until:null});
       return ok(null); },
