@@ -125,10 +125,17 @@ input{border:0; background:none; outline:none; min-width:0}
 /* 화면 전체를 움직이면 잠깐 뒤(홈 목록)가 비친다. 돼지는 어차피 그대로니 **바뀌는 것만** 움직인다 */
 /* 아이를 바꾸는 전환 — 나가는 것이 먼저 같은 방향으로 밀리며 흐려지고(0.07초), 새것이 뒤따라 들어온다(0.11초).
    겹쳐 섞지 않고 차례로 — 나가는 쪽은 바꾸기 직전 화면의 복사본(.ghost, 터치 안 받음)이 맡는다. 홈도 같은 문법 */
+/* 들어오는 쪽은 애니메이션과 별개로 처음부터 투명(opacity:0) — 사파리는 새로 끼운 요소의 지연 애니메이션에서
+   기다리는 동안 from(투명) 대신 최종 상태를 한 프레임 먼저 그린다. 그 한 프레임이 아이폰에서 "툭" 끊기는 느낌이었다.
+   안드로이드는 원래 투명에서 시작하므로 달라지는 게 없다. will-change/backface 는 iOS 합성 레이어를 미리 고정하는 처방 */
+.kid.slide-l .kn,.kid.slide-l .ka,.kid.slide-l .money,.kid.slide-r .kn,.kid.slide-r .ka,.kid.slide-r .money,
+.screen.slide-l > :not(.bar),.screen.slide-r > :not(.bar){opacity:0; will-change:transform,opacity; -webkit-backface-visibility:hidden; backface-visibility:hidden}
 .kid.slide-l .kn,.kid.slide-l .ka,.kid.slide-l .money{animation:kin-l .11s ease-out .07s both}
 .kid.slide-r .kn,.kid.slide-r .ka,.kid.slide-r .money{animation:kin-r .11s ease-out .07s both}
 .kid.ghost{pointer-events:none; background:transparent}
-.kid.ghost .pig,.kid.ghost .x{visibility:hidden}             /* 밑의 새 화면에 똑같은 돼지·✕ 가 있다 */
+/* 복사본의 돼지·✕ 는 가리지 않는다 — 밑의 새 화면과 같은 자리에 같은 그림이라 보여도 차이가 없고,
+   iOS 는 새 <img> 를 한 프레임 늦게 그릴 수 있어 가리면 돼지가 깜빡였다 */
+.kid.ghost .kn,.kid.ghost .ka,.kid.ghost .money,.screen.ghost > :not(.bar){will-change:transform,opacity; -webkit-backface-visibility:hidden; backface-visibility:hidden}
 .kid.ghost.gout-l .kn,.kid.ghost.gout-l .ka,.kid.ghost.gout-l .money{animation:kout-l .07s ease-in both}
 .kid.ghost.gout-r .kn,.kid.ghost.gout-r .ka,.kid.ghost.gout-r .money{animation:kout-r .07s ease-in both}
 @keyframes kin-l{from{opacity:0; transform:translateX(22px)} to{opacity:1; transform:none}}
@@ -143,7 +150,10 @@ input{border:0; background:none; outline:none; min-width:0}
 .screen.ghost > .bar{visibility:hidden}                                                   /* 탭 줄은 밑의 새것이 바로 보인다 */
 .screen.ghost.gout-l > :not(.bar){animation:kout-l .07s ease-in both}
 .screen.ghost.gout-r > :not(.bar){animation:kout-r .07s ease-in both}
-@media (prefers-reduced-motion: reduce){ .kid.slide-l *,.kid.slide-r *,.screen.slide-l > *,.screen.slide-r > *{animation:none} .ghost{display:none} }
+/* 움직임 줄이기: 위 규칙들과 같은 특이도로 써야 이긴다 — 전에는 `.screen.slide-l > *` 라 `> :not(.bar)` 에 져서 애니메이션이 그대로 돌았다 */
+@media (prefers-reduced-motion: reduce){
+  .kid.slide-l .kn,.kid.slide-l .ka,.kid.slide-l .money,.kid.slide-r .kn,.kid.slide-r .ka,.kid.slide-r .money,.screen.slide-l > :not(.bar),.screen.slide-r > :not(.bar){animation:none; opacity:1; will-change:auto}
+  .ghost{display:none} }
 .kid.one{justify-content:center; padding-top:calc(var(--sat) + 24px)}   /* 한 줄 그림 — 돼지가 없어 위가 비므로 가운데로 */
 .money{display:flex; flex-direction:column; gap:var(--s4); align-items:flex-start; margin-top:var(--s5)}
 .kid.tight .pig{width:150px}      /* 줄이 많거나 화면이 작으면 돼지를 줄여 한 화면에 담는다 */
@@ -394,7 +404,7 @@ button.srow{width:100%; text-align:left}
 "use strict";
 
 /* ══════════════════════ 유틸 ══════════════════════ */
-var APP_VERSION = "1.2.3";   // 올릴 때 sw.js 의 CACHE 도 같이
+var APP_VERSION = "1.2.4";   // 올릴 때 sw.js 의 CACHE 도 같이
 
 /* hex = 탭 밑줄·점(면), name = 이름 글자, mid = 작은 글자용 예비값(지금 쓰는 곳은 없다).
    아이들이 "내 색"을 바로 알아보는 게 이 색의 유일한 목적이라 채도를 살린다.
@@ -734,7 +744,7 @@ function renderKidView(){
   v.onclick=function(){ if(kidDragClick){ kidDragClick=false; return; } navBack(); };   // 끌어서 생긴 click 은 닫기가 아니다
   kidSwipe(v);
   var x=el("button","x","\u2715"); x.setAttribute("aria-label","닫기"); v.appendChild(x);
-  var pig=document.createElement("img"); pig.className="pig"; pig.src="logo-pig.png"; pig.alt=""; v.appendChild(pig);
+  var pig=document.createElement("img"); pig.className="pig"; pig.decoding="sync"; pig.src="logo-pig.png"; pig.alt=""; v.appendChild(pig);   // 캐시된 그림을 첫 프레임에 바로 — 늦게 그리면 돼지가 깜빡인다
   v.appendChild(el("div","kn",c?c.name:""));
   var bal=balanceOf(S.kidView);
   var ka=el("div","ka"); ka.appendChild(el("b",null,fmt(bal))); ka.appendChild(el("i",null,"원")); v.appendChild(ka);
@@ -746,7 +756,7 @@ function renderKidView(){
     if(v.scrollHeight > v.clientHeight) v.classList.add("tight");
     if(v.scrollHeight > v.clientHeight) v.classList.add("tighter");
   }
-  requestAnimationFrame(fit); pig.addEventListener("load", fit);
+  v.fit=fit; pig.addEventListener("load", fit);          // render 가 붙인 직후 동기로 부른다 — rAF 로 미루면 첫 프레임이 큰 크기로 한 번 그려졌다(돼지 비율은 미리 잡혀 있어 그림 전에도 높이가 맞다)
   return v;
 }
 
@@ -1151,7 +1161,7 @@ function render(){
   if(S.editWeek) root.appendChild(renderWeekSheet());
   if(S.editGate) root.appendChild(renderGateSheet());
   if(S.pickDate) root.appendChild(renderDateSheet());
-  if(S.kidView) root.appendChild(renderKidView());
+  if(S.kidView){ var kv=renderKidView(); root.appendChild(kv); kv.fit(); }
   if(S.entryView) root.appendChild(renderEntryView());
   tourSync();                                                   // 처음 안내 레이어는 root 밖 — 그림이 떠 있는 동안은 숨는다
   var sheets=root.querySelectorAll(".sheet");
@@ -2035,7 +2045,13 @@ function renderOnboard(){
     var ci=document.createElement("input"); ci.type="text"; ci.placeholder="ABCD-1234";
     ci.autocapitalize="characters"; ci.autocomplete="off"; ci.value=o.code;
     ci.style.textAlign="center"; ci.style.fontSize="21px"; ci.style.fontWeight="700"; ci.style.letterSpacing=".09em";
-    ci.oninput=function(){ o.code=ci.value.toUpperCase(); };
+    // 치는 대로 칸이 모양을 잡는다 — 대문자·영숫자만 남기고 4자리 뒤에 - 를 넣는다. 소문자로, 하이픈 없이 쳐도
+    // 전부터 들어갔지만 칸에 친 그대로 보여서 "대문자로 하이픈 넣어서 쳐야 하나" 싶게 했다. 커서는 끝(금액칸과 같은 규칙)
+    ci.oninput=function(){ var raw=ci.value.toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,8);
+      o.code = raw.length>4 ? raw.slice(0,4)+"-"+raw.slice(4) : raw;
+      if(ci.value!==o.code) ci.value=o.code;
+      try{ ci.setSelectionRange(ci.value.length, ci.value.length); }catch(_){} };
+    ci.maxLength=9;
     bx.appendChild(ci); f.appendChild(bx);
     var btns=el("div","btns");
     var back=el("button","btn","뒤로"); back.onclick=function(){ o.mode=null; render(); };
