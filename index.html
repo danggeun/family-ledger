@@ -381,7 +381,7 @@ button.srow{width:100%; text-align:left}
 "use strict";
 
 /* ══════════════════════ 유틸 ══════════════════════ */
-var APP_VERSION = "1.2.1";   // 올릴 때 sw.js 의 CACHE 도 같이
+var APP_VERSION = "1.2.2";   // 올릴 때 sw.js 의 CACHE 도 같이
 
 /* hex = 탭 밑줄·점(면), name = 이름 글자, mid = 작은 글자용 예비값(지금 쓰는 곳은 없다).
    아이들이 "내 색"을 바로 알아보는 게 이 색의 유일한 목적이라 채도를 살린다.
@@ -426,7 +426,8 @@ function LocalStore(){
   this.userId = "me";
   this.familyId = null;
   this.key = "yd_local_v1";
-  this.db = JSON.parse(lsGet(this.key) || "null") || {family:null, children:[], entries:[]};
+  var raw=null; try{ raw=JSON.parse(lsGet(this.key) || "null"); }catch(e){}   // 깨진 저장은 빈 것으로 — 전엔 여기서 던져 "불러오는 중…"에 멈췄다
+  this.db = (raw && raw.children) ? raw : {family:null, children:[], entries:[]};
 }
 LocalStore.prototype = {
   save: function(){ lsSet(this.key, JSON.stringify(this.db)); },
@@ -528,7 +529,7 @@ var SUPABASE_CDN="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist
 function loadSupabase(){
   if(window.supabase) return Promise.resolve();
   return new Promise(function(ok, no){
-    var sc=document.createElement("script"); sc.src=SUPABASE_CDN;
+    var sc=document.createElement("script"); sc.src=SUPABASE_CDN; sc.crossOrigin="anonymous";   // CORS 로 받아야 404 가 opaque 로 캐시를 덮지 않는다
     sc.onload=function(){ window.supabase ? ok() : no(new Error("supabase-js 를 받지 못했어요")); };
     sc.onerror=function(){ no(new Error("supabase-js 를 받지 못했어요")); };
     document.head.appendChild(sc);
@@ -846,7 +847,7 @@ function ensureAllowances(){
     // 안전장치(400)에 먼저 걸리고, 그때부터 최근 주가 영영 안 채워진다.
     var have={}, last="";
     S.entries.forEach(function(e){ if(e.child_id===c.id && e.auto_key){ have[e.auto_key]=1;
-      if(e.entry_date>last) last=e.entry_date; } });
+      var kd=e.auto_key.slice(2); if(kd>last) last=kd; } });   // 열쇠의 날짜로 — entry_date 는 고치기로 옮길 수 있어서, 앞으로 옮기면 그 사이 주가 영영 빠졌다
     var start = c.weekly_start || localDay(c.created_at) || t;
     var from = last && last>=start ? addDays(last,1) : start;
     var floor = addDays(t,-400);          // 아주 오래 안 열었어도 몇 년치를 한꺼번에 넣지는 않는다
@@ -893,6 +894,7 @@ function tourEnd(){                                    // 안내에서 바꾼 �
   var t=S.tour; S.tour=null; lsSet("yd_tour","done");
   if(t && t.sel0 && childOf(t.sel0) && t.sel0!==S.sel){ S.sel=t.sel0; lsSet("yd_sel",S.sel); S.limit=60; resetDraft(); }
   else if(!S.draft.memo && !S.draft.amount) resetDraft();
+  if(S.edit && S.edit.id==="sample") navBack();          // 고치기 단계에서 × 로 그만두면 예시 시트가 남아 저장이 눌리던 것
 }
 var TOUR_LOOK={color:1, export:1};                     // 설정 안에서 보여주기만 하는 단계 — "다음"으로 넘어간다
 function tourSub(){                                    // 단계 안의 곁화면: 그림이 떠 있으면 "kid"(살짝 알려주기), 시트가 떠 있으면 "sheet"(설명)
@@ -1084,7 +1086,8 @@ function ensureFamily(){
     return ok;
   });
 }
-function typing(){ var a=document.activeElement; return !!(a && a.closest && a.closest(".entry")); }
+function typing(){ var a=document.activeElement; return !!(a && (a.tagName==="INPUT" || a.tagName==="TEXTAREA")); }   // 홈 입력줄만이 아니라 시트·설정의 칸도 — 적는 중 다시 그리면 치던 게 날아간다
+document.addEventListener("focusout", function(){ setTimeout(function(){ if(S.renderLater && !typing()) render(); }, 0); });   // 칸을 떠나면 미뤄둔 다시 그리기
 var loading=false, pendingReload=false;
 function reload(again){
   if(loading){ pendingReload=true; return Promise.resolve(); }
@@ -1498,11 +1501,13 @@ function renderEditSheet(){
   mi.enterKeyHint="done"; mi.onkeydown=function(ev){ if(ev.key==="Enter"){ ev.preventDefault(); save.click(); } };
   b2.appendChild(mi); g2.appendChild(b2); f.appendChild(g2);
 
-  var g3=el("div"); g3.appendChild(el("label",null,"날짜"));
-  var b3=el("button","box tapbox"); b3.appendChild(el("span","grow", shortDate(e.entry_date)));
-  b3.appendChild(el("span","chev","\u203A"));
-  b3.onclick=function(){ openDatePick("edit", e.entry_date); };
-  g3.appendChild(b3); f.appendChild(g3);
+  if(!e.auto_key){                                     // 자동 용돈 줄은 날짜를 안 바꾼다 — 그 날짜가 곧 그 줄(w:날짜)이라, 옮기면 토요일 용돈이 화요일에 있게 된다
+    var g3=el("div"); g3.appendChild(el("label",null,"날짜"));
+    var b3=el("button","box tapbox"); b3.appendChild(el("span","grow", shortDate(e.entry_date)));
+    b3.appendChild(el("span","chev","\u203A"));
+    b3.onclick=function(){ openDatePick("edit", e.entry_date); };
+    g3.appendChild(b3); f.appendChild(g3);
+  }
 
   if((e.updated_by || e.created_by) && !e.auto_key){   // 마지막으로 손댄 사람. 자동 줄은 사람이 적은 게 아니라 뺀다
     var who = e.updated_by || e.created_by;            // 옛 줄은 updated_by 가 없어서 적은 사람으로 폴백
@@ -1720,6 +1725,7 @@ function sheetDrag(sh){
   var y0=0, dy=0, t0=0, on=false, go=false;
   sh.addEventListener("touchstart", function(e){
     if(e.touches.length!==1) return;
+    if(sh.scrollTop>0) return;                            // 시트 안이 스크롤된 상태(키보드로 길어졌을 때)면 스크롤이 먼저
     on=true; go=false; dy=0; y0=e.touches[0].clientY; t0=e.timeStamp; sh.style.transition="none";
   }, {passive:true});
   sh.addEventListener("touchmove", function(e){
@@ -1744,12 +1750,13 @@ function sheetDrag(sh){
    iOS 홈 화면 앱은 뒤로 가기가 없어서 스와이프(edgeSwipe)가 대신한다. */
 var navStack = [];                       // 열려 있는 화면들. 방문 기록 한 칸 = 이 배열 한 칸
 var navBase = (history.state && history.state.d) || 0;   // 설정을 연 채 새로고침하면 그 칸이 바닥이 된다 — 거기서부터 센다
-function navOpen(key, open){ open(); navStack.push(key); try{ history.pushState({d:navBase+navStack.length}, ""); }catch(e){} render(); }
+function navOpen(key, open){ open(); try{ history.pushState({d:navBase+navStack.length+1}, ""); navStack.push(key); }catch(e){ navCloseKey(key); } render(); }   // pushState 가 거부되면(사파리 횟수 제한) 열지 않는다 — 열어 두면 back() 이 안 와 닫기가 영영 멈춘다
+function navCloseKey(k){ if(k==="settings") S.screen="home"; else S[k]=null; }
 var backing=false;                       // history.back() 은 비동기라 popstate 전까지 navStack 이 안 줄어든다 — 두 번 두드리면 두 칸 간다
 function navBack(){ if(navStack.length && !backing){ backing=true; history.back(); } }   // 닫는 건 popstate 한 곳에서
 function navCloseTop(){
   var k=navStack.pop(); if(!k) return;
-  if(k==="settings") S.screen="home"; else S[k]=null;       // 자기가 연 것만 닫는다
+  navCloseKey(k);                                             // 자기가 연 것만 닫는다
 }
 window.addEventListener("popstate", function(e){
   backing=false;
@@ -1902,9 +1909,11 @@ function renderSettings(){
 }
 
 function csvText(){
+  var q=function(v){ return '"'+String(v==null?"":v).replace(/"/g,'""')+'"'; };   // 이름·용도 모두 — 쉼표가 들어가도 열이 안 밀린다
   var lines=["아이,날짜,용도,금액,총액"];
   S.children.forEach(function(c){
-    withTotals(c.id).reverse().forEach(function(e){ lines.push([c.name,e.entry_date,'"'+(e.memo||"").replace(/"/g,'""')+'"',e.amount,e.total].join(",")); });
+    lines.push([q(c.name), localDay(c.created_at)||"", q("처음 금액"), "", c.opening_balance||0].join(","));   // 첫 줄 총액이 어디서 왔는지 보이게
+    withTotals(c.id).reverse().forEach(function(e){ lines.push([q(c.name),e.entry_date,q(e.memo),e.amount,e.total].join(",")); });
   });
   return lines.join("\n");
 }
@@ -1912,7 +1921,12 @@ function exportCSV(){
   var text=csvText();
   // 파일로 내려받는다 — "내보내기"를 누르면 파일이 생기는 게 자연스럽다. 공유 창(어디로 보낼지부터 고르는)은 한 단계 돌아가는 느낌이었다.
   // 앞의 BOM 은 엑셀이 한글을 깨지 않고 열게 한다
+  var isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform==="MacIntel" && navigator.maxTouchPoints>1);
   try{
+    if(isIOS && navigator.canShare && window.File){     // 아이폰 홈 화면 앱은 a[download] 가 버전에 따라 조용히 안 된다 — 파일 공유로(공유 창에 "파일에 저장"이 있다)
+      var file=new File(["\uFEFF"+text], "용돈기입장 "+today()+".csv", {type:"text/csv"});
+      if(navigator.canShare({files:[file]})){ navigator.share({files:[file], title:"용돈기입장 기록"}).catch(function(){}); return; }
+    }
     var a=document.createElement("a");
     if("download" in a){
       var url=URL.createObjectURL(new Blob(["\uFEFF"+text], {type:"text/csv;charset=utf-8"}));
@@ -2036,12 +2050,15 @@ function renderOnboard(){
     go2.disabled=true;
     var code=genCode(), keys=Object.keys(COLORS);
     (store.familyId ? Promise.resolve() : store.createFamily(code)).then(function(){   // 아이 저장이 실패해 다시 누를 때 가족을 또 만들지 않는다
-      return names.reduce(function(pr,nm,i){
-        return pr.then(function(){
-          return store.upsertChild({name:nm, color:keys[i%keys.length], sort:i,
-            opening_balance:Number(o.opens[i])||0, weekly_on:false, weekly_amount:0});
-        });
-      }, Promise.resolve());
+      return store.loadAll().then(function(d){                                         // 앞 시도가 절반쯤 성공했으면 들어간 아이는 건너뛴다 — "첫째"가 둘 되던 것
+        var have={}; d.children.forEach(function(c){ have[c.sort]=1; });
+        return names.reduce(function(pr,nm,i){
+          if(have[i]) return pr;
+          return pr.then(function(){
+            return store.upsertChild({name:nm, color:keys[i%keys.length], sort:i,
+              opening_balance:Number(o.opens[i])||0, weekly_on:false, weekly_amount:0});
+          });
+        }, Promise.resolve()); });
     }).then(function(){ S.screen="home"; return reload(); })
       .catch(function(err){ go2.disabled=false; toast("시작 실패: "+(err.message||err)); });
   };
@@ -2074,7 +2091,7 @@ function boot(){
 }
 render(); boot();
 
-document.addEventListener("visibilitychange", function(){ if(document.visibilityState==="visible" && S.screen==="home") reload(); });
+document.addEventListener("visibilitychange", function(){ if(document.visibilityState==="visible" && (S.screen==="home" || S.screen==="settings")) reload(); });   // 설정을 열어둔 채 돌아와도 — 전엔 홈에서만이라 그날 자동 용돈이 안 생겼다
 if("serviceWorker" in navigator){ window.addEventListener("load", function(){ navigator.serviceWorker.register("sw.js").catch(function(){}); }); }
 })();
 </script>
