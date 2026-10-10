@@ -53,7 +53,7 @@
   --sat:env(safe-area-inset-top,0px); --sab:env(safe-area-inset-bottom,0px);
 }
 *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
-html,body{margin:0; background:var(--paper); color:var(--ink);
+html,body{margin:0; background:var(--paper); color:var(--ink); word-break:keep-all; overflow-wrap:break-word;   /* 한국어는 어절 단위로(안내 카드 제목이 "가 볼/게요"로 꺾였다) — 띄어쓰기 없는 긴 글자줄만 넘칠 때 자른다 */
   font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Noto Sans KR",system-ui,sans-serif;
   font-size:var(--t4); line-height:1.45; font-variant-numeric:tabular-nums;
   -webkit-text-size-adjust:100%; overscroll-behavior-y:none;
@@ -243,6 +243,11 @@ input{border:0; background:none; outline:none; min-width:0}
 .sheet h3{margin:0 0 var(--s4); font-size:var(--t3); font-weight:600; text-align:center; color:var(--muted)}
 .f{display:flex; flex-direction:column; gap:12px}
 .f label{font-size:var(--t2); font-weight:500; color:var(--muted); display:block; margin-bottom:6px}
+.skiplist{max-height:144px; overflow:auto; overscroll-behavior:contain}   /* 줄 높이 41px × 3 + 넷째 줄 글자 반 — 넘치면 반 줄이 걸쳐 보여 더 있다는 걸 말한다 */
+.skiprow{display:flex; justify-content:space-between; align-items:center; width:100%; padding:9px 0; font-size:var(--t4); color:var(--ink-2); border-bottom:1px solid var(--hair)}   /* 매주 용돈 시트: 건너뛴 주가 있을 때만, 주마다 한 줄 */
+.skiprow:last-child{border-bottom:0}
+.skiprow b{font-size:var(--t3); font-weight:600; color:var(--ink-3)}
+.skiprow:active b{color:var(--ink)}
 .f .box{border:1px solid var(--hair); border-radius:12px; padding:12px 14px;
   display:flex; align-items:center; gap:8px}
 .f .box:focus-within{border-color:var(--ink)}
@@ -378,6 +383,7 @@ button.srow{width:100%; text-align:left}
 .start-top h2{font-size:var(--t6); font-weight:700; margin:0; letter-spacing:-.03em; line-height:1.25}
 .start-top p{white-space:pre-line; font-size:var(--t4); color:var(--muted); margin:var(--s3) 0 0; line-height:1.65}
 .stack{display:flex; flex-direction:column; gap:9px}
+.stack .btn{flex:none}   /* .btn{flex:1} 은 가로 줄(.btns)용 — 세로 묶음에선 높이 56px 이 무너져 22px 로 납작해졌다 */
 .warn{background:var(--wash); border-radius:14px; padding:15px 16px; margin-bottom:16px}
 .warn b{font-size:var(--t4); font-weight:600; display:block}
 .warn p{margin:6px 0 0; font-size:var(--t3); line-height:1.65; color:var(--muted)}
@@ -404,7 +410,7 @@ button.srow{width:100%; text-align:left}
 "use strict";
 
 /* ══════════════════════ 유틸 ══════════════════════ */
-var APP_VERSION = "1.2.4";   // 올릴 때 sw.js 의 CACHE 도 같이
+var APP_VERSION = "1.2.5";   // 올릴 때 sw.js 의 CACHE 도 같이
 
 /* hex = 탭 밑줄·점(면), name = 이름 글자, mid = 작은 글자용 예비값(지금 쓰는 곳은 없다).
    아이들이 "내 색"을 바로 알아보는 게 이 색의 유일한 목적이라 채도를 살린다.
@@ -422,6 +428,7 @@ var COLORS = {
 };
 
 var DOW = ["일","월","화","수","목","금","토"];
+var isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform==="MacIntel" && navigator.maxTouchPoints>1);   // 아이패드는 데스크톱 UA 를 쓴다
 // 설정 톱니(홈 오른쪽 위·안내 문구 안). 1.75px 선, currentColor — ✕ 와 같은 "선으로 된 기호" 톤
 var GEAR_SVG='<svg class="gear-i" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+
   '<circle cx="12" cy="12" r="3.2"/>'+
@@ -460,7 +467,7 @@ LocalStore.prototype = {
   save: function(){ lsSet(this.key, JSON.stringify(this.db)); },
   init: function(){ var f=this.db.family; if(f) this.familyId=f.id; return Promise.resolve(f ? {familyId:f.id, code:f.code} : null); },
   createFamily: function(code){ this.db.family={id:uid(), code:code}; this.familyId=this.db.family.id; this.save(); return Promise.resolve(this.db.family.id); },
-  joinFamily: function(){ return Promise.reject(new Error("로컬 모드에서는 코드 참여가 안 돼요. config.js에 Supabase 정보를 넣어주세요.")); },
+  joinFamily: function(){ return Promise.reject(new Error("이 기기 전용 모드라 코드 참여가 안 돼요.")); },   // 시작 화면에 참여 버튼 자체가 없어 보통은 못 온다
   gateState: function(){ return Promise.resolve({is_owner:!!this.db.family, open_until:this.db.openUntil||null}); },
   openFamilies: function(min){ this.db.openUntil = min>0 ? new Date(Date.now()+min*60000).toISOString() : null;
     this.save(); return Promise.resolve(this.db.openUntil); },
@@ -508,7 +515,9 @@ SupaStore.prototype = {
   createFamily: function(code){ var self=this; return this.sb.rpc("create_family",{p_code:code}).then(function(r){
     if(r.error) throw new Error(/duplicate|unique/i.test(r.error.message||"") ? "코드가 겹쳤어요. 한 번 더 눌러주세요." : (r.error.message||"실패"));
     self.familyId=r.data; return r.data; }); },
-  joinFamily: function(code){ var self=this; return this.sb.rpc("join_family",{p_code:code}).then(function(r){ if(r.error) throw new Error("코드를 찾을 수 없어요. 다시 확인해 주세요."); self.familyId=r.data; return r.data; }); },
+  joinFamily: function(code){ var self=this; return this.sb.rpc("join_family",{p_code:code}).then(function(r){
+    if(r.error){ var m=String(r.error.message||""); throw new Error(/no such|not found|없/i.test(m) ? "코드를 찾을 수 없어요. 다시 확인해 주세요." : "연결이 안 돼요. 잠시 뒤 다시 해 주세요."); }   // 오프라인·서버 멈춤에 코드를 의심하게 하지 않는다
+    self.familyId=r.data; return r.data; }); },
   gateState: function(){ return this.sb.rpc("gate_state").then(function(r){ return r.error ? {is_owner:false, open_until:null} : r.data; }); },
   openFamilies: function(min){ return this.sb.rpc("open_families",{p_minutes:min}).then(function(r){ if(r.error) throw r.error; return r.data; }); },
   // Supabase 는 한 번에 최대 1000줄만 준다. 기록은 계속 쌓이므로 나눠 받지 않으면
@@ -521,7 +530,8 @@ SupaStore.prototype = {
         .then(function(r){
           if(r.error) throw r.error;
           var rows=r.data||[]; out=out.concat(rows);
-          return rows.length<SIZE ? out : page(from+SIZE);
+          if(rows.length<SIZE){ var seen={}; return out.filter(function(e){ if(seen[e.id]) return false; seen[e.id]=1; return true; }); }   // 받는 사이 다른 폰이 끼워 넣으면 경계 줄이 두 번 온다
+          return page(from+SIZE);
         });
     }
     return page(0);
@@ -880,7 +890,7 @@ function ensureAllowances(){
     // 안전장치(400)에 먼저 걸리고, 그때부터 최근 주가 영영 안 채워진다.
     var have={}, last="";
     S.entries.forEach(function(e){ if(e.child_id===c.id && e.auto_key){ have[e.auto_key]=1;
-      var kd=e.auto_key.slice(2); if(kd>last) last=kd; } });   // 열쇠의 날짜로 — entry_date 는 고치기로 옮길 수 있어서, 앞으로 옮기면 그 사이 주가 영영 빠졌다
+      var kd=e.auto_key.slice(2); if(kd>last && kd<=t) last=kd; } });   // 시계가 앞선 기기가 넣은 미래 열쇠는 무시 — 안 그러면 모든 폰이 그 날짜까지 멈춘다   // 열쇠의 날짜로 — entry_date 는 고치기로 옮길 수 있어서, 앞으로 옮기면 그 사이 주가 영영 빠졌다
     var start = c.weekly_start || localDay(c.created_at) || t;
     var from = last && last>=start ? addDays(last,1) : start;
     var floor = addDays(t,-400);          // 아주 오래 안 열었어도 몇 년치를 한꺼번에 넣지는 않는다
@@ -1150,7 +1160,7 @@ function reload(again){
     S.family=d.family; S.children=d.children; S.entries=d.entries; S.offline=false;
     if(!S.sel || !childOf(S.sel)) S.sel = S.children.length ? S.children[0].id : null;
     tourInit();
-    return ensureAllowances();
+    return ensureAllowances().catch(function(e){ console.warn("auto", e); return 0; });   // 자동 용돈만 실패해도 방금 받은 데이터는 최신이다 — 배너("마지막으로 받은 내용")를 띄우지 않는다
   }).then(function(n){
     if(n>0) return store.loadAll().then(function(d){ S.entries=d.entries; });
   }).then(function(){ cacheSave({family:S.family, children:S.children, entries:S.entries}); })
@@ -1421,7 +1431,7 @@ function renderNewRow(){
 
   var memo=el("input","memo"); memo.type="text"; memo.value=d.memo;
   // "용도"는 처음 한 번만 필요한 안내다. 기록이 생기면 아래 목록이 이 칸에 뭐가 들어가는지 보여주므로 지운다
-  memo.placeholder = S.entries.some(function(e){ return (e.memo||"").trim(); }) ? "" : "용도";
+  memo.placeholder = S.entries.some(function(e){ return e.child_id===S.sel && (e.memo||"").trim(); }) ? "" : "용도";   // 그 아이의 목록이 보여줄 때까지만 — 가족 전체 기준이면 둘째는 빈 칸만 봤다
   memo.autocomplete="off"; memo.enterKeyHint="next";
   memo.oninput=function(){ d.memo=memo.value; updateOk();
     if(!d.signByHand) setSign(signForMemo(d.memo) || -1);    // 손으로 부호를 바꿨으면 그 뒤로는 안 건드린다
@@ -1530,9 +1540,16 @@ function submitNew(){
   S.draft={date:today(), memo:"", amount:"", sign:-1}; S.memoFocus=false; S.datePick=false;
   if(document.activeElement) document.activeElement.blur();
   render();
+  var typed={date:d.date, dateByHand:d.dateByHand, memo:d.memo, amount:d.amount, sign:d.sign, signByHand:d.signByHand};   // 실패하면 돌려준다
   store.addEntry(e).then(function(saved){
-    var i=S.entries.indexOf(tmp); if(i>=0) S.entries[i]=saved; render();
-  }).catch(function(err){ S.entries=S.entries.filter(function(x){return x!==tmp;}); render(); toast("저장 실패: "+(err.message||err)); });
+    var i=S.entries.indexOf(tmp);
+    if(i>=0) S.entries[i]=saved;
+    else if(!S.entries.some(function(x){ return x.id===saved.id; })) S.entries.push(saved);   // 그 사이 reload 가 tmp 를 걷어갔으면(서버 스냅샷이 커밋 전) 직접 넣는다
+    render();
+  }).catch(function(err){
+    S.entries=S.entries.filter(function(x){return x!==tmp;});
+    if(!S.draft.memo && !S.draft.amount) S.draft=typed;     // 다시 치지 않게 — 지하철·엘리베이터에서 ✓ 가 실패하면 치던 게 통째로 날아갔다
+    render(); toast("저장 실패: "+(err.message||err)); });
 }
 
 /* 낙관 반영은 실패하면 되돌린다. 캐시로 되돌리면 그 사이 성공한 다른 편집까지 지워 보이므로 바꾸기 직전 값만 되돌린다.
@@ -1711,6 +1728,21 @@ function renderWeekSheet(){
     tapEnd(ai);
     bx.appendChild(ai); bx.appendChild(el("span",null,"원")); g2.appendChild(bx); f.appendChild(g2);
   }
+  // 건너뛴 주가 있을 때만 — 주마다 한 줄, 누르면 그 주만 돌아온다("정말 건너뛰기"를 잘못 눌러도 돌아올 길. 전엔 DB 에서만).
+  // 한꺼번에 되돌리기는 안 된다: 일부러 건너뛴 주(여행·벌)가 쌓인 뒤 실수 하나를 돌리려다 전부 돌아온다
+  var skipped=S.entries.filter(function(e){ return c && e.child_id===c.id && e.auto_key && e.skipped; })
+    .sort(function(a,b){ return a.entry_date<b.entry_date?1:-1; });
+  if(skipped.length){
+    var g3=el("div"); g3.appendChild(el("label",null,"건너뛴 주"));
+    var ul=el("div","skiplist"); g3.appendChild(ul);           // 많이 쌓여도 시트가 화면을 다 먹지 않게 — 세 줄 반까지만 보이고 그 안에서 스크롤(반 줄이 "더 있다"는 표시)
+    skipped.forEach(function(e){
+      var r=el("button","skiprow"); r.appendChild(el("span",null,plainDate(e.entry_date)+" ("+DOW[dowOf(e.entry_date)]+")")); r.appendChild(el("b",null,"되돌리기"));
+      r.onclick=function(){ e.skipped=false; render();
+        tryStore(function(){ return store.updateEntry(e.id,{skipped:false}); }, function(){ e.skipped=true; }, "실패"); };
+      ul.appendChild(r);
+    });
+    f.appendChild(g3);
+  }
   var btns=el("div","btns");
   var cancel=el("button","btn","취소"); cancel.onclick=close;
   var save=el("button","btn pri","저장"); save.onclick=function(){
@@ -1790,6 +1822,7 @@ function sheetDrag(sh){
   sh.addEventListener("touchstart", function(e){
     if(e.touches.length!==1) return;
     if(sh.scrollTop>0) return;                            // 시트 안이 스크롤된 상태(키보드로 길어졌을 때)면 스크롤이 먼저
+    var box=e.target.closest && e.target.closest(".skiplist"); if(box && box.scrollTop>0) return;   // 안쪽 목록을 위로 되감는 중이면 시트를 닫지 않는다
     on=true; go=false; dy=0; y0=e.touches[0].clientY; t0=e.timeStamp; sh.style.transition="none";
   }, {passive:true});
   sh.addEventListener("touchmove", function(e){
@@ -1985,7 +2018,6 @@ function exportCSV(){
   var text=csvText();
   // 파일로 내려받는다 — "내보내기"를 누르면 파일이 생기는 게 자연스럽다. 공유 창(어디로 보낼지부터 고르는)은 한 단계 돌아가는 느낌이었다.
   // 앞의 BOM 은 엑셀이 한글을 깨지 않고 열게 한다
-  var isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform==="MacIntel" && navigator.maxTouchPoints>1);
   try{
     if(isIOS && navigator.canShare && window.File){     // 아이폰 홈 화면 앱은 a[download] 가 버전에 따라 조용히 안 된다 — 파일 공유로(공유 창에 "파일에 저장"이 있다)
       var file=new File(["\uFEFF"+text], "용돈기입장 "+today()+".csv", {type:"text/csv"});
@@ -2035,7 +2067,6 @@ function renderOnboard(){
   top.appendChild(el("h2",null,"용돈기입장"));
   var body=el("div","start-body");
   if(!o.mode){
-    var isIOS=/iPhone|iPad/.test(navigator.userAgent);
     // 카톡·네이버·인스타 같은 앱 안의 브라우저는 저장소가 따로라, 여기서 시작하면 크롬·사파리로 열었을 때 시작 화면이 또 뜬다(10분 지나면 막힘).
     // 홈 화면에 추가도 거기선 안 된다. 안드로이드 크롬 탭은 설치한 앱과 저장소를 같이 쓰므로 경고하지 않는다.
     var inApp=/KAKAOTALK|NAVER\(|Instagram|FBAN|FBAV|Line\/|; wv\)/i.test(navigator.userAgent);
