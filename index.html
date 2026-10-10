@@ -980,14 +980,33 @@ function tourPrev(){                                   // 한 단계 뒤로. 곁
 }
 function tourOrder(){ return ["sign","bal"].concat(S.children.length>1?["swipe"]:[]).concat(["press","edit","gear","color","week","export","back"]); }
 var tourL=null;                                        // 레이어 {box, spot, blocks[], pulse, sample, card, caret, text, dots, foot} · step
+/* 상태바 색. 홈 화면 앱의 상태바(시계·배터리 줄)는 웹 화면 밖이라 안내의 어두운 막이 거기까지 못 덮는다 —
+   아이폰은 아일랜드 때문에 그 띠가 두꺼워 종이색 띠가 둥둥 떠 보였다. 막이 떠 있는 동안만 theme-color 를 어두워진 종이색으로.
+   iOS 15+ 홈 화면 앱과 안드로이드 크롬 둘 다 바뀐 값을 따라온다. 안 따라오는 기기면 전과 같을 뿐이다. */
+var THEME_PAPER="#FDFCFA", THEME_DIM="#797A7B";          // DIM = PAPER 위에 rgba(17,19,23,.56)
+function setThemeColor(c){ var m=document.querySelector('meta[name="theme-color"]'); if(m && m.content!==c) m.content=c; }
 function tourSync(){                                   // render 끝에서. 있어야 하면 만들고 자리를 맞추고, 아니면 숨기거나 치운다
   var t=S.tour, sub=tourSub();
   var show = !!t && (S.screen==="home" || S.screen==="settings") && (sub ||
              (!S.kidView && !S.entryView && !S.edit && !S.editOpen && !S.pickDate && !S.editKid && !S.editWeek && !S.editGate));
-  if(!t){ if(tourL){ var L=tourL.box; tourL=null; L.classList.add("out"); setTimeout(function(){ if(L.parentNode) L.parentNode.removeChild(L); }, 260); } return; }
+  if(!t){ setThemeColor(THEME_PAPER); if(tourL){ var L=tourL.box; tourL=null; L.classList.add("out"); setTimeout(function(){ if(L.parentNode) L.parentNode.removeChild(L); }, 260); } return; }
   if(!tourL){ tourL=tourBuild(); document.body.appendChild(tourL.box); requestAnimationFrame(function(){ if(tourL) tourL.box.classList.add("in"); }); }
   tourL.box.classList.toggle("hide", !show);
-  if(show) tourLayout(sub);
+  if(show) tourLayout(sub); else setThemeColor(THEME_PAPER);
+}
+/* 자리 잡기는 자기 교정형 — 프로그램 스크롤(맨 위로·가운데로) 직후에 잰 자리는 iOS 에서 한 프레임 뒤에 틀어질 수 있다
+   (스크롤이 끝나기 전에 잰 값 → 화면이 올라간 만큼 구멍이 아래에 남았다. 안드로이드는 동기라 첫 프레임에 맞는다).
+   스크롤 위치가 멈출 때까지 몇 프레임 다시 재서 놓는다. 최대 40프레임. */
+var tourSettling=0;
+function tourSettle(){
+  if(tourSettling) return; tourSettling=1;
+  var last=window.scrollY, stable=0, n=0;
+  (function tick(){
+    if(!S.tour || !tourL){ tourSettling=0; return; }
+    var y=window.scrollY;
+    if(y!==last || n===0){ last=y; stable=0; tourSync(); } else stable++;   // 첫 프레임은 무조건 다시 잰다 — 값은 벌써 바뀌었는데 자리는 아직일 수 있다
+    if(++n<40 && stable<6) requestAnimationFrame(tick); else tourSettling=0;
+  })();
 }
 function tourBuild(){
   var box=el("div","tour"), L={box:box, step:null};
@@ -1043,12 +1062,12 @@ function tourLayout(sub){
     if(en){ hole=pad(en.getBoundingClientRect(), 6); if(sg && key==="sign"){ var sr0=sg.getBoundingClientRect(); pulseAt={x:sr0.left+sr0.width/2, y:sr0.top+sr0.height/2}; } } }
   else if(step==="bal"){ var n=document.querySelector(".balbtn"); if(n){ hole=pad(n.getBoundingClientRect(), 8); pulseAt={x:hole.x+hole.w/2, y:hole.y+hole.h/2}; } }
   else if(step==="swipe"){ full=true; }                 // 어디서든 되는 동작이라 밝힐 곳을 안 정한다 — 막 없이 카드만
-  else if(step==="gear" || step==="back"){ if(step==="back") window.scrollTo(0,0);   // 내보내기까지 내려와 있었으면 ‹ 가 화면 밖이다
+  else if(step==="gear" || step==="back"){ if(step==="back" && window.scrollY){ try{ window.scrollTo({top:0, behavior:"instant"}); }catch(_){ window.scrollTo(0,0); } tourSettle(); }   // 내보내기까지 내려와 있었으면 ‹ 가 화면 밖이다
     var g=document.querySelector(step==="gear" ? ".gear" : ".nav .back");
     if(g){ hole=pad(g.getBoundingClientRect(), 4); pulseAt={x:hole.x+hole.w/2, y:hole.y+hole.h/2}; } }
   else if(TOUR_LOOK[step] || step==="week"){ var c=document.querySelector(".card."+step);   // 설정의 한 묶음 — 제목 줄부터 카드까지. 화면 밖이면 보이게 올린다
     if(c){ var h=c.previousElementSibling, r1=c.getBoundingClientRect();
-      if(r1.top<60 || r1.bottom>vh-180){ c.scrollIntoView({block:"center"}); r1=c.getBoundingClientRect(); }
+      if(r1.top<60 || r1.bottom>vh-180){ try{ c.scrollIntoView({block:"center", behavior:"instant"}); }catch(_){ c.scrollIntoView({block:"center"}); } r1=c.getBoundingClientRect(); tourSettle(); }
       var r2=h ? h.getBoundingClientRect() : r1, top0=Math.min(r1.top,r2.top);
       hole={x:r1.left-8, y:top0-6, w:r1.width+16, h:r1.bottom-top0+12};
       if(step==="week"){ var fr=c.querySelector(".srow"); if(fr){ var fb=fr.getBoundingClientRect(); pulseAt={x:fb.left+40, y:fb.top+fb.height/2}; } } } }
@@ -1057,6 +1076,7 @@ function tourLayout(sub){
     var sr=L.sample.getBoundingClientRect(); hole=pad(sr, 6); pulseAt={x:sr.left+34, y:sr.top+sr.height/2}; }
   else L.sample.classList.remove("on");                 // 그림·시트가 떠 있는 동안은 예시 줄도 치운다 (그림 위에 줄이 겹쳐 보였다)
   if(full) hole={x:-20, y:-20, w:vw+40, h:vh+40};
+  setThemeColor(full ? THEME_PAPER : THEME_DIM);          // 막이 있으면 상태바도 같이 어둡게
   // 구멍(=밝은 곳)
   var sp=L.spot.style, rad = full ? 0 : (step==="sign" || step==="done" ? "18px" : (sub==="sheet" ? "22px 22px 0 0" : "14px"));
   if(hole){ sp.left=hole.x+"px"; sp.top=hole.y+"px"; sp.width=hole.w+"px"; sp.height=hole.h+"px"; }
@@ -1090,12 +1110,13 @@ function tourLayout(sub){
   }
   var ch2=L.card.offsetHeight;
   if(full) cardTop = vh - ch2 - 28 - sab();
-  else if(above) cardTop = Math.max(12, H.y - ch2 - 16);
+  else if(above) cardTop = Math.max(12 + sat(), H.y - ch2 - 16);
   else cardTop = Math.min(H.y+H.h+(key==="sign" ? 40 : 16), vh - ch2 - 16 - sab());   // 첫 카드는 × 말풍선이 들어갈 틈만큼 더 띄운다
   L.card.style.top=cardTop+"px";
   if(hole && !full){ L.caret.style.opacity="1"; L.caret.style.left=Math.max(18, Math.min(vw-40-30, H.x+H.w/2-20-6))+"px"; }
   else L.caret.style.opacity="0";
   function sab(){ var v=parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--sab")); return isNaN(v)?0:v; }
+  function sat(){ var v=parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--sat")); return isNaN(v)?0:v; }
 }
 
 /* ══════════════════════ 데이터 로드 ══════════════════════ */
@@ -1186,9 +1207,14 @@ function offlineBar(){
 var homeSlide=null, homeDragClick=false;
 /* 바꾸기 직전 화면의 복사본을 새 화면 위에 잠깐 두고 같은 방향으로 내보낸다. 리스너가 없는 복사본이라 아무것도 못 누른다.
    홈은 맨 앞에(절대 위치, 옛 화면과 같은 자리), 아이 화면은 맨 뒤에(고정 전체 화면이라 뒤가 위) */
-function ghostOut(old, dir, front){
+/* 홈은 기록 줄을 통째로 복제하면 아이폰에서 복제+레이아웃이 한 프레임을 넘겨 시작이 "툭" 한다 —
+   화면 아래로 나간 줄은 복사본에서 뺀다(보이는 그림은 같다). 자리는 render 전에 재야 한다(render 가 옛 화면을 떼어낸다). */
+function rowsOffscreen(old){ if(!old) return -1; var vh=window.innerHeight, rows=old.querySelectorAll(".row");
+  for(var i=0;i<rows.length;i++){ if(rows[i].getBoundingClientRect().top>vh) return i; } return -1; }
+function ghostOut(old, dir, front, cut){
   if(!old || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   var g=old.cloneNode(true); g.className=old.classList.contains("kid") ? "kid ghost gout-"+dir : "screen home ghost gout-"+dir;
+  if(cut>=0){ var crows=g.querySelectorAll(".row"); for(var i=crows.length-1;i>=cut;i--) if(crows[i].parentNode) crows[i].parentNode.removeChild(crows[i]); }
   if(front) root.insertBefore(g, root.firstChild); else root.appendChild(g);
   setTimeout(function(){ if(g.parentNode) g.parentNode.removeChild(g); }, 110);
 }
@@ -1197,9 +1223,9 @@ function pickKid(id){
   if(S.tour && S.tour.step==="swipe") S.tour.step="press";
   var ids=S.children.map(function(c){ return c.id; });
   homeSlide = ids.indexOf(id) > ids.indexOf(S.sel) ? "l" : "r";
-  var old=root.querySelector(".screen.home");
+  var old=root.querySelector(".screen.home"), cut=rowsOffscreen(old);
   S.sel=id; lsSet("yd_sel",id); S.datePick=false; S.memoFocus=false; S.limit=60; resetDraft(); render();
-  ghostOut(old, homeSlideWas, true);
+  ghostOut(old, homeSlideWas, true, cut);
 }
 var homeSlideWas=null;
 /* 홈에서 좌우로 밀면 옆 아이 통장. 아이 화면(kidSwipe)과 같은 손맛(같은 문턱·같은 미끄러짐)이되 셋이 다르다:
@@ -2125,6 +2151,7 @@ window.addEventListener("beforeinstallprompt", function(e){ e.preventDefault(); 
 window.addEventListener("appinstalled", function(){ installEvt=null; if(S.screen==="onboard") render(); });
 window.addEventListener("resize", function(){ if(S.tour) tourSync(); });    // 안내 중 회전으로 자리가 바뀌면 다시 잰다
 window.addEventListener("scroll", function(){ if(S.tour) tourSync(); }, {passive:true});
+window.addEventListener("scrollend", function(){ if(S.tour) tourSync(); });   // iOS 는 scroll 이 늦거나 안 올 때가 있다
 
 /* ══════════════════════ 부팅 ══════════════════════ */
 function boot(){
