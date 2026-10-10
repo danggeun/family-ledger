@@ -269,10 +269,8 @@ input{border:0; background:none; outline:none; min-width:0}
 .link:active{color:var(--muted)}
 .link.sm{font-size:var(--t3); color:var(--ink-2); border-bottom:0; padding:14px 0 0}
 .code{font-family:ui-monospace,Menlo,monospace; font-size:var(--t5); font-weight:600; letter-spacing:.08em}
-.srow .val.code{font-size:var(--t4); font-weight:500; color:var(--ink-3)}   /* 설정의 코드는 값 톤 — 매번 눈에 걸리지 않게 */
-.srow .copy{flex:none; font-size:var(--t3); font-weight:600; color:var(--ink-2);
-  background:var(--wash); border-radius:9px; padding:7px 12px; margin-left:var(--s3)}
-.srow .copy:active{background:var(--hair)}
+.srow .val.code{font-size:var(--t3); font-weight:500; color:var(--ink-3)}   /* 설정의 코드는 값 톤 — 매번 눈에 걸리지 않게 */
+.srow .val.code.ok{font-family:inherit; letter-spacing:0}
 .srow .kmore{flex:none; width:30px; height:30px; margin-right:-6px; border-radius:50%;
   display:flex; align-items:center; justify-content:center;
   font-size:var(--t4); color:var(--faint); letter-spacing:.06em}
@@ -383,7 +381,7 @@ button.srow{width:100%; text-align:left}
 "use strict";
 
 /* ══════════════════════ 유틸 ══════════════════════ */
-var APP_VERSION = "1.2.0";   // 올릴 때 sw.js 의 CACHE 도 같이
+var APP_VERSION = "1.2.1";   // 올릴 때 sw.js 의 CACHE 도 같이
 
 /* hex = 탭 밑줄·점(면), name = 이름 글자, mid = 작은 글자용 예비값(지금 쓰는 곳은 없다).
    아이들이 "내 색"을 바로 알아보는 게 이 색의 유일한 목적이라 채도를 살린다.
@@ -918,22 +916,22 @@ function tourTick(){                                   // 화면 상태를 보�
 }
 function tourText(step){
   var many=S.children.length>1, first=S.children[0] ? S.children[0].name : "아이";
-  return { sign:["− 를 눌러 받은 돈으로 바꿔 보세요","쓴 돈은 −, 받은 돈은 +. 한 번 받은 돈으로 적은 말은 다음부터 치기만 해도 + 가 돼요"],
-           signDone:["+ 가 됐어요 — 받은 돈","한 번 받은 돈으로 적은 말은 다음부터 치기만 해도 + 가 돼요"],
-           bal:["잔액을 눌러 보세요","아이에게 보여주는 그림이에요"],
+  return { sign:["\u2212 를 눌러 받은 돈으로 바꿔 보세요","쓴 돈은 \u2212, 받은 돈은 + 로 적어요"],
+           signDone:["이제 받은 돈이에요","\u2018용돈\u2019처럼 받은 돈으로 한 번 적은 용도는 다음부터 자동으로 + 가 돼요"],
+           bal:["잔액을 눌러 보세요","아이에게 보여주는 화면이 열려요"],
            balView:many ? ["아무 데나 누르면 닫혀요","좌우로 밀면 다른 아이"] : ["아무 데나 누르면 닫혀요"],
-           swipe:["화면 아무 데서나 좌우로 밀어 보세요","다른 아이 통장으로 넘어가요. 이름을 눌러도 돼요"],
-           press:["이 줄을 길게 눌러 보세요","그 금액만 그림으로 보여요"],
+           swipe:["좌우로 밀어 보세요","다른 아이의 용돈기입장으로 넘어가요. 위의 이름을 눌러도 돼요"],
+           press:["이 줄을 길게 눌러 보세요","이 금액만 따로 보여줘요"],
            pressView:["아무 데나 누르면 닫혀요"],
-           edit:["이번엔 짧게 눌러 보세요","고치기가 열려요"],
-           editView:["고치기","날짜·용도·금액을 고치거나 지워요. 자동으로 들어온 용돈은 이번 주만 건너뛸 수도 있어요"],
-           gear:["⚙ 를 눌러 설정으로","나머지는 설정에 있어요. 잠깐만 둘러볼게요"],
-           color:["아이 이름과 색","색을 고르면 홈 탭과 아이 그림이 그 색이 돼요"],
+           edit:["이번엔 짧게 눌러 보세요","기록을 고치는 창이 열려요"],
+           editView:["기록 고치기","날짜·용도·금액을 바꾸거나 지울 수 있어요. 매주 들어오는 용돈은 이번 주만 건너뛸 수도 있어요"],
+           gear:["\u2699 를 눌러 설정으로 가 볼게요","나머지는 설정에 있어요"],
+           color:["아이 이름과 색","여기서 고른 색이 홈과 아이 화면에 쓰여요"],
            week:[first+" 줄을 눌러 보세요","매주 용돈을 정하는 곳이에요"],
-           weekView:["매주 용돈","요일과 금액을 정해 두면 그날 저절로 적혀요. 쓸 때는 안 켜도 돼요"],
-           export:["기록 전체는 내보내기","엑셀로 열 수 있는 파일로 저장돼요"],
-           back:["‹ 로 나가면 끝이에요","생각 안 나면 설정의 처음 안내 다시 보기"],
-           done:["다 됐어요. 이제 진짜로 적어 보세요","금액과 용도를 넣고 ✓"] }[step];
+           weekView:["매주 용돈","요일과 금액을 정해 두면 그날 기록이 저절로 생겨요. 안 쓰면 꺼 두면 돼요"],
+           export:["기록 내보내기","전체 기록을 엑셀로 열 수 있는 파일로 저장해요"],
+           back:["\u2039 를 눌러 나가면 끝이에요","이 안내는 설정의 \u2018처음 안내 다시 보기\u2019에서 언제든 다시 볼 수 있어요"],
+           done:["다 됐어요","이제 오늘 쓴 돈부터 적어 보세요"] }[step];
 }
 var TOUR_DO={sign:1, bal:1, swipe:1, press:1, edit:1, gear:1, week:1, back:1};   // 해 보는 단계 — 오른쪽 "다음"이 연하다
 function tourPrev(){                                   // 한 단계 뒤로. 곁화면이 떠 있으면 그것만 닫는다(다음으로 안 넘어가게 opened 를 끈다)
@@ -1841,25 +1839,22 @@ function renderSettings(){
   wrap.appendChild(wCard);
 
   wrap.appendChild(el("div","sec-h","기록"));
+  // 설정의 줄은 전부 한 모양 — 왼쪽에 무엇, 오른쪽에 회색 값, › (매주 용돈·초대와 같다). 버튼 모양은 눈에 걸려서 뺐다
   var eCard=el("div","card export"), er=el("button","srow tap");
-  er.appendChild(el("span","grow","내보내기"));
-  er.appendChild(el("span","chev","\u203A"));
-  er.onclick=exportCSV;
+  er.appendChild(el("span","grow","내보내기")); er.appendChild(el("span","val","엑셀 파일")); er.appendChild(el("span","chev","\u203A"));   // 섹션이 "기록"이라 줄에 또 "기록"을 안 쓴다
+  er.onclick=exportCSV;                              // 한 번 누르면 바로 파일 — 앱 안에 창을 하나 더 두는 건 단계만 늘렸다(1.2.1 에서 넣었다 뺌)
   eCard.appendChild(er); wrap.appendChild(eCard);
 
   wrap.appendChild(el("div","sec-h","동기화"));
   if(store.kind==="supabase"){
-    // 코드는 다른 줄들처럼 오른쪽 값으로 조용히. 숨겨서 얻는 안전은 없다(초대가 열린 10분에만 들어온다). 줄을 누르면 복사
+    // 다른 줄과 같은 모양(무엇 · 값 · ›). 연결 상태 점은 안 둔다 — 뜻이 안 닿고, 끊기면 위에 띠가 뜨니 중복. 설명 줄도 안 둔다.
+    // 누르면 복사되고 값 자리가 잠깐 "복사했어요"로. 토스트는 안 띄운다 — 삼성은 시스템이 자기 알림을 띄워 둘이 겹쳤다
     var cCard=el("div","card"), cr=el("button","srow tap code-row");
-    var lab=el("span","grow"); lab.appendChild(el("span","syncdot on")); lab.appendChild(document.createTextNode("가족 코드"));   // 연결됨 표시는 가족 코드 줄 안에 — 따로 한 줄 안 쓴다
-    cr.appendChild(lab);
-    cr.appendChild(el("span","val code",S.family?S.family.code:"\u2014"));
-    cr.appendChild(el("span","chev","\u203A"));
+    cr.appendChild(el("span","grow","가족 코드"));
+    var cv=el("span","val code",S.family?S.family.code:"\u2014"); cr.appendChild(cv); cr.appendChild(el("span","chev","\u203A"));
     cr.onclick=function(){
-      var t=S.family?S.family.code:"";
-      // 안드로이드 13+ 는 복사하면 시스템이 "클립보드에 복사했어요" 를 띄운다 — 우리 것까지 겹치면 둘이 된다
-      var m=/Android (\d+)/.exec(navigator.userAgent), sys = !!m && +m[1]>=13;
-      if(navigator.clipboard) navigator.clipboard.writeText(t).then(function(){ if(!sys) toast("복사했어요"); }, function(){ toast(t); });
+      var t=S.family?S.family.code:"", done=function(){ cv.textContent="복사했어요"; cv.classList.add("ok"); setTimeout(function(){ cv.textContent=t; cv.classList.remove("ok"); }, 1200); };   // 답은 값 자리에서
+      if(navigator.clipboard) navigator.clipboard.writeText(t).then(done, function(){ toast(t); });
       else toast(t);
     };
     cCard.appendChild(cr); wrap.appendChild(cCard);
@@ -1868,6 +1863,12 @@ function renderSettings(){
     st2.appendChild(document.createTextNode("연결 안 됨. 이 기기에만 저장돼요."));
     wrap.appendChild(st2);
   }
+
+  wrap.appendChild(el("div","sec-h","앱"));                      // 글로 된 사용법은 안 둔다 — 읽어서 알게 되는 앱이 아니라, 해 보면 아는 앱
+  var hCard=el("div","card"), hr=el("button","srow tap help-link");
+  hr.appendChild(el("span","grow","처음 안내")); hr.appendChild(el("span","val","다시 보기")); hr.appendChild(el("span","chev","\u203A"));
+  hr.onclick=function(){ S.tour={step:"sign", sel0:S.sel}; lsSet("yd_tour","new"); history.go(-navStack.length); };   // 설정을 닫고 홈에서부터
+  hCard.appendChild(hr); wrap.appendChild(hCard);
 
   if(S.gate && S.gate.is_owner){            // 맨 처음 만든 가족(주인)만 보이고 쓸 수 있다
     wrap.appendChild(el("div","sec-h","초대"));
@@ -1879,12 +1880,6 @@ function renderSettings(){
     gr.onclick=function(){ navOpen("editGate", function(){ S.editGate={}; }); };
     gCard.appendChild(gr); wrap.appendChild(gCard);
   }
-
-  wrap.appendChild(el("div","sec-h","앱"));                      // 글로 된 사용법은 안 둔다 — 읽어서 알게 되는 앱이 아니라, 해 보면 아는 앱
-  var hCard=el("div","card"), hr=el("button","srow tap help-link");
-  hr.appendChild(el("span","grow","처음 안내 다시 보기")); hr.appendChild(el("span","chev","\u203A"));
-  hr.onclick=function(){ S.tour={step:"sign", sel0:S.sel}; lsSet("yd_tour","new"); history.go(-navStack.length); };   // 설정을 닫고 홈에서부터
-  hCard.appendChild(hr); wrap.appendChild(hCard);
 
   // 아이 추가는 한 집에서 한두 번 있는 일이다. 매번 보이는 자리를 차지할 일이 아니라
   // 맨 아래 버전과 같은 줄, 같은 톤으로 내려놓는다. 없는 기능이 되지는 않는다.
@@ -1906,12 +1901,15 @@ function renderSettings(){
   function fail(err){ toast("저장 실패: "+(err.message||err)); }
 }
 
-function exportCSV(){
+function csvText(){
   var lines=["아이,날짜,용도,금액,총액"];
   S.children.forEach(function(c){
     withTotals(c.id).reverse().forEach(function(e){ lines.push([c.name,e.entry_date,'"'+(e.memo||"").replace(/"/g,'""')+'"',e.amount,e.total].join(",")); });
   });
-  var text=lines.join("\n");
+  return lines.join("\n");
+}
+function exportCSV(){
+  var text=csvText();
   // 파일로 내려받는다 — "내보내기"를 누르면 파일이 생기는 게 자연스럽다. 공유 창(어디로 보낼지부터 고르는)은 한 단계 돌아가는 느낌이었다.
   // 앞의 BOM 은 엑셀이 한글을 깨지 않고 열게 한다
   try{
