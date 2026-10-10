@@ -36,6 +36,16 @@ await section('달력 밀기', async()=>{
   T('이번 달 뒤로는 안 간다(화살표와 같다)', (await title())==='2026년 10월' && !!(await p.$('.sheet')));
   await swipe(g.l+60,g.y,g.l+80,g.y);
   T('살짝 민 것은 그대로', (await title())==='2026년 10월');
+  // 사람 손: 빠르게 옆으로 밀며 아래로 60px 흐른다 — 달만 바뀌고 시트는 그대로(1.3.5. 전엔 시트가 같이 끌려 내려가 닫혔다)
+  await swipe(g.l,g.y,g.r,g.y+60,100);
+  await p.waitForTimeout(400);                                          // 진짜 시간: 시트 닫기는 끌기 뒤 0.17초 타이머로 온다 — 그 뒤까지 본다
+  await idle(p);
+  T('대각선으로 빠르게 밀어도 시트는 안 닫히고 달만 바뀐다', !!(await p.$('.sheet .calg')) && (await title())==='2026년 9월');
+  // 아래로 끌면 여전히 닫힌다
+  const h=await p.$eval('.sheet',e=>{ const b=e.getBoundingClientRect(); return {x:b.x+b.width/2, y:b.y+20}; });
+  await swipe(h.x,h.y,h.x+10,h.y+300,150);
+  await p.waitForTimeout(400); await idle(p);                           // 진짜 시간: 위와 같은 닫기 타이머
+  T('아래로 끌면 시트는 그대로 닫힌다', !(await p.$('.sheet')));
 });
 
 await done(b);
