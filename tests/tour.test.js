@@ -26,7 +26,20 @@ const load=async(kids,entries,tour)=>{ await p.evaluate(({kids,entries,tour})=>{
 const card=()=>p.$eval('.tour:not(.hide) .tour-card',e=>{ const d=[...e.querySelectorAll('.dots i')], on=d.findIndex(x=>x.classList.contains('on'));
   return e.querySelector('.tc-title').childNodes[0].textContent+'|'+(e.querySelector('.dots').style.visibility==='hidden'?'':(on+1)+' / '+d.length); }).catch(()=>null);
 const tour=()=>p.evaluate(()=>localStorage.getItem('yd_tour'));
-const click=async(sel)=>{ await p.click(sel); await idle(p); };
+// 막혀서 못 누르면(안내 막이 가로챔) 그때 자리를 찍어 두고 실패한다 — CI 처럼 손으로 볼 수 없는 곳에서 원인을 남기려고
+const click=async(sel)=>{
+  try{ await p.click(sel); }
+  catch(e){
+    const diag=await p.evaluate((sel)=>{ const R=e=>{ if(!e) return null; const r=e.getBoundingClientRect(); return [Math.round(r.left),Math.round(r.top),Math.round(r.width),Math.round(r.height)]; };
+      const S=window.__app.S, t=document.querySelector(sel);
+      return {sel, target:R(t), spot:R(document.querySelector('.tour-spot')), blocks:[...document.querySelectorAll('.tour-block')].map(R),
+        step:S.tour && S.tour.step, sub:S.tour && S.tour.opened, screen:S.screen, nav:S.ui.navStack.slice(), tour:(document.querySelector('.tour')||{}).className,
+        scroll:[scrollX,scrollY], view:[innerWidth,innerHeight], docW:document.documentElement.scrollWidth, count:document.querySelectorAll(sel).length}; }, sel).catch(()=>null);
+    console.log('DIAG '+JSON.stringify(diag));
+    throw e;
+  }
+  await idle(p);
+};
 const tapAt=async(x,y)=>{ await p.mouse.click(x,y); await idle(p); };
 const center=(sel)=>p.$eval(sel,e=>{const r=e.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2};});
 const press=async(sel,ms)=>{ const box=await center(sel);
@@ -102,6 +115,13 @@ T('다음 → 시트가 닫히고 6단계 "⚙ 를 눌러 설정으로"', !(awai
 const sg0=await p.textContent('.entry .sign');
 { const sb=await center('.entry .sign'); await tapAt(sb.x,sb.y); }
 T('막 밖(부호)은 안 눌린다', (await p.textContent('.entry .sign'))===sg0);
+// 톱니가 밝은 구멍 안에 있어야 누를 수 있다 — 아니면 그때의 자리를 전부 찍어 둔다(CI 에서 한 번 막혔던 자리)
+const gearDiag=await p.evaluate(()=>{ const R=e=>{ const r=e.getBoundingClientRect(); return [Math.round(r.left),Math.round(r.top),Math.round(r.width),Math.round(r.height)]; };
+  const g=document.querySelector('.gear').getBoundingClientRect(), cx=g.left+g.width/2, cy=g.top+g.height/2, hit=document.elementFromPoint(cx,cy);
+  return {ok: !!hit && !!hit.closest('.gear'), hit: hit ? hit.className : null, gear:R(document.querySelector('.gear')), spot:R(document.querySelector('.tour-spot')),
+    blocks:[...document.querySelectorAll('.tour-block')].map(R), step:window.__app.S.tour && window.__app.S.tour.step, tour:document.querySelector('.tour').className,
+    scroll:[scrollX,scrollY], view:[innerWidth,innerHeight], docW:document.documentElement.scrollWidth, gears:document.querySelectorAll('.gear').length}; });
+T('톱니가 밝은 구멍 안 — 누르면 톱니가 받는다'+(gearDiag.ok?'':' '+JSON.stringify(gearDiag)), gearDiag.ok);
 await click('.gear');
 T('설정이 열리고 7단계 아이 이름과 색 — 아이 카드가 밝다', !!(await p.$('.nav h2')) && (await card())==='아이 이름과 색|7 / 10' && !!(await p.$('.card.color')));
 const spotOn=async sel=>{ const a=await p.$eval(sel,e=>e.getBoundingClientRect()), b=await p.$eval('.tour-spot',e=>e.getBoundingClientRect()); return b.top<=a.top+1 && b.bottom>=a.bottom-1 && b.left<=a.left+1 && b.right>=a.right-1; };
