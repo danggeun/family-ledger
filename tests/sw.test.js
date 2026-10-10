@@ -5,7 +5,7 @@ const http=require('http'), fs=require('fs'), path=require('path');
 let pass=0,fail=0; const T=(n,ok)=>{ok?pass++:fail++;console.log((ok?'OK   ':'FAIL ')+n);};
 const ROOT=path.resolve(__dirname,'..');
 const MIME={'.html':'text/html; charset=utf-8','.js':'application/javascript','.json':'application/json','.webmanifest':'application/manifest+json','.png':'image/png'};
-const knobs={notFound:new Set(['/splash.png']), status:200, delayIndex:0, down:false};
+const knobs={notFound:new Set(['/logo-pig.png']), status:200, delayIndex:0, down:false};
 const srv=http.createServer((req,res)=>{
   if(knobs.down){ req.socket.destroy(); return; }
   let u=decodeURIComponent(req.url.split('?')[0]); if(u==='/') u='/index.html';
@@ -29,12 +29,12 @@ const p=await ctx.newPage(); require('./_env').guard(p); const errs=[]; p.on('pa
 const seed=()=>localStorage.setItem('yd_local_v1',JSON.stringify({family:{id:'f1',code:'K7PM'},children:[
   {id:'k1',name:'서윤',color:'pink',sort:0,opening_balance:16300,weekly_on:false,weekly_amount:0,created_at:'2026-07-01'}],entries:[]}));
 
-// ── M6: splash.png 가 404 여도 설치된다 ──
+// ── M6: 자산 하나(logo-pig.png)가 404 여도 설치된다 ──
 await p.goto(BASE+'index.html'); await p.evaluate(seed);
 await p.evaluate(()=>navigator.serviceWorker.ready.then(()=>true));
 await p.waitForTimeout(1500);                                   // install 의 add 들이 끝날 시간
 const cached=await p.evaluate(async()=>{ const ks=await caches.keys(); const c=await caches.open(ks[0]);
-  return {names:ks, index:!!(await c.match('./index.html')), config:!!(await c.match('./config.js')), splash:!!(await c.match('./splash.png')), pig:!!(await c.match('./logo-pig-sm.png'))}; });
+  return {names:ks, index:!!(await c.match('./index.html')), config:!!(await c.match('./config.js')), splash:!!(await c.match('./logo-pig.png')), pig:!!(await c.match('./logo-pig-sm.png'))}; });
 const VER=(fs.readFileSync(path.join(ROOT,'index.html'),'utf8').match(/APP_VERSION = "([^"]+)"/)||[])[1];
 T('M6 캐시 이름 = yd-'+VER+' (index.html 의 APP_VERSION 과 같다)', cached.names.length===1 && cached.names[0]==='yd-'+VER);
 T('M6 하나가 404 여도 설치되고 나머지는 캐시됨', cached.index && cached.config && cached.pig && !cached.splash);
@@ -45,7 +45,7 @@ T('정상: 홈이 뜬다', (await p.textContent('.balbtn b'))==='16,300');
 // ── M5: 503 은 캐시를 덮지 않는다 ──
 knobs.status=503;
 await p.reload(); await p.waitForTimeout(800);
-T('M5 서버가 503 이면 그대로 보인다 (네트워크 우선)', /down/.test(await p.content()));
+T('M5 서버가 503 이면 캐시의 멀쩡한 index 로 (1.2.3 — 전엔 503 본문이 그대로 보였다)', !/<h1>down/.test(await p.content()) && (await p.textContent('.balbtn b'))==='16,300');
 knobs.status=200; knobs.down=true;                                // 이제 아예 끊김
 await p.reload(); await p.waitForTimeout(1500);
 T('M5 끊기면 캐시의 멀쩡한 index (503 본문이 아니다)', !/<h1>down/.test(await p.content()) && (await p.textContent('.balbtn b'))==='16,300');

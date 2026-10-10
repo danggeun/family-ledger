@@ -134,7 +134,10 @@ language sql security definer set search_path = public as $$
   select json_build_object(
     'is_owner', exists (select 1 from family_members m, app_gate g
                         where g.id = 1 and m.family_id = g.owner_family_id and m.user_id = auth.uid()),
-    'open_until', (select open_until from app_gate where id = 1));
+    'open_until', (select g.open_until from app_gate g
+                   where g.id = 1 and exists (select 1 from family_members m
+                                              where m.family_id = g.owner_family_id and m.user_id = auth.uid())));
+  -- open_until 은 주인 가족에게만 — 다른 익명 사용자가 열린 10분을 엿볼 수 있었다(데이터와는 무관)
 $$;
 
 create or replace function join_family(p_code text) returns uuid

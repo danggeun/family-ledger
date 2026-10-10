@@ -8,11 +8,23 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="용돈기입장">
-<meta name="theme-color" content="#FFFFFF">
+<meta name="theme-color" content="#FDFCFA">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
-<link rel="apple-touch-startup-image" href="splash.png">
+<!-- iOS 실행 화면: 기종별 크기가 정확히 맞는 한 장만 쓴다(logo/make_splash.py). 한 장만 두면 그 기종 말고는 흰 화면이었다 -->
+<link rel="apple-touch-startup-image" media="screen and (device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash/440x956@3.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash/402x874@3.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 420px) and (device-height: 912px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash/420x912@3.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash/430x932@3.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash/393x852@3.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash/428x926@3.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash/390x844@3.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash/375x812@3.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash/414x896@3.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="splash/414x896@2.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash/414x736@3.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="splash/375x667@2.png">
 <style>
 :root{
   --paper:#FDFCFA;
@@ -100,7 +112,7 @@ input{border:0; background:none; outline:none; min-width:0}
 .load{opacity:0; animation:showlate .45s ease-out .35s forwards}   /* 빠르면 아예 안 보인다 */
 @keyframes showlate{ from{opacity:0; transform:translateY(4px)} to{opacity:1; transform:none} }
 @media (prefers-reduced-motion: reduce){ .load{animation-duration:.01s} }
-.kid{position:fixed; inset:0; z-index:60; background:#FDF6E7; color:#2B1D14; overflow:auto; touch-action:pan-y;
+.kid{position:fixed; inset:0; z-index:60; background:#FDF6E7; color:#2B1D14; overflow:auto; touch-action:pan-y; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none;   /* 아이가 숫자를 꾹 누르면 iOS 가 글자 선택 루페를 띄웠다 */
   display:flex; flex-direction:column; align-items:center; padding:calc(var(--sat) + 64px) 24px calc(32px + var(--sab))}
 .kid .x{position:absolute; top:calc(var(--sat) + 10px); right:14px; width:40px; height:40px; border-radius:50%;
   display:flex; align-items:center; justify-content:center; font-size:var(--t6); font-weight:300; color:#B9AB96}
@@ -149,7 +161,8 @@ input{border:0; background:none; outline:none; min-width:0}
 .bal i{font-style:normal; font-size:var(--t5); font-weight:600; color:var(--muted)}
 
 /* ─── 표 ─── */
-.thead,.row{display:grid; grid-template-columns:44px 1fr 86px 78px; gap:8px; align-items:center}
+/* 칸 폭은 em — 기본 글자(15px)에선 44·86·78px 그대로고, 폰의 글자 크기를 키운 집에서만 글자와 같이 늘어난다(px 면 금액이 옆 칸으로 넘쳤다) */
+.thead,.row{display:grid; grid-template-columns:2.9333em 1fr 5.7333em 5.2em; gap:8px; align-items:center}
 .thead{padding:0 2px var(--s3); border-bottom:1px solid var(--hair);
   font-size:var(--t2); font-weight:600; color:var(--muted); letter-spacing:.01em}
 .thead span:nth-child(n+3){text-align:right}
@@ -170,7 +183,7 @@ input{border:0; background:none; outline:none; min-width:0}
 .row.open .t{color:var(--muted); font-weight:500}
 
 /* ─── 입력 줄 (통장 맨 윗줄) ─── */
-.entry{display:grid; grid-template-columns:44px 1fr 98px 36px; gap:8px; align-items:center;
+.entry{display:grid; grid-template-columns:2.9333em 1fr 6.5333em 2.4em; gap:8px; align-items:center;   /* = 44 · 98 · 36px */
   background:#FFFFFF; border-radius:14px; padding:10px 11px; margin:12px -11px 4px;
   box-shadow:0 1px 2px rgba(40,34,24,.05), 0 8px 20px -14px rgba(40,34,24,.28)}
 .entry .dbtn{font-size:var(--t2); font-weight:600; line-height:1.15; color:var(--ink-2);
@@ -381,7 +394,7 @@ button.srow{width:100%; text-align:left}
 "use strict";
 
 /* ══════════════════════ 유틸 ══════════════════════ */
-var APP_VERSION = "1.2.2";   // 올릴 때 sw.js 의 CACHE 도 같이
+var APP_VERSION = "1.2.3";   // 올릴 때 sw.js 의 CACHE 도 같이
 
 /* hex = 탭 밑줄·점(면), name = 이름 글자, mid = 작은 글자용 예비값(지금 쓰는 곳은 없다).
    아이들이 "내 색"을 바로 알아보는 게 이 색의 유일한 목적이라 채도를 살린다.
@@ -399,6 +412,10 @@ var COLORS = {
 };
 
 var DOW = ["일","월","화","수","목","금","토"];
+// 설정 톱니(홈 오른쪽 위·안내 문구 안). 1.75px 선, currentColor — ✕ 와 같은 "선으로 된 기호" 톤
+var GEAR_SVG='<svg class="gear-i" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+
+  '<circle cx="12" cy="12" r="3.2"/>'+
+  '<path d="M10.2 4.6 L10.6 1.9 L13.4 1.9 L13.8 4.6 L15.9 5.5 L18.1 3.9 L20.1 5.9 L18.5 8.1 L19.4 10.2 L22.1 10.6 L22.1 13.4 L19.4 13.8 L18.5 15.9 L20.1 18.1 L18.1 20.1 L15.9 18.5 L13.8 19.4 L13.4 22.1 L10.6 22.1 L10.2 19.4 L8.1 18.5 L5.9 20.1 L3.9 18.1 L5.5 15.9 L4.6 13.8 L1.9 13.4 L1.9 10.6 L4.6 10.2 L5.5 8.1 L3.9 5.9 L5.9 3.9 L8.1 5.5z"/></svg>';
 function pad(n){ return (n<10?"0":"")+n; }
 function ymd(d){ return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); }   // 로컬 날짜. toISOString 금지(UTC 밀림)
 function today(){ return ymd(new Date()); }
@@ -454,6 +471,12 @@ function SupaStore(cfg){
   this.sb = window.supabase.createClient(normalizeUrl(cfg.SUPABASE_URL), cfg.SUPABASE_ANON_KEY);
   this.familyId = null;
   this.subscribed = false;
+  /* 쓰는 중에 토큰 갱신이 재시도 불가 에러로 실패하면 supabase-js 가 세션을 지운다 → 이후 요청은 anon 역할이라 전부 거부.
+     ensureFamily 는 familyId 가 있으면 init 을 건너뛰므로, 여기서 비워 둬야 다음 reload 가 init → 캐시의 코드로 재참여를 다시 탄다.
+     전에는 페이지를 새로 열 때만 복구돼 홈 화면 앱은 끄기 전까지 "연결이 안 돼요"였다. */
+  var self=this;
+  try{ this.sb.auth.onAuthStateChange(function(ev){ if(ev==="SIGNED_OUT"){ self.familyId=null; self.userId=null; self.subscribed=false;
+    if(self.chan){ try{ self.sb.removeChannel(self.chan); }catch(e){} self.chan=null; } } }); }catch(e){}   // 구독도 새 세션으로 다시 건다
 }
 function normalizeUrl(u){ return String(u||"").trim().replace(/\/rest\/v1\/?$/,"").replace(/\/+$/,""); }   // 끝 슬래시·/rest/v1 은 떼어낸다
 SupaStore.prototype = {
@@ -513,7 +536,7 @@ SupaStore.prototype = {
   deleteEntry: function(id){ return this.sb.from("entries").delete().eq("id",id).then(function(r){ if(r.error) throw r.error; }); },
   subscribe: function(cb){
     var fid=this.familyId;
-    this.sb.channel("fam-"+fid)
+    this.chan=this.sb.channel("fam-"+fid)
       .on("postgres_changes",{event:"*",schema:"public",table:"entries",filter:"family_id=eq."+fid}, cb)
       .on("postgres_changes",{event:"*",schema:"public",table:"children",filter:"family_id=eq."+fid}, cb)
       .subscribe();
@@ -927,7 +950,7 @@ function tourText(step){
            pressView:["아무 데나 누르면 닫혀요"],
            edit:["이번엔 짧게 눌러 보세요","기록을 고치는 창이 열려요"],
            editView:["기록 고치기","날짜·용도·금액을 바꾸거나 지울 수 있어요. 매주 들어오는 용돈은 이번 주만 건너뛸 수도 있어요"],
-           gear:["\u2699 를 눌러 설정으로 가 볼게요","나머지는 설정에 있어요"],
+           gear:["오른쪽 위 톱니를 눌러 설정으로 가 볼게요","나머지는 설정에 있어요"],
            color:["아이 이름과 색","여기서 고른 색이 홈과 아이 화면에 쓰여요"],
            week:[first+" 줄을 눌러 보세요","매주 용돈을 정하는 곳이에요"],
            weekView:["매주 용돈","요일과 금액을 정해 두면 그날 기록이 저절로 생겨요. 안 쓰면 꺼 두면 돼요"],
@@ -1228,8 +1251,10 @@ function renderHome(){
     bar.appendChild(el("span","k on", c.name));
   }
   bar.appendChild(el("div","sp"));
-  var gear=el("button","gear","\u2699"); gear.setAttribute("aria-label","설정");
+  // 톱니는 글자(U+2699)가 아니라 선 그림 — 아이폰은 그 글자를 은색 입체 이모지로 그려 ✕·‹ 와 다른 앱에서 온 것처럼 튀었다. 두 폰이 같은 모양
+  var gear=el("button","gear"); gear.setAttribute("aria-label","설정"); gear.innerHTML=GEAR_SVG;
   gear.onclick=function(){
+    if(!store){ toast("연결이 안 돼요"); return; }   // 캐시 화면뿐일 땐 설정이 그릴 게 없다 — 전엔 흰 화면
     navOpen("settings", function(){ S.screen="settings"; });
     store.gateState().then(function(g){ S.gate=g; if(S.screen==="settings") render(); }, function(){});
   };
@@ -1407,7 +1432,7 @@ function renderNewRow(){
       var box=el("div","chips dates"), t=today();
       [["오늘",t],["어제",addDays(t,-1)],["그저께",addDays(t,-2)]].forEach(function(pair){
         var b=el("button",null,pair[0]); if(d.date===pair[1]) b.className="on";
-        b.onclick=function(){ d.date=pair[1]; S.datePick=false; render(); };
+        b.onclick=function(){ d.date=pair[1]; d.dateByHand=true; S.datePick=false; render(); };
         box.appendChild(b);
       });
       var near = d.date===t || d.date===addDays(t,-1) || d.date===addDays(t,-2);
@@ -1450,7 +1475,7 @@ function tapEnd(inp){
 /* 콤마를 다시 찍으면서 커서가 끝으로 튀지 않게 — 커서 앞에 숫자가 몇 개였는지 세어 그 뒤에 다시 놓는다.
    (999 → 9,999 처럼 콤마가 늘 때 value 를 새로 넣으면 브라우저가 커서를 끝으로 보낸다) */
 function fmtMoney(inp){
-  var raw=inp.value, k=digits(raw.slice(0, inp.selectionStart||0)).length, v=digits(raw);
+  var raw=inp.value, k=digits(raw.slice(0, inp.selectionStart||0)).length, v=digits(raw).slice(0,9);   // 9자리까지(9억) — 서버의 int 범위(21억)를 넘으면 알 수 없는 오류로 실패한다
   inp.value = v ? Number(v).toLocaleString("ko-KR") : "";
   var pos=0, c=0; while(c<k && pos<inp.value.length){ if(/\d/.test(inp.value[pos])) c++; pos++; }
   try{ inp.setSelectionRange(pos,pos); }catch(_){}
@@ -1460,7 +1485,9 @@ function resetDraft(){ S.draft={date:today(), memo:"", amount:"", sign:-1}; }
 function submitNew(){
   var d=S.draft, n=Number(d.amount);
   if(!(n>0)) return;
-  var e={child_id:S.sel, entry_date:d.date, memo:d.memo.trim(), amount:d.sign*n, auto_key:null};
+  if(!store){ toast("연결이 안 돼요"); return; }   // CDN 을 못 받아 캐시 화면만 뜬 상태 — 전엔 여기서 터져 줄은 남고 저장은 안 됐다
+  // 날짜를 손으로 고르지 않았으면 적는 순간의 오늘 — 화면을 켠 채 자정을 넘기면 draft.date 는 어제로 남아 있다
+  var e={child_id:S.sel, entry_date:d.dateByHand ? d.date : today(), memo:d.memo.trim(), amount:d.sign*n, auto_key:null};
   // 낙관적 반영
   var tmp=Object.assign({id:"tmp-"+Date.now(), created_at:new Date().toISOString()}, e);
   S.entries.push(tmp);
@@ -1475,7 +1502,8 @@ function submitNew(){
 /* 낙관 반영은 실패하면 되돌린다. 캐시로 되돌리면 그 사이 성공한 다른 편집까지 지워 보이므로 바꾸기 직전 값만 되돌린다.
    전에는 .catch(reload) 였는데 오프라인이면 reload 도 실패해 고친 값이 화면에 남고, 배너는 "마지막으로 받은 내용"이라 말했다. */
 function tryStore(req, undo, msg){
-  return req().catch(function(err){ undo(); render(); toast((msg||"저장 실패")+": "+(err.message||err)); return reload(); });
+  // req 가 동기로 던져도(store 가 없을 때) catch 로 들어오게 — 안 그러면 낙관 반영이 그대로 남는다
+  return Promise.resolve().then(function(){ if(!store) throw new Error("연결이 안 돼요"); return req(); }).catch(function(err){ undo(); render(); toast((msg||"저장 실패")+": "+(err.message||err)); return reload(); });
 }
 
 /* ── 편집 시트 ── */
@@ -1512,7 +1540,7 @@ function renderEditSheet(){
   if((e.updated_by || e.created_by) && !e.auto_key){   // 마지막으로 손댄 사람. 자동 줄은 사람이 적은 게 아니라 뺀다
     var who = e.updated_by || e.created_by;            // 옛 줄은 updated_by 가 없어서 적은 사람으로 폴백
     var fixed = !!e.updated_by && !!e.created_by && e.updated_by !== e.created_by;   // 적은 사람과 다르면 고친 것
-    f.appendChild(el("p","note", (who===store.userId ? "내가 " : "다른 기기에서 ") + (fixed ? "고쳤어요" : "적었어요")));
+    f.appendChild(el("p","note", (who===(store&&store.userId)   /* store 가 없는 캐시 화면에서도 시트는 열려야 한다 */ ? "내가 " : "다른 기기에서 ") + (fixed ? "고쳤어요" : "적었어요")));
   }
 
   var btns=el("div","btns");
@@ -1535,7 +1563,7 @@ function renderEditSheet(){
   var cancel=el("button","btn","취소"); cancel.onclick=navBack;
   var save=el("button","btn pri","저장"); save.onclick=function(){
     var n=Number(e.amountStr); if(!(n>0)){ toast("금액을 넣어주세요"); return; }
-    var patch={entry_date:e.entry_date, memo:(e.memo||"").trim(), amount:e.sign*n, updated_by:store.userId};
+    var patch={entry_date:e.entry_date, memo:(e.memo||"").trim(), amount:e.sign*n, updated_by:store&&store.userId};
     var id=e.id; navBack();
     var t=S.entries.find(function(x){return x.id===id;}), before=t?Object.assign({},t):null;
     if(t) Object.assign(t,patch);
@@ -1596,7 +1624,7 @@ function renderDateSheet(){
 }
 function applyDate(target, iso){
   if(target==="edit" && S.edit) S.edit.entry_date=iso;
-  else { S.draft.date=iso; S.datePick=false; }
+  else { S.draft.date=iso; S.draft.dateByHand=true; S.datePick=false; }   // 손으로 고른 날짜만 그대로 — 안 골랐으면 저장하는 순간의 오늘
 }
 
 /* ── 초대 시트 ── */
@@ -1812,7 +1840,7 @@ function renderSettings(){
     var dot=el("span","dot"); dot.style.background=(COLORS[c.color]||COLORS.blue).hex; r.appendChild(dot);
     var nm=document.createElement("input"); nm.className="nm"; nm.type="text"; nm.value=c.name;
     nm.onchange=function(){ if(nm.value.trim()){ var prev=c.name; c.name=nm.value.trim();
-      tryStore(function(){ return store.upsertChild({id:c.id,name:c.name}).then(function(){ render(); }); }, function(){ c.name=prev; }); } };
+      tryStore(function(){ return store.upsertChild({id:c.id,name:c.name}).then(function(){ if(typing()) S.renderLater=true; else render(); }); }, function(){ c.name=prev; }); } };   // 다른 칸을 치는 중이면 미룬다 — 유일하게 가드가 빠져 있던 자리
     r.appendChild(nm);
     var sw=el("div","swatch");
     Object.keys(COLORS).forEach(function(k){
@@ -1972,7 +2000,15 @@ function renderOnboard(){
   var body=el("div","start-body");
   if(!o.mode){
     var isIOS=/iPhone|iPad/.test(navigator.userAgent);
-    if(isIOS && !window.navigator.standalone){
+    // 카톡·네이버·인스타 같은 앱 안의 브라우저는 저장소가 따로라, 여기서 시작하면 크롬·사파리로 열었을 때 시작 화면이 또 뜬다(10분 지나면 막힘).
+    // 홈 화면에 추가도 거기선 안 된다. 안드로이드 크롬 탭은 설치한 앱과 저장소를 같이 쓰므로 경고하지 않는다.
+    var inApp=/KAKAOTALK|NAVER\(|Instagram|FBAN|FBAV|Line\/|; wv\)/i.test(navigator.userAgent);
+    if(inApp){
+      var w0=el("div","warn");
+      w0.appendChild(el("b",null,"다른 앱 안에서 열렸어요."));
+      w0.appendChild(el("p",null,"여기서 시작하면 기록이 따로 놀아요. 메뉴에서 '다른 브라우저로 열기'를 눌러 "+(isIOS?"사파리":"크롬")+"로 열어 주세요."));
+      body.appendChild(w0);
+    } else if(isIOS && !window.navigator.standalone){
       var w=el("div","warn");
       w.appendChild(el("b",null,"먼저 홈 화면에 추가해 주세요."));
       w.appendChild(el("p",null,"아래 공유 버튼에서 홈 화면에 추가를 누르고, 그 아이콘으로 열어서 시작해 주세요. 사파리에서 바로 시작하면 기록이 따로 놀아요."));

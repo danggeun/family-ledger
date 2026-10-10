@@ -6,74 +6,7 @@ let pass=0,fail=0; const T=(n,ok)=>{ok?pass++:fail++;console.log((ok?'OK   ':'FA
 const APP='file://'+path.resolve(__dirname,'../index.html');
 const CDN='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js';
 
-const FAKE=(opt)=>{
-  try{ Object.defineProperty(window,'APP_CONFIG',{value:{SUPABASE_URL:'https://x.supabase.co/rest/v1/',SUPABASE_ANON_KEY:'k'},writable:false,configurable:false}); }catch(_){}
-  try{ localStorage.setItem('yd_tour','done'); }catch(e){}
-  const F=window.__fake={
-    mode: opt.mode||'live',                                   // live | dead(데이터 전부 실패) | noinit(가족 확인만 실패)
-    session: opt.session===undefined ? {user:{id:'u1'}} : opt.session,
-    members: opt.members || [{family_id:'f1',families:{code:'K7PM-3QRA'}}],
-    kids: opt.kids || [{id:'k1',family_id:'f1',name:'서윤',color:'pink',sort:0,opening_balance:10000,weekly_on:false,weekly_amount:0,created_at:'2026-07-01T00:00:00Z'},
-                       {id:'k2',family_id:'f1',name:'하준',color:'yellow',sort:1,opening_balance:5000,weekly_on:false,weekly_amount:0,created_at:'2026-07-02T00:00:00Z'}],
-    ents: opt.ents || [{id:'e1',family_id:'f1',child_id:'k1',entry_date:'2026-09-14',memo:'젤리',amount:-800,auto_key:null,skipped:false,created_by:'u1',updated_by:'u1',created_at:'2026-09-14T09:00:00Z'},
-                       {id:'e2',family_id:'f1',child_id:'k1',entry_date:'2026-09-13',memo:'용돈',amount:3000,auto_key:'w:2026-09-13',skipped:false,created_by:'u1',updated_by:'u1',created_at:'2026-09-13T09:00:00Z'}],
-    calls:{join:0,create:0,subscribe:0,anon:0,insert:0,update:0,delete:0,upsert:0}, n:1,
-    createFail:false, childFail:false, insertDelay:0, createClientArgs:null
-  };
-  const dead=()=>Promise.reject(new Error('Failed to fetch'));
-  const ok=(data)=>Promise.resolve({data,error:null});
-  const wait=(ms)=>new Promise(r=>setTimeout(r,ms));
-  function q(table){
-    const st={op:'select',filters:{},payload:null};
-    const b={select(){return b;}, eq(k,v){st.filters[k]=v;return b;}, order(){return b;},
-      limit(){return finish();}, range(){return finish();}, single(){return finish();},
-      insert(x){st.op='insert';st.payload=x;return b;}, update(x){st.op='update';st.payload=x;return b;},
-      delete(){st.op='delete';return b;}, upsert(x){st.op='upsert';st.payload=x;return b;},
-      then(f,r){return finish().then(f,r);}};
-    function finish(){
-      if(table==='family_members') return F.mode==='noinit' ? dead() : ok(F.members);
-      if(F.mode==='dead') return dead();
-      // 진짜 PostgREST 처럼: familyId 가 없는 채로 .eq("id", null) 이 나가면 uuid 오류 (옛 코드의 H1 이 바로 이것)
-      const key = table==='families' ? 'id' : 'family_id';
-      if(st.op==='select' && (st.filters[key]===null || st.filters[key]===undefined))
-        return Promise.resolve({data:null,error:{message:'invalid input syntax for type uuid: "null"'}});
-      if(st.op==='select'){
-        if(table==='families') return ok({id:'f1',code:'K7PM-3QRA'});
-        if(table==='children') return ok(F.kids.slice());
-        if(table==='entries') return ok(F.ents.slice());
-      }
-      if(table==='entries'){
-        if(st.op==='insert'){ F.calls.insert++; const e=Object.assign({id:'e'+(++F.n),created_at:new Date().toISOString(),skipped:false},st.payload);
-          return wait(F.insertDelay).then(()=>{ F.ents.push(e); return {data:e,error:null}; }); }
-        if(st.op==='update'){ F.calls.update++; const e=F.ents.find(x=>x.id===st.filters.id); if(e) Object.assign(e,st.payload); return ok(null); }
-        if(st.op==='delete'){ F.calls.delete++; F.ents=F.ents.filter(x=>x.id!==st.filters.id); return ok(null); }
-        if(st.op==='upsert') return ok([]);
-      }
-      if(table==='children'){
-        if(st.op==='insert'){ F.calls.upsert++; if(F.childFail) return Promise.resolve({data:null,error:{message:'boom'}});
-          const c=Object.assign({id:'k'+(++F.n),created_at:new Date().toISOString()},st.payload); F.kids.push(c); return ok(c); }
-        if(st.op==='update'){ F.calls.upsert++; const c=F.kids.find(x=>x.id===st.filters.id); if(c) Object.assign(c,st.payload); return ok(c); }
-        if(st.op==='delete'){ F.calls.delete++; F.kids=F.kids.filter(x=>x.id!==st.filters.id); return ok(null); }
-      }
-      return ok(null);
-    }
-    return b;
-  }
-  window.supabase={createClient:(url,key)=>{ F.createClientArgs=[url,key]; return {
-    auth:{getSession:()=>Promise.resolve({data:{session:F.session}}),
-          signInAnonymously:()=>{ F.calls.anon++; F.session={user:{id:'u'+(++F.n)}}; return Promise.resolve({data:{session:F.session},error:null}); }},
-    from:q,
-    rpc:(name,args)=>{
-      if(name==='join_family'){ F.calls.join++; if(F.mode==='dead') return dead(); F.members=[{family_id:'f1',families:{code:args.p_code}}]; return ok('f1'); }
-      if(name==='create_family'){ F.calls.create++; if(F.createFail) return Promise.resolve({data:null,error:{message:'gate'}}); F.members=[{family_id:'f1',families:{code:args.p_code}}]; return ok('f1'); }
-      if(name==='gate_state') return ok({is_owner:true,open_until:null});
-      return ok(null); },
-    channel:()=>({on(){return this;},subscribe(){ F.calls.subscribe++; }})
-  };}};
-};
-const CACHE=()=>localStorage.setItem('yd_cache_v1',JSON.stringify({family:{id:'f1',code:'K7PM-3QRA'},
-  children:[{id:'k1',name:'서윤',color:'pink',sort:0,opening_balance:10000,weekly_on:false,weekly_amount:0,created_at:'2026-07-01'}],
-  entries:[{id:'e1',child_id:'k1',entry_date:'2026-09-14',memo:'젤리',amount:-800,auto_key:null,created_at:'2026-09-14T09:00:00Z'}],at:Date.now()}));
+const {FAKE,CACHE}=require('./_fake');
 
 (async()=>{
 const b=await chromium.launch(process.env.PW_CHROMIUM?{executablePath:process.env.PW_CHROMIUM}:{});

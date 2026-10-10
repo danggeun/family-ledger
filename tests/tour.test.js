@@ -90,7 +90,7 @@ T('카드는 시트 위에 있다', await p.evaluate(()=>document.querySelector(
 { const sb=await p.$eval('.sheet .btn.pri',e=>{const r=e.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2};}); await p.mouse.click(sb.x,sb.y); await p.waitForTimeout(300); }
 T('시트는 만질 수 없다 (저장이 안 눌린다)', !!(await p.$('.sheet')) && await p.evaluate(()=>JSON.parse(localStorage.getItem('yd_local_v1')).entries.length===0));
 await p.click('.tour-card .ok'); await p.waitForTimeout(500);
-T('다음 → 시트가 닫히고 6단계 "⚙ 를 눌러 설정으로"', !(await p.$('.sheet')) && (await card())==='⚙ 를 눌러 설정으로 가 볼게요|6 / 10');
+T('다음 → 시트가 닫히고 6단계 "⚙ 를 눌러 설정으로"', !(await p.$('.sheet')) && (await card())==='오른쪽 위 톱니를 눌러 설정으로 가 볼게요|6 / 10');
 const sg0=await p.textContent('.entry .sign');
 { const sb=await p.$eval('.entry .sign',e=>{const r=e.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2};}); await p.mouse.click(sb.x,sb.y); await p.waitForTimeout(200); }
 T('막 밖(부호)은 안 눌린다', (await p.textContent('.entry .sign'))===sg0);
@@ -106,7 +106,7 @@ T('설명 단계는 진한 "다음", 해 볼 단계는 연한 "다음"', (await 
 await p.click('.tour-card .prev'); await p.waitForTimeout(400);
 T('이전 → 7단계로', (await card())==='아이 이름과 색|7 / 10' && (await p.textContent('.tour-card .ok'))==='다음' && !(await p.$eval('.tour-card .ok',e=>e.classList.contains('soft'))));
 await p.click('.tour-card .prev'); await p.waitForTimeout(600);
-T('설정 첫 단계에서 이전 → 설정이 닫히고 6단계 ⚙', !(await p.$('.nav h2')) && (await card())==='⚙ 를 눌러 설정으로 가 볼게요|6 / 10');
+T('설정 첫 단계에서 이전 → 설정이 닫히고 6단계 ⚙', !(await p.$('.nav h2')) && (await card())==='오른쪽 위 톱니를 눌러 설정으로 가 볼게요|6 / 10');
 await p.click('.gear'); await p.waitForTimeout(400); await p.click('.tour-card .ok'); await p.waitForTimeout(400);
 await p.click('.card.week .srow >> nth=0'); await p.waitForTimeout(400);
 await p.click('.tour-card .prev'); await p.waitForTimeout(500);
@@ -157,7 +157,7 @@ T('하다 말고 껐으면(new) 처음부터', (await card())==='− 를 눌러 
 // ── 설정의 "처음 안내 다시 보기" (글로 된 사용법은 없다) ──
 await load(KIDS,[E('e1','간식',-800,'2026-10-08')],'done');
 await p.click('.gear'); await p.waitForTimeout(400);
-T('앱 섹션에 처음 안내 … [다시 보기] 줄, 맨 아래 줄은 전과 같다', (await p.textContent('.help-link'))==='처음 안내다시 보기›' && await p.$eval('.foot',e=>/아이 추가하기/.test(e.textContent) && /v1\.2\.2/.test(e.textContent)));
+T('앱 섹션에 처음 안내 … [다시 보기] 줄, 맨 아래 줄은 전과 같다', (await p.textContent('.help-link'))==='처음 안내다시 보기›' && await p.$eval('.foot',e=>/아이 추가하기/.test(e.textContent) && /v1\.2\.3/.test(e.textContent)));
 T('사용법 페이지는 없다', !/사용법/.test(await p.textContent('.screen.page')));
 await p.click('.help-link'); await p.waitForTimeout(600);
 T('누르면 설정이 닫히고 홈에서 1단계', !(await p.$('.nav h2')) && (await card())==='− 를 눌러 받은 돈으로 바꿔 보세요|1 / 10' && (await tour())==='new');
