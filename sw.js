@@ -1,6 +1,6 @@
 // 앱 껍데기만 캐시한다. 데이터는 항상 서버에서.
 // 배포할 때 index.html 의 APP_VERSION 과 같은 값으로 올린다 — 이름이 바뀌어야 옛 캐시가 버려진다.
-var CACHE = "yd-1.3.1";
+var CACHE = "yd-1.3.2";
 var ASSETS = ["./", "./index.html", "./config.js", "./manifest.webmanifest", "./icon-192.png", "./logo-pig-t.png", "./logo-pig.png", "./logo-pig-sm.png", "./icon-512.png", "./icon-maskable-192.png", "./icon-maskable-512.png", "./apple-touch-icon.png",
   "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"];
 var SLOW = 4000;   // 이만큼 기다려도 안 오면 캐시로 (연결은 됐는데 안 나가는 상태에서 흰 화면으로 멈추지 않게)
@@ -8,7 +8,8 @@ var SLOW = 4000;   // 이만큼 기다려도 안 오면 캐시로 (연결은 됐
 // 빠진 건 다음에 받을 때(fetch 핸들러) 채워진다.
 self.addEventListener("install", function(e){
   e.waitUntil(caches.open(CACHE).then(function(c){
-    return Promise.all(ASSETS.map(function(a){ return c.add(a).catch(function(){}); }));
+    // cache:"reload" — 브라우저 HTTP 캐시(Pages 는 10분)를 건너뛰고 서버에서 새로 받는다. 안 그러면 배포 직후 설치가 옛 파일을 담을 수 있다
+    return Promise.all(ASSETS.map(function(a){ return c.add(new Request(a, {cache:"reload"})).catch(function(){}); }));
   }).then(function(){ return self.skipWaiting(); }));
 });
 self.addEventListener("activate", function(e){ e.waitUntil(caches.keys().then(function(ks){ return Promise.all(ks.filter(function(k){return k!==CACHE;}).map(function(k){return caches.delete(k);})); }).then(function(){ return self.clients.claim(); })); });

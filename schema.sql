@@ -51,6 +51,16 @@ create table if not exists entries (
   unique (child_id, auto_key)
 );
 create index if not exists entries_lookup on entries (family_id, child_id, entry_date);
+-- 기록의 아이는 그 기록과 같은 가족이어야 한다(1.3.2). RLS 는 "내 가족의 기록인가"만 보므로, 이게 없으면
+-- 남의 아이 id 를 아는 사람이 자기 가족 기록으로 그 아이에게 줄을 붙일 수 있다(자동 용돈 열쇠를 미리 채워 막는 식으로).
+-- 다시 실행해도 안전 — 이미 있으면 지나간다.
+do $$ begin
+  alter table children add constraint children_id_family unique (id, family_id);
+exception when duplicate_table or duplicate_object then null; end $$;
+do $$ begin
+  alter table entries add constraint entries_child_same_family
+    foreign key (child_id, family_id) references children (id, family_id) on delete cascade;
+exception when duplicate_object then null; end $$;
 
 -- ── RLS ────────────────────────────────────────────────
 alter table families        enable row level security;
@@ -191,5 +201,6 @@ alter table entries add column if not exists updated_by uuid default auth.uid();
 alter table entries add column if not exists skipped boolean not null default false;    -- 1.1.x
 alter table entries  replica identity full;                                              -- 1.1.9 (삭제도 실시간으로)
 alter table children replica identity full;
+-- 1.3.2 기록↔아이 같은 가족 제약: 위 본문의 "기록의 아이는 그 기록과 같은 가족" 두 블록(do $$ … $$)을 실행.
 -- 1.2.0 함수 권한(위 "함수는 로그인한 사용자만" 블록) · 1.2.3 gate_state(주인에게만 open_until) 는 위 본문의
 -- create or replace / revoke / grant 를 다시 실행하면 그대로 반영된다 — 즉 위 본문 전체를 한 번 더 돌리는 것이 가장 확실하다.

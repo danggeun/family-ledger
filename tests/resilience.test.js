@@ -18,7 +18,7 @@ const FAKE=(mode)=>{
           signInAnonymously:()=>Promise.resolve({data:{session:{user:{id:'u'}}},error:null})},
     from:()=>({select:()=>({
       limit:()=> mode==='noinit' ? dead() : ok([{family_id:'f1',families:{code:'K7PM-3QRA'}}]),
-      eq:()=>({ order:()=>{ const q={order:()=>q, range:()=> live?ok(ents):dead(),
+      eq:()=>({ order:()=>{ const q={order:()=>q, gt:()=>q, range:()=> live?ok(ents):dead(), limit:()=> live?ok(ents):dead(),
                             then:(f,r)=>(live?ok(kids):dead()).then(f,r)}; return q; },
                 single:()=> live?ok({id:'f1',code:'K7PM-3QRA'}):dead() })})}),
     rpc:()=>ok({is_owner:true,open_until:null}),

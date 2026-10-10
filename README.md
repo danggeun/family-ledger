@@ -80,7 +80,7 @@ npm test
 `regress-1.2.x` 는 그 버전의 점검에서 나온 결함을 고정한 테스트다 — 케이스 이름의 `H1/M2/A3` 는 그때 점검 목록의 번호일 뿐이다.
 `snapshot` 은 화면 열한 장을 고정 날짜·고정 시드로 찍어 `tests/snapshots/` 의 기준과 **픽셀 단위로** 비교한다. 화면을 일부러 바꾼 버전에서만 `SNAP=update npm test` 로 기준을 다시 찍는다.
 `unit` 은 계산 함수(잔액·용도→부호·돈 그림 분해·날짜·CSV)를 화면 없이 `window.__app` 으로 바로 부른다.
-새 테스트는 `tests/_harness.js`(브라우저 띄우기·`T()`/`done()`·로컬 시드·스와이프·콘솔 에러 수집)를 쓰고, 고정 `waitForTimeout` 대신 조건을 기다린다(`waitForSelector`/`waitForFunction`). 옛 파일들은 각자 같은 준비 코드와 고정 대기를 갖고 있다 — 통과가 검증된 채로 두었고, 손볼 일이 생기면 그때 하네스로 옮긴다.
+새 테스트는 `tests/_harness.js`(브라우저 띄우기·`T()`/`done()`·로컬 시드·가짜 서버 페이지 `fakePage`·시계 고정 `clock`·덩어리 `section`·스와이프·콘솔 에러 수집)를 쓰고, 고정 `waitForTimeout` 대신 조건을 기다린다(`waitForSelector`/`waitForFunction`). 옛 파일들은 각자 같은 준비 코드와 고정 대기를 갖고 있다 — 통과가 검증된 채로 두었고, 손볼 일이 생기면 그때 하네스로 옮긴다.
 
 ### 코드 지도 (`index.html`)
 - **상태는 `S` 하나.** 선언에 모든 칸이 주석과 함께 적혀 있다. 화면을 정하는 값은 `S` 바로 아래, 다시 그리기와 상관없는 런타임 값(전환 방향·타이머·뒤로 가기 스택 등)은 `S.ui`. 입력줄은 `S.draft`(`newDraft()`). `S.screen`(loading·fail·onboard·home·settings) + 시트 플래그(`edit·editOpen·editKid·editWeek·editGate·pickDate`) + 떠 있는 화면(`kidView·entryView·tour`) 의 조합이 곧 화면이다. `render()` 는 매번 root 를 비우고 전부 다시 그린다.

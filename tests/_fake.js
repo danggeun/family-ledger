@@ -17,9 +17,9 @@ const FAKE=(opt)=>{
   const ok=(data)=>Promise.resolve({data,error:null});
   const wait=(ms)=>new Promise(r=>setTimeout(r,ms));
   function q(table){
-    const st={op:'select',filters:{},payload:null};
-    const b={select(){return b;}, eq(k,v){st.filters[k]=v;return b;}, order(){return b;},
-      limit(){return finish();}, range(){return finish();}, single(){return finish();},
+    const st={op:'select',filters:{},payload:null,gt:null,from:0,to:null};
+    const b={select(){return b;}, eq(k,v){st.filters[k]=v;return b;}, order(){return b;}, gt(k,v){st.gt=[k,v];return b;},
+      limit(n){st.to=st.from+n-1;return finish();}, range(a,z){st.from=a;st.to=z;return finish();}, single(){return finish();},
       insert(x){st.op='insert';st.payload=x;return b;}, update(x){st.op='update';st.payload=x;return b;},
       delete(){st.op='delete';return b;}, upsert(x){st.op='upsert';st.payload=x;return b;},
       then(f,r){return finish().then(f,r);}};
@@ -34,13 +34,20 @@ const FAKE=(opt)=>{
       if(st.op==='select'){
         if(table==='families') return ok({id:'f1',code:'K7PM-3QRA'});
         if(table==='children') return ok(F.kids.slice());
-        if(table==='entries') return ok(F.ents.slice());
+        if(table==='entries'){                                   // 진짜 PostgREST 처럼 id 순 · gt · 범위 — 페이징을 흉내 낸다
+          let rows=F.ents.slice().sort((x,y)=>x.id<y.id?-1:x.id>y.id?1:0);
+          if(st.gt) rows=rows.filter(x=>x[st.gt[0]]>st.gt[1]);
+          if(st.to!=null) rows=rows.slice(st.from, st.to+1);
+          F.calls.pages=(F.calls.pages||0)+1;
+          const out=ok(rows); if(F.afterPage) F.afterPage(F.calls.pages); return out;
+        }
       }
       if(table==='entries'){
         if(st.op==='insert'){ F.calls.insert++; const e=Object.assign({id:'e'+(++F.n),created_at:new Date().toISOString(),skipped:false},st.payload);
-          if(F.insertFail) return Promise.resolve({data:null,error:{message:'Failed to fetch'}});
-          return wait(F.insertDelay).then(()=>{ F.ents.push(e); return {data:e,error:null}; }); }
-        if(st.op==='update'){ F.calls.update++; const e=F.ents.find(x=>x.id===st.filters.id); if(e) Object.assign(e,st.payload); return ok(null); }
+          return wait(F.insertDelay).then(()=>{
+            if(F.insertFail) return {data:null,error:{message:'Failed to fetch'}};
+            F.ents.push(e); return {data:e,error:null}; }); }
+        if(st.op==='update'){ F.calls.update++; const e=F.ents.find(x=>x.id===st.filters.id); if(e) Object.assign(e,st.payload); return ok(e?[{id:e.id}]:[]); }   // 고친 줄(.select) — 없으면 빈 배열
         if(st.op==='delete'){ F.calls.delete++; F.ents=F.ents.filter(x=>x.id!==st.filters.id); return ok(null); }
         if(st.op==='upsert'){ F.calls.upsertRows=(F.calls.upsertRows||0)+(st.payload||[]).length; F.lastUpsert=st.payload; return ok([]); }
       }

@@ -16,17 +16,37 @@ async function done(browser){
   console.log(`\n${pass} passed, ${fail} failed`);
   process.exit(fail?1:0);
 }
+// 한 덩어리가 던져도(기다리던 게 안 와도) 나머지는 계속 돈다 — 그 덩어리는 실패로 센다
+async function section(name, fn){ try{ await fn(); }catch(e){ T(name+' — 중단: '+String(e.message||e).split('\n')[0], false); } }
 function launch(){ return chromium.launch(process.env.PW_CHROMIUM?{executablePath:process.env.PW_CHROMIUM}:{}); }
 
-// 로컬 모드 페이지. tour=true 면 처음 안내가 켜진 채(LOCAL_RAW)
+// 시계 고정 — new Date()·Date.now() 가 그 시각을 준다(날짜에 기대는 테스트용)
+const CLOCK=(fixed)=>{ const R=Date, t=new R(fixed).getTime();
+  window.Date=class extends R{ constructor(...a){ if(a.length) super(...a); else super(t); } static now(){ return t; } }; };
+
+// 로컬 모드 페이지. tour=true 면 처음 안내가 켜진 채(LOCAL_RAW). clock: '2026-10-10T12:00:00+09:00' 처럼 고정
 async function localPage(browser, opts){
   opts=opts||{};
   const ctx=await browser.newContext(Object.assign({}, VP, opts.context||{}));
   await ctx.addInitScript(opts.tour ? env.LOCAL_RAW : env.LOCAL);
+  if(opts.clock) await ctx.addInitScript(CLOCK, opts.clock);
   if(opts.init) await ctx.addInitScript(opts.init, opts.initArg);
-  const p=await ctx.newPage(); env.guard(p); p.on('pageerror',e=>errs.push(e.message));
+  const p=await ctx.newPage(); p.setDefaultTimeout(8000); env.guard(p); p.on('pageerror',e=>errs.push(e.message));
   p.on('console',m=>{ if(m.type()==='error' && !/ERR_|Failed to load resource/.test(m.text())) errs.push('console: '+m.text()); });   // 옛 파일들과 같은 기준
   await p.goto(APP);
+  return {ctx, p};
+}
+// 가짜 Supabase 페이지(tests/_fake.js). fake 는 FAKE 의 옵션(kids·ents·mode …). 홈이 뜰 때까지 기다린다
+async function fakePage(browser, fake, opts){
+  opts=opts||{};
+  const {FAKE}=require('./_fake');
+  const ctx=await browser.newContext(Object.assign({}, VP, opts.context||{}));
+  await ctx.addInitScript(FAKE, fake||{});
+  if(opts.clock) await ctx.addInitScript(CLOCK, opts.clock);
+  const p=await ctx.newPage(); p.setDefaultTimeout(8000); env.guard(p); p.on('pageerror',e=>errs.push(e.message));
+  p.on('console',m=>{ if(m.type()==='error' && !/ERR_|Failed to load resource/.test(m.text())) errs.push('console: '+m.text()); });
+  await p.goto(APP);
+  if(opts.wait!==false) await p.waitForSelector(opts.wait||'.balbtn', {timeout:8000});
   return {ctx, p};
 }
 // 로컬 저장소에 가족·아이·기록을 넣고 새로고침
@@ -52,4 +72,4 @@ const ymd=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+Stri
 const addDays=(s,n)=>{ const d=new Date(s+'T12:00:00'); d.setDate(d.getDate()+n); return ymd(d); };
 const today=()=>ymd(new Date());
 
-module.exports={APP, VP, T, done, errs, launch, localPage, seed, KID, E, swiper, ymd, addDays, today};
+module.exports={APP, VP, T, done, errs, section, launch, localPage, fakePage, CLOCK, seed, KID, E, swiper, ymd, addDays, today};

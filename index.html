@@ -425,7 +425,7 @@ button.srow{width:100%; text-align:left}
           ③ 저장은 낙관 반영 + 실패하면 직전 값만 되돌린다(tryStore). 자세한 지도는 README "코드 지도".
    ───────────────────────────────────────────────────────────────────────────── */
 /* ══════════════════════ 유틸 ══════════════════════ */
-var APP_VERSION = "1.3.1";   // 올릴 때 sw.js 의 CACHE 도 같이
+var APP_VERSION = "1.3.2";   // 올릴 때 sw.js 의 CACHE 도 같이
 
 /* hex = 탭 밑줄·점(면), name = 이름 글자.
    아이들이 "내 색"을 바로 알아보는 게 이 색의 유일한 목적이라 채도를 살린다.
@@ -516,7 +516,7 @@ LocalStore.prototype = {
   },
   loadAll: function(){
     var d=this.db;
-    var children=d.children.slice().sort(function(a,b){ return (a.sort-b.sort) || (a.created_at<b.created_at?-1:1); });
+    var children=d.children.slice().sort(function(a,b){ return (a.sort-b.sort) || cmp(a.created_at, b.created_at) || cmp(a.id, b.id); });
     return Promise.resolve({family:d.family, children:children, entries:d.entries.slice()});
   },
   upsertChild: function(c){
@@ -551,7 +551,8 @@ LocalStore.prototype = {
   },
   updateEntry: function(id, patch){
     var e=this.db.entries.find(function(x){ return x.id===id; });
-    if(e){ Object.assign(e, patch); e.updated_by="me"; e.updated_at=new Date().toISOString(); }
+    if(!e) return Promise.reject(new Error(GONE_MSG));
+    Object.assign(e, patch); e.updated_by="me"; e.updated_at=new Date().toISOString();
     this.save();
     return Promise.resolve();
   },
@@ -583,6 +584,7 @@ function SupaStore(cfg){
   }catch(e){ /* 옛 supabase-js — 이 복구만 없다 */ }
 }
 function normalizeUrl(u){ return String(u||"").trim().replace(/\/rest\/v1\/?$/,"").replace(/\/+$/,""); }   // 끝 슬래시·/rest/v1 은 떼어낸다
+var GONE_MSG="다른 폰에서 지운 기록이에요";
 // supabase-js 응답 {data, error} → data 또는 throw
 function unwrap(r){ if(r.error) throw r.error; return r.data; }
 SupaStore.prototype = {
@@ -622,21 +624,22 @@ SupaStore.prototype = {
     return this.sb.rpc("gate_state").then(function(r){ return r.error ? {is_owner:false, open_until:null} : r.data; });
   },
   openFamilies: function(min){ return this.sb.rpc("open_families",{p_minutes:min}).then(unwrap); },
-  // Supabase 는 한 번에 최대 1000줄만 준다. 기록은 계속 쌓이므로 나눠 받지 않으면
-  // 어느 날부터 조용히 잘리고 잔액이 틀려진다. 정렬을 고정해야 페이지가 겹치거나 빠지지 않는다.
+  /* Supabase 는 한 번에 최대 1000줄만 준다. 기록은 계속 쌓이므로 나눠 받지 않으면 어느 날부터 조용히 잘리고 잔액이 틀려진다.
+     나눌 땐 "몇 번째부터"가 아니라 "이 id 다음부터"(키셋) — 받는 사이 다른 폰이 지우거나 끼워 넣어도 줄이 밀려
+     빠지거나 두 번 오지 않는다. 그 사이 새로 생긴 줄은 실시간 알림이 다시 받게 한다. */
   allEntries: function(){
     var sb=this.sb, fid=this.familyId, out=[], SIZE=1000;
-    // 받는 사이 다른 폰이 끼워 넣으면 경계 줄이 두 번 온다
+    // 키셋이라 겹칠 일은 없지만, 같은 id 가 두 번 오면 잔액이 틀리므로 한 번 더 거른다(값싼 보험)
     function dedupe(rows){ var seen={}; return rows.filter(function(e){ if(seen[e.id]) return false; seen[e.id]=1; return true; }); }
-    function page(from){
-      return sb.from("entries").select("*").eq("family_id", fid)
-        .order("entry_date").order("id").range(from, from+SIZE-1)
-        .then(function(r){
-          var rows=unwrap(r)||[]; out=out.concat(rows);
-          return rows.length<SIZE ? dedupe(out) : page(from+SIZE);
-        });
+    function page(after){
+      var q=sb.from("entries").select("*").eq("family_id", fid).order("id");
+      if(after) q=q.gt("id", after);
+      return q.limit(SIZE).then(function(r){
+        var rows=unwrap(r)||[]; out=out.concat(rows);
+        return rows.length<SIZE ? dedupe(out) : page(rows[rows.length-1].id);
+      });
     }
-    return page(0);
+    return page(null);
   },
   loadAll: function(){
     var sb=this.sb, fid=this.familyId;
@@ -664,9 +667,12 @@ SupaStore.prototype = {
     return this.sb.from("entries").upsert(rows,{onConflict:"child_id,auto_key", ignoreDuplicates:true}).select()
       .then(function(r){ return (unwrap(r)||[]).length; });
   },
+  // 고친 줄이 0개면(다른 폰이 그 사이 지웠다) 실패로 — 성공처럼 보이고 고친 게 조용히 사라지지 않게. tryStore 가 되돌리고 새로 받는다
   updateEntry: function(id, patch){
-    patch.updated_at=new Date().toISOString(); patch.updated_by=this.userId;
-    return this.sb.from("entries").update(patch).eq("id",id).then(unwrap).then(function(){});
+    var row=Object.assign({}, patch, {updated_at:new Date().toISOString(), updated_by:this.userId});
+    return this.sb.from("entries").update(row).eq("id",id).select("id").then(unwrap).then(function(rows){
+      if(!rows || !rows.length) throw new Error(GONE_MSG);
+    });
   },
   deleteEntry: function(id){ return this.sb.from("entries").delete().eq("id",id).then(unwrap).then(function(){}); },
   subscribe: function(cb){
@@ -738,9 +744,12 @@ var root = document.getElementById("app");
 
 /* ══════════════════════ 계산 ══════════════════════ */
 function childOf(id){ return S.children.find(function(c){return c.id===id;}); }
+// 같은 날짜면 적은 순서, 그것도 같으면(자동 줄은 한 번에 들어가 시각이 같다) id 로 — 폰마다 누적 금액 순서가 같게
+function cmp(x, y){ return x<y ? -1 : x>y ? 1 : 0; }
+function byDateThenCreated(a, b){ return cmp(a.entry_date, b.entry_date) || cmp(a.created_at, b.created_at) || cmp(a.id, b.id); }
 function entriesFor(cid){
   return S.entries.filter(function(e){return e.child_id===cid && !e.skipped;})
-    .sort(function(a,b){ return a.entry_date<b.entry_date?-1:a.entry_date>b.entry_date?1:(a.created_at<b.created_at?-1:1); });
+    .sort(byDateThenCreated);
 }
 function withTotals(cid){
   var c=childOf(cid); var run=c?(c.opening_balance||0):0;
@@ -1025,16 +1034,30 @@ function longPress(node, fn){
 }
 
 /* ══════════════════════ 자동 입금 ══════════════════════ */
+/* 매주 용돈 요일을 바꿨을 때 새 요일의 첫날. "오늘부터"면 토요일 용돈을 받은 날 일요일로 바꾸면 다음 날 또 들어간다.
+   원래 받을 날(마지막 용돈 + 7일)에 가장 가까운 새 요일로 — 앞뒤 3일 안에 꼭 하나 있다. 간격은 늘 4~10일.
+   그 날이 이미 지났으면(이번 주 몫) 바로 들어간다. 받은 적이 없으면 오늘부터. */
+// 마지막 자동 용돈 날. 열쇠(w:날짜)의 날짜로 센다 — entry_date 는 고치기로 옮길 수 있어서, 앞으로 옮기면 그 사이 주가 빠진다.
+// 오늘보다 뒤인 열쇠(시계가 앞선 기기가 넣은 것)는 무시 — 안 그러면 모든 폰이 그 날짜까지 멈춘다
+function lastAutoDay(cid){
+  var t=today(), last="";
+  S.entries.forEach(function(e){ if(e.child_id===cid && e.auto_key){ var kd=e.auto_key.slice(2); if(kd>last && kd<=t) last=kd; } });
+  return last;
+}
+function startForNewDow(cid, dow){
+  var last=lastAutoDay(cid); if(!last) return today();
+  var d=addDays(last, 7-3);
+  while(dowOf(d)!==dow) d=addDays(d,1);
+  return d;
+}
 function ensureAllowances(){
   var t=today(), rows=[];
   S.children.forEach(function(c){
     if(!c.weekly_on || c.weekly_dow==null || !(c.weekly_amount>0)) return;
     // 시작점은 "마지막 자동 줄 다음 날". weekly_start 에서 세면 오래 쓸수록 루프가 길어져
     // 안전장치(400)에 먼저 걸리고, 그때부터 최근 주가 영영 안 채워진다.
-    var have={}, last="";
-    S.entries.forEach(function(e){ if(e.child_id===c.id && e.auto_key){ have[e.auto_key]=1;
-      // 시계가 앞선 기기가 넣은 미래 열쇠는 무시 — 안 그러면 모든 폰이 그 날짜까지 멈춘다   // 열쇠의 날짜로 — entry_date 는 고치기로 옮길 수 있어서, 앞으로 옮기면 그 사이 주가 영영 빠졌다
-      var kd=e.auto_key.slice(2); if(kd>last && kd<=t) last=kd; } });
+    var have={}, last=lastAutoDay(c.id);
+    S.entries.forEach(function(e){ if(e.child_id===c.id && e.auto_key) have[e.auto_key]=1; });
     var start = c.weekly_start || localDay(c.created_at) || t;
     var from = last && last>=start ? addDays(last,1) : start;
     var floor = addDays(t,-400);          // 아주 오래 안 열었어도 몇 년치를 한꺼번에 넣지는 않는다
@@ -1715,8 +1738,11 @@ function submitNew(){
     render();
   }).catch(function(err){
     S.entries=S.entries.filter(function(x){return x!==tmp;});
-    if(!S.draft.memo && !S.draft.amount) S.draft=typed;     // 다시 치지 않게 — 지하철·엘리베이터에서 ✓ 가 실패하면 치던 게 통째로 날아갔다
-    render(); toast("저장 실패: "+errText(err)); });
+    // 다시 치지 않게 치던 걸 입력줄에 돌려준다(지하철·엘리베이터). 단 그 사이 다른 아이로 넘어갔으면 돌려주지 않는다 —
+    // 입력줄은 지금 보이는 아이 것이라, 돌려주면 ✓ 한 번에 다른 아이 기록이 된다. 그땐 누구 것이 실패했는지 알린다
+    var same = S.sel===e.child_id, kid=childOf(e.child_id);
+    if(same && !S.draft.memo && !S.draft.amount) S.draft=typed;
+    render(); toast((same || !kid ? "" : kid.name+" ")+"저장 실패: "+errText(err)); });
 }
 
 /* 낙관 반영은 실패하면 되돌린다. 캐시로 되돌리면 그 사이 성공한 다른 편집까지 지워 보이므로 바꾸기 직전 값만 되돌린다.
@@ -1760,12 +1786,21 @@ function fmtNum(v){ return Number(v).toLocaleString("ko-KR"); }
 /* 금액 칸 — 숫자 키패드, 치는 대로 콤마(onInput 에는 숫자만), 커서는 항상 끝(tapEnd). 입력줄·시트 넷·온보딩이 전부 이 칸이다.
    shown 은 처음 보일 글자(자리마다 빈 값을 ""로 둘지 "0"으로 둘지 다르다 — fmtNum 으로 만들어 넘긴다).
    opt = {enter: Enter 때 할 일, hint: 키보드 Enter 글자, placeholder} — 자리마다 달라서(전과 같게) 부르는 쪽이 적는다. */
+// 칸보다 긴 금액(백만 단위)은 글자를 줄여 다 보이게 — 안 그러면 앞자리가 말없이 잘려 1,234,567 이 "234,567"로 보인다.
+// 보통 금액에선 아무것도 안 한다(글자 크기 그대로)
+function fitText(inp){
+  inp.style.fontSize="";
+  if(!inp.isConnected || inp.scrollWidth<=inp.clientWidth) return;
+  var size=parseFloat(getComputedStyle(inp).fontSize), min=Math.round(size*0.6);
+  while(inp.scrollWidth>inp.clientWidth && size>min){ size--; inp.style.fontSize=size+"px"; }
+}
 function moneyInput(cls, shown, onInput, opt){
   opt=opt||{};
   var inp=el("input", cls); inp.type="text"; inp.inputMode="numeric";
   if(opt.placeholder!=null) inp.placeholder=opt.placeholder;
   inp.value = shown;
-  inp.oninput=function(){ onInput(fmtMoney(inp)); };
+  inp.oninput=function(){ var v=fmtMoney(inp); fitText(inp); onInput(v); };
+  if(shown) requestAnimationFrame(function(){ fitText(inp); });   // 다시 그린 칸·시트가 이미 긴 금액으로 열릴 때
   if(opt.hint) inp.enterKeyHint=opt.hint;
   if(opt.enter) inp.onkeydown=function(ev){ if(ev.key==="Enter"){ ev.preventDefault(); opt.enter(); } };
   tapEnd(inp);
@@ -1898,15 +1933,22 @@ function renderGateSheet(){
   });
   function setGate(min){
     store.openFamilies(min).then(function(t){
-      S.gate.open_until=t; navBack(); toast(min>0?"10분 동안 열었어요":"잠갔어요");
+      if(S.gate) S.gate.open_until=t; navBack(); toast(min>0?"10분 동안 열었어요":"잠갔어요");
     }, failToast("실패"));
   }
+}
+
+/* 열어 둔 시트의 아이가 사라졌다(다른 폰이 지웠다) — 빈 막으로 남기지 않고 닫는다. 그 시트가 맨 위일 때만 */
+function closeGone(key){
+  setTimeout(function(){ var st=S.ui.navStack; if(S[key] && st[st.length-1]===key) navBack(); }, 0);
+  return document.createDocumentFragment();
 }
 
 /* ── 매주 용돈 시트 ── */
 function renderWeekSheet(){
   var w=S.editWeek, c=childOf(w.id);
-  return sheet((c?c.name:"")+" · 매주 용돈", function(f){
+  if(!c) return closeGone("editWeek");
+  return sheet(c.name+" · 매주 용돈", function(f){
     var seg=el("div","tabs");
     [["안 함",false],["매주",true]].forEach(function(p){
       var b=el("button",w.on===p[1]?"on":"",p[0]); b.onclick=function(){ w.on=p[1]; render(); }; seg.appendChild(b);
@@ -1920,7 +1962,7 @@ function renderWeekSheet(){
     }
     // 건너뛴 주가 있을 때만 — 주마다 한 줄, 누르면 그 주만 돌아온다("정말 건너뛰기"를 잘못 눌러도 돌아올 길).
     // 한꺼번에 되돌리기는 안 된다: 일부러 건너뛴 주(여행·벌)가 쌓인 뒤 실수 하나를 돌리려다 전부 돌아온다
-    var skipped=S.entries.filter(function(e){ return c && e.child_id===c.id && e.auto_key && e.skipped; })
+    var skipped=S.entries.filter(function(e){ return e.child_id===c.id && e.auto_key && e.skipped; })
       .sort(function(a,b){ return a.entry_date<b.entry_date?1:-1; });
     if(skipped.length){
       var ul=el("div","skiplist");                       // 많이 쌓여도 시트가 화면을 다 먹지 않게 — 세 줄 반까지만 보이고 그 안에서 스크롤(반 줄이 "더 있다"는 표시)
@@ -1939,7 +1981,8 @@ function renderWeekSheet(){
       var v=Number(w.amountStr)||0;
       if(w.on && !(v>0)){ toast("금액을 넣어주세요"); return; }
       var patch={id:w.id, weekly_on:w.on, weekly_dow:w.dow, weekly_amount:v};
-      if(w.on && (!c.weekly_on || c.weekly_dow!==w.dow)) patch.weekly_start=today();   // 켜거나 요일을 바꾸면 오늘부터
+      if(w.on && !c.weekly_on) patch.weekly_start=today();                          // 켜면 오늘부터
+      else if(w.on && c.weekly_dow!==w.dow) patch.weekly_start=startForNewDow(c.id, w.dow);
       var before=Object.assign({}, c);
       Object.assign(c, patch); navBack();
       tryStore(function(){ return store.upsertChild(patch).then(function(){ return reload(); }); }, function(){ Object.assign(c, before); });
@@ -1950,7 +1993,7 @@ function renderWeekSheet(){
 /* ── 아이 지우기 시트 ── */
 function renderKidSheet(){
   var k=S.editKid, c=childOf(k.id);
-  if(!c) return document.createDocumentFragment();   // 지워진 직후 한 프레임. 닫는 건 navCloseTop 이 한다
+  if(!c) return closeGone("editKid");     // 여기서 지웠으면 이미 닫히는 중, 다른 폰이 지웠으면 닫는다
   return sheet(c.name, function(f){
     var n=entriesFor(c.id).length;
     f.appendChild(el("p","note", n ? "적어둔 기록 "+n+"줄도 함께 지워져요." : "적어둔 기록은 없어요."));
@@ -2379,7 +2422,8 @@ if("serviceWorker" in navigator){ window.addEventListener("load", function(){ na
 
 // 테스트용 창구 — 계산 함수들을 화면 없이 바로 부를 수 있게(tests/unit.test.js). 앱은 이걸 쓰지 않는다
 window.__app = {S:S, APP_VERSION:APP_VERSION, KID_BG:KID_BG, SUPABASE_CDN:SUPABASE_CDN, fmt:fmt, fmtSigned:fmtSigned, digits:digits, addDays:addDays, dowOf:dowOf, localDay:localDay, plainDate:plainDate, shortDate:shortDate,
-  splitWon:splitWon, memoBase:memoBase, signForMemo:signForMemo, recentMemos:recentMemos, withTotals:withTotals, balanceOf:balanceOf, csvText:csvText, normalizeUrl:normalizeUrl, genCode:genCode};
+  splitWon:splitWon, memoBase:memoBase, signForMemo:signForMemo, recentMemos:recentMemos, withTotals:withTotals, balanceOf:balanceOf, csvText:csvText, normalizeUrl:normalizeUrl, genCode:genCode,
+  lastAutoDay:lastAutoDay, startForNewDow:startForNewDow, byDateThenCreated:byDateThenCreated, ensureAllowances:ensureAllowances};
 })();
 </script>
 </body>
