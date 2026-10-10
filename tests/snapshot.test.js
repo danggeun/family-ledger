@@ -4,6 +4,9 @@ const {T, done, launch, localPage, seed, settle}=require('./_harness');
 const path=require('path'); const fs=require('fs');
 const DIR=path.resolve(__dirname,'snapshots'); fs.mkdirSync(DIR,{recursive:true});
 const UPDATE=process.env.SNAP==='update';
+// 기준 그림은 한 기계(우분투 24.04 · 크로미움 1194(= Playwright 1.56.0, package.json 에 고정) · Noto CJK/Inter 글꼴)에서 찍었다. GitHub Actions 처럼 다른 기계에선
+// 글꼴·안티에일리어싱이 한두 픽셀 달라질 수 있어 "참고"로만 센다(다르면 경고 + .actual.png). SNAP_STRICT=1 이면 그래도 실패로
+const SOFT=!!process.env.CI && !process.env.SNAP_STRICT;
 const FIXED='2026-10-10T12:00:00+09:00';                      // "오늘"이 바뀌어도 화면이 같게
 
 const KIDS=[{id:'k1',name:'서윤',color:'pink',sort:0,opening_balance:16300,weekly_on:true,weekly_dow:6,weekly_amount:3000,weekly_start:'2026-09-12',created_at:'2026-07-01T09:00:00Z'},
@@ -38,6 +41,7 @@ async function snap(p, name, opts){
   if(UPDATE || !fs.existsSync(file)){ fs.writeFileSync(file, buf); T('[기준 저장] '+name, true); return; }
   const same=fs.readFileSync(file).equals(buf);
   if(!same) fs.writeFileSync(path.join(DIR, name+'.actual.png'), buf);
+  if(!same && SOFT){ console.log('WARN '+name+' — 기준과 다름(다른 기계라 참고만) → '+name+'.actual.png'); T(name+' (참고)', true); return; }
   T(name+(same?'':' — 기준과 다름 → '+name+'.actual.png'), same);
 }
 

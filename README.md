@@ -76,7 +76,7 @@ npm test
 
 테스트는 실제 화면(Chromium)을 띄워서 확인한다 — 크로미움을 내려받을 수 있는 네트워크가 필요하다. 크로미움이 따로 있으면 `PW_CHROMIUM=/경로/chrome npm test`.
 파일 여러 개를 동시에 돌린다(CPU 수, 최대 4). 2코어에서 전체 약 2분. `npm test -- tour` 는 이름에 tour 가 든 파일만, `npm test -- -j1` 은 하나씩.
-GitHub 에 올려도 테스트는 저절로 돌지 않는다 — 올리기 전에 여기서 돌린다.
+GitHub 의 main 에 올리면 Actions 가 전체 테스트를 돌린다(`.github/workflows/test.yml`, 약 5분) — 결과는 커밋 옆 ✓/✗ 와 Actions 탭. 화면 스냅샷은 기준을 찍은 기계와 글꼴이 조금 다를 수 있어 거기선 참고로만 센다(다르면 경고 + 비교 그림을 내려받을 수 있다).
 
 `config.js`가 실제 서버를 가리키고 있어도 테스트는 로컬 모드로 돈다(`tests/_env.js`).
 서버가 필요한 경로(끊김·복구·세션 유실·되돌리기·나눠 받기)는 가짜 서버(`tests/_fake.js` — PostgREST 처럼 id 순·나눠 주기, 모드 live/dead/noinit/down)로 확인하고, 서비스워커는 테스트 안에서 http 서버를 띄워 확인한다(`sw`).

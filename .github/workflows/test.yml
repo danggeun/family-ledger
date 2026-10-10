@@ -1,0 +1,34 @@
+# main 에 올릴 때마다(폰에서 index.html 만 올려도) 전체 테스트를 돌린다. 결과는 저장소의 Actions 탭과 커밋 옆 ✓/✗.
+name: test
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # 기준 그림을 찍은 기계와 같은 글꼴 — 글자 높이를 재는 테스트가 있어서
+      - name: Fonts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fonts-inter fonts-noto-cjk fonts-noto-cjk-extra fonts-wqy-zenhei fonts-ipafont-gothic fonts-noto-color-emoji fonts-liberation fonts-dejavu
+      - run: npm install
+      - run: npx playwright install --with-deps chromium
+      - run: npm test
+        env:
+          CI: "true"
+      # 화면 스냅샷이 기준과 다르면(다른 기계라 참고만) 비교용 그림을 내려받을 수 있게
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: snapshot-actual
+          path: tests/snapshots/*.actual.png
+          if-no-files-found: ignore
