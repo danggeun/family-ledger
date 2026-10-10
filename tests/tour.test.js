@@ -42,6 +42,13 @@ const click=async(sel)=>{
 };
 const tapAt=async(x,y)=>{ await p.mouse.click(x,y); await idle(p); };
 const center=(sel)=>p.$eval(sel,e=>{const r=e.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2};});
+// 막 밖의 버튼을 눌러 본다. 그 자리 맨 위가 막(tour-block)이면 실제로 누르고, 안내 카드가 덮고 있으면 누르지 않는다 —
+// 글꼴이 큰 기기(CI 의 글꼴)에선 카드가 길어져 그 자리를 덮는다. 그때 누르면 카드의 "이전"이 눌려 단계가 돌아갔다(테스트 쪽 가정의 잘못).
+// 어느 쪽이든 그 버튼엔 손이 안 닿는다는 게 요점. 돌려주는 값: "block" | "card" | 그 밖(= 손이 닿는다, 실패)
+const tapOutside=async(sel)=>{ const c=await center(sel);
+  const top=await p.evaluate(({x,y})=>{ const e=document.elementFromPoint(x,y); return !e ? 'none' : e.closest('.tour-block') ? 'block' : e.closest('.tour-card') ? 'card' : 'reachable'; }, c);
+  if(top==='block') await tapAt(c.x,c.y);
+  return top; };
 const press=async(sel,ms)=>{ const box=await center(sel);
   await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:box.x,y:box.y}]});
   await p.waitForTimeout(ms);                                          // 진짜 시간: 길게 누르기 — 문턱(0.5초)을 넘겨 누르고 있는 시간이 곧 동작이다
@@ -58,12 +65,10 @@ await load(KIDS,[]);
 T('새 기기: 1단계 "− 를 눌러 받은 돈으로" (1 / 10)', (await card())==='− 를 눌러 받은 돈으로 바꿔 보세요|1 / 10' && (await tour())==='new');
 T('첫 카드엔 × 위에 "언제든 그만두기" 말풍선', (await p.textContent('.tour-card .skip-hint'))==='언제든 그만두기' && await p.$eval('.tour-card .skip-hint',e=>e.style.display!=='none'));
 T('어두운 막과 밝은 구멍이 있다', !!(await p.$('.tour-spot')) && (await p.$$('.tour-block')).length===4);
-const tabBox=await center('.bar .k >> nth=1');
-await tapAt(tabBox.x,tabBox.y);
-T('막 밖(아이 탭)을 눌러도 아무 일 없다', (await p.textContent('.bar .k.on'))==='서윤' && (await card())==='− 를 눌러 받은 돈으로 바꿔 보세요|1 / 10');
-const gearBox=await center('.gear');
-await tapAt(gearBox.x,gearBox.y);
-T('설정도 안 열린다', !(await p.$('.nav h2')));
+const tabAt=await tapOutside('.bar .k >> nth=1');
+T('막 밖(아이 탭)을 눌러도 아무 일 없다 ('+tabAt+')', /block|card/.test(tabAt) && (await p.textContent('.bar .k.on'))==='서윤' && (await card())==='− 를 눌러 받은 돈으로 바꿔 보세요|1 / 10');
+const gearAt=await tapOutside('.gear');
+T('설정도 안 열린다 ('+gearAt+')', /block|card/.test(gearAt) && !(await p.$('.nav h2')));
 await click('.entry .sign');
 T('부호를 + 로 바꾸면 그 자리에서 "+ 가 됐어요" + 진한 다음 (휙 안 넘어간다)', (await card())==='이제 받은 돈이에요|1 / 10' && await p.$eval('.entry .sign',e=>e.textContent==='+') && (await p.textContent('.tour-card .ok'))==='다음' && !(await p.$eval('.tour-card .ok',e=>e.classList.contains('soft'))));
 await click('.entry .sign');
@@ -113,8 +118,8 @@ T('시트는 만질 수 없다 (저장이 안 눌린다)', !!(await p.$('.sheet'
 await click('.tour-card .ok');
 T('다음 → 시트가 닫히고 6단계 "⚙ 를 눌러 설정으로"', !(await p.$('.sheet')) && (await card())==='오른쪽 위 톱니를 눌러 설정으로 가 볼게요|6 / 10');
 const sg0=await p.textContent('.entry .sign');
-{ const sb=await center('.entry .sign'); await tapAt(sb.x,sb.y); }
-T('막 밖(부호)은 안 눌린다', (await p.textContent('.entry .sign'))===sg0);
+const signAt=await tapOutside('.entry .sign');
+T('막 밖(부호)은 안 눌린다 ('+signAt+'), 단계도 그대로', /block|card/.test(signAt) && (await p.textContent('.entry .sign'))===sg0 && (await card())==='오른쪽 위 톱니를 눌러 설정으로 가 볼게요|6 / 10');
 // 톱니가 밝은 구멍 안에 있어야 누를 수 있다 — 아니면 그때의 자리를 전부 찍어 둔다(CI 에서 한 번 막혔던 자리)
 const gearDiag=await p.evaluate(()=>{ const R=e=>{ const r=e.getBoundingClientRect(); return [Math.round(r.left),Math.round(r.top),Math.round(r.width),Math.round(r.height)]; };
   const g=document.querySelector('.gear').getBoundingClientRect(), cx=g.left+g.width/2, cy=g.top+g.height/2, hit=document.elementFromPoint(cx,cy);
