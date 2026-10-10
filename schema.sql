@@ -53,7 +53,8 @@ create table if not exists entries (
 create index if not exists entries_lookup on entries (family_id, child_id, entry_date);
 -- 기록의 아이는 그 기록과 같은 가족이어야 한다(1.3.2). RLS 는 "내 가족의 기록인가"만 보므로, 이게 없으면
 -- 남의 아이 id 를 아는 사람이 자기 가족 기록으로 그 아이에게 줄을 붙일 수 있다(자동 용돈 열쇠를 미리 채워 막는 식으로).
--- 다시 실행해도 안전 — 이미 있으면 지나간다.
+-- 다시 실행해도 안전 — 이미 있으면 지나간다. 둘째 블록이 "violates foreign key" 로 막히면 가족이 어긋난 기록이 이미 있다는 뜻 —
+-- 이걸로 찾아 확인한 뒤 지우고 다시 실행:  select e.* from entries e join children c on c.id=e.child_id where c.family_id<>e.family_id;
 do $$ begin
   alter table children add constraint children_id_family unique (id, family_id);
 exception when duplicate_table or duplicate_object then null; end $$;

@@ -1,7 +1,7 @@
 // 1.3.2 — 1.3.0 독립 평가에서 나온 결함. 각각 옛 코드에서 실패한다.
 // 저장 실패가 다른 아이 입력줄로 돌아오던 것 · 다른 폰이 지운 줄을 고치면 성공처럼 보이던 것 · 나눠 받는 중 삭제로 한 줄 빠지던 것 ·
 // 열어 둔 매주 용돈 시트의 아이가 지워지면 에러 · 요일을 바꾸면 한 주에 두 번 · 긴 금액 앞자리가 말없이 잘리던 것 · 같은 시각 줄의 순서.
-const {T, done, launch, localPage, fakePage, section, seed, KID, E}=require('./_harness');
+const {T, done, launch, localPage, fakePage, section, seed, idle, KID, E}=require('./_harness');
 const fs=require('fs'), path=require('path');
 
 const SAT='2026-10-10T12:00:00+09:00';               // 토요일
@@ -76,28 +76,34 @@ await section('매주 용돈 시트를 연 채 다른 폰이 그 아이를 지�
   await a.ctx.close();
 });
 
-// ── 5. 요일을 바꾸면 원래 받을 날에 가장 가까운 새 요일부터 (한 주에 두 번 없음) ──
-await section('요일을 바꾸면 원래 받을 날에 가장 가까운 새 요일부터 (한 주에 두 번 없음)', async()=>{
+// ── 5. 매주 용돈을 켜거나 요일을 바꾸면 첫 용돈 날을 부모가 고른다 — 미리 골라 둔 쪽은 한 주에 두 번이 없다 (1.3.2 규칙 → 1.3.3 고르기) ──
+await section('매주 용돈을 켜거나 요일을 바꾸면 첫 용돈 날을 고른다', async()=>{
   ({p}=await localPage(b, {clock:SAT}));
   await seed(p, [KID('k1','서윤','pink',0,10000,{weekly_on:true,weekly_dow:6,weekly_amount:3000,weekly_start:'2026-09-19'})], []);
   const auto=()=>p.evaluate(()=>window.__app.S.entries.filter(e=>e.auto_key).map(e=>e.entry_date).sort());
   T('토요일 용돈이 오늘까지 들어와 있다', (await auto()).slice(-1)[0]==='2026-10-10');
-  const start=(dow)=>p.evaluate((d)=>window.__app.startForNewDow('k1',d), dow);
-  T('토 → 일: 다음 주 일요일(10.18) — 전엔 내일(10.11) 또 들어갔다', await start(0)==='2026-10-18');
-  T('토 → 수: 10.14 (4일 뒤)', await start(3)==='2026-10-14');
-  T('토 → 금: 10.16 (6일 뒤)', await start(5)==='2026-10-16');
-  T('토 → 화: 10.20 (원래 날 10.17 의 3일 뒤 — 간격 10일, 4~10일 안)', await start(2)==='2026-10-20');
-  await p.click('.gear'); await p.waitForSelector('.card.week');
-  await p.click('.card.week .srow >> nth=0'); await p.waitForSelector('.sheet .dow');
-  await p.click('.sheet .dow button >> nth=0');                            // 일
+  const ch=(dow)=>p.evaluate((d)=>{ const r=window.__app.firstPayChoices(window.__app.S.children[0], d); return r.dates.join(' ')+' / '+r.dates[r.pick]; }, dow);
+  T('토 → 일: 후보 내일·다음 주, 미리 고른 건 다음 주(10.18) — 1.3.2 전엔 내일 또 들어갔다', await ch(0)==='2026-10-11 2026-10-18 / 2026-10-18');
+  T('토 → 월: 10.12·10.19, 미리 고른 건 10.19', await ch(1)==='2026-10-12 2026-10-19 / 2026-10-19');
+  T('토 → 수: 10.14·10.21, 미리 고른 건 10.14 (원래 날 10.17 에 더 가까운 쪽)', await ch(3)==='2026-10-14 2026-10-21 / 2026-10-14');
+  await p.click('.gear'); await idle(p);
+  await p.click('.card.week .srow >> nth=0'); await idle(p);
+  T('요일을 안 바꾸면 "첫 용돈" 칸이 없다 (화면 그대로)', !(await p.$('.sheet .dow.first')));
+  await p.click('.sheet .dow:not(.first) button >> nth=1'); await idle(p);            // 월
+  const opts=await p.$$eval('.sheet .dow.first button',es=>es.map(e=>e.textContent+(e.classList.contains('on')?'*':'')));
+  T('월로 바꾸면 "첫 용돈" 두 칸: 10.12 (월) · 10.19 (월)*', opts.join(' | ')==='10.12 (월) | 10.19 (월)*');
+  await p.click('.sheet .dow.first button >> nth=0'); await idle(p);                 // 이번 주 월요일을 바란다
   await p.click('.sheet button:has-text("저장")');
-  await p.waitForFunction(()=>window.__app.S.children[0].weekly_dow===0);
-  await p.waitForTimeout(300);
-  T('저장하면 weekly_start = 10.18', await p.evaluate(()=>window.__app.S.children[0].weekly_start)==='2026-10-18');
+  await p.waitForFunction(()=>window.__app.S.children[0].weekly_dow===1 && !window.__app.S.ui.loading); await idle(p);
+  T('고른 날부터: weekly_start = 10.12', await p.evaluate(()=>window.__app.S.children[0].weekly_start)==='2026-10-12');
   T('오늘 새로 생긴 자동 줄 없음', (await auto()).filter(d=>d>'2026-10-10').length===0);
-  // 켜기만 할 때는 그대로 오늘부터
+  // 처음 켤 때 — 오늘이 그 요일이면 "오늘"이 미리 골라져 있다(전과 같게 바로 들어간다)
   await seed(p, [KID('k1','서윤','pink',0,10000)], []);
-  T('받은 적이 없으면 오늘부터', await start(0)==='2026-10-10');
+  await p.click('.gear'); await idle(p);
+  await p.click('.card.week .srow >> nth=0'); await idle(p);
+  await p.click('.sheet .tabs button:has-text("매주")'); await idle(p);
+  const opts2=await p.$$eval('.sheet .dow.first button',es=>es.map(e=>e.textContent+(e.classList.contains('on')?'*':'')));
+  T('처음 켜면 토요일 기본: 오늘 10.10 (토)* · 10.17 (토)', opts2.join(' | ')==='오늘 10.10 (토)* | 10.17 (토)');
 });
 
 // ── 6. 긴 금액은 글자를 줄여 다 보인다 · 보통 금액은 그대로 ──

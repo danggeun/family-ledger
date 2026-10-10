@@ -63,6 +63,16 @@ T('sw.js 가 앱과 같은 supabase-js 를 캐시한다', sw.includes('"'+cdn+'"
 T('package.json version = APP_VERSION', require('../package.json').version===ver);
 const kidBg=await p.evaluate(()=>getComputedStyle(document.documentElement).getPropertyValue('--kid-bg').trim().toUpperCase());
 T('CSS --kid-bg = JS KID_BG (돈 그림 테두리·바랜 색 기준)', kidBg===(await p.evaluate(()=>window.__app.KID_BG)).toUpperCase());
+const paper=await p.evaluate(()=>({css:getComputedStyle(document.documentElement).getPropertyValue('--paper').trim().toUpperCase(), js:window.__app.THEME_PAPER.toUpperCase(),
+  meta:(document.querySelector('meta[name="theme-color"]').content||'').toUpperCase()}));
+const mani=JSON.parse(fs.readFileSync(path.resolve(__dirname,'../manifest.webmanifest'),'utf8'));
+T('종이색 한 값: CSS --paper = THEME_PAPER = theme-color = manifest', paper.css===paper.js && paper.meta===paper.js && String(mani.theme_color).toUpperCase()===paper.js && String(mani.background_color).toUpperCase()===paper.js);
+
+// 한 파일 안의 함수 이름이 겹치면 뒤의 것이 앞의 것을 조용히 덮는다(실제로 pad 가 겹쳐 날짜가 깨질 뻔했다)
+const html=fs.readFileSync(path.resolve(__dirname,'../index.html'),'utf8');
+const names=[...html.matchAll(/^function\s+([A-Za-z_$][\w$]*)\s*\(/gm)].map(m=>m[1]);   // 맨 바깥(들여쓰기 없는) 함수만 — 안쪽 save·end 는 제 함수 안에서만 산다
+const dup=names.filter((n,i)=>names.indexOf(n)!==i);
+T('index.html 맨 바깥 함수 이름이 겹치지 않는다'+(dup.length?' ('+dup.join(',')+')':''), dup.length===0);
 
 await done(b);
 })();

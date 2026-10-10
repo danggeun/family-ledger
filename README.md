@@ -74,27 +74,35 @@ npx playwright install chromium
 npm test
 ```
 
-테스트는 실제 화면(Chromium)을 띄워서 확인한다 — 크로미움을 내려받을 수 있는 네트워크가 필요하고, 전체는 10분 가까이 걸린다. 크로미움이 따로 있으면 `PW_CHROMIUM=/경로/chrome npm test`.
+테스트는 실제 화면(Chromium)을 띄워서 확인한다 — 크로미움을 내려받을 수 있는 네트워크가 필요하다. 크로미움이 따로 있으면 `PW_CHROMIUM=/경로/chrome npm test`.
+파일 여러 개를 동시에 돌린다(CPU 수, 최대 4). 2코어에서 전체 약 2분. `npm test -- tour` 는 이름에 tour 가 든 파일만, `npm test -- -j1` 은 하나씩.
+GitHub 에 올려도 테스트는 저절로 돌지 않는다 — 올리기 전에 여기서 돌린다.
+
 `config.js`가 실제 서버를 가리키고 있어도 테스트는 로컬 모드로 돈다(`tests/_env.js`).
-서버가 필요한 경로(끊김·복구·세션 유실·되돌리기)는 가짜 서버(`tests/_fake.js`)로 확인하고(`sync-robust`·`regress-1.2.3`·`regress-1.2.5`), 서비스워커는 테스트 안에서 http 서버를 띄워 확인한다(`sw`).
-`regress-1.2.x` 는 그 버전의 점검에서 나온 결함을 고정한 테스트다 — 케이스 이름의 `H1/M2/A3` 는 그때 점검 목록의 번호일 뿐이다.
-`snapshot` 은 화면 열한 장을 고정 날짜·고정 시드로 찍어 `tests/snapshots/` 의 기준과 **픽셀 단위로** 비교한다. 화면을 일부러 바꾼 버전에서만 `SNAP=update npm test` 로 기준을 다시 찍는다.
-`unit` 은 계산 함수(잔액·용도→부호·돈 그림 분해·날짜·CSV)를 화면 없이 `window.__app` 으로 바로 부른다.
-새 테스트는 `tests/_harness.js`(브라우저 띄우기·`T()`/`done()`·로컬 시드·가짜 서버 페이지 `fakePage`·시계 고정 `clock`·덩어리 `section`·스와이프·콘솔 에러 수집)를 쓰고, 고정 `waitForTimeout` 대신 조건을 기다린다(`waitForSelector`/`waitForFunction`). 옛 파일들은 각자 같은 준비 코드와 고정 대기를 갖고 있다 — 통과가 검증된 채로 두었고, 손볼 일이 생기면 그때 하네스로 옮긴다.
+서버가 필요한 경로(끊김·복구·세션 유실·되돌리기·나눠 받기)는 가짜 서버(`tests/_fake.js` — PostgREST 처럼 id 순·나눠 주기, 모드 live/dead/noinit/down)로 확인하고, 서비스워커는 테스트 안에서 http 서버를 띄워 확인한다(`sw`).
+`regress-x.y.z` 는 그 버전의 점검에서 나온 결함을 고정한 테스트다(케이스 이름의 `H1/M2/A3` 는 그때 점검 목록의 번호). 새로 넣는 테스트는 고치기 전 코드에서 실패하는 것을 확인하고 넣는다.
+`snapshot` 은 화면 열한 장을 고정 날짜·고정 시드로 찍어 `tests/snapshots/` 의 기준과 **픽셀 단위로** 비교한다. 화면을 일부러 바꾼 버전에서만 `SNAP=update npm test -- snapshot` 으로 기준을 다시 찍는다(버전 글자가 06·11 에 찍혀 버전을 올릴 때마다 그 둘은 바뀐다).
+`unit` 은 계산 함수(잔액·용도→부호·돈 그림 분해·날짜·CSV·첫 용돈 후보)를 화면 없이 `window.__app` 으로 부르고, 두 곳에 적어 손으로 맞추는 값(버전·CDN·종이색·아이 화면 색)과 맨 바깥 함수 이름 겹침을 확인한다.
+
+모든 테스트는 `tests/_harness.js` 를 쓴다. **고정 시간으로 기다리지 않는다** — 느린 기계·동시 실행에서 깨지고 빠른 기계에선 시간을 버린다.
+`ready`(부팅 끝) · `settle`(애니메이션 끝) · `idle`(닫기·복사본·안내 교정까지 끝) · `back` · `popped/reloaded/toasted(p, act)` · `until`(던지지 않는 조건 대기) 로 결과를 기다린다.
+손가락 끌기(`touch`/`swiper`)는 이벤트 시각을 직접 찍어서, 기계가 바빠도 "빠르게 튕기기" 속도가 정확하다.
+진짜 시간이 조건인 곳(길게 누르기 0.5초, 서비스워커의 4초 경주)만 예외로, 그 자리에 `// 진짜 시간:` 이라고 적는다.
 
 ### 코드 지도 (`index.html`)
 - **상태는 `S` 하나.** 선언에 모든 칸이 주석과 함께 적혀 있다. 화면을 정하는 값은 `S` 바로 아래, 다시 그리기와 상관없는 런타임 값(전환 방향·타이머·뒤로 가기 스택 등)은 `S.ui`. 입력줄은 `S.draft`(`newDraft()`). `S.screen`(loading·fail·onboard·home·settings) + 시트 플래그(`edit·editOpen·editKid·editWeek·editGate·pickDate`) + 떠 있는 화면(`kidView·entryView·tour`) 의 조합이 곧 화면이다. `render()` 는 매번 root 를 비우고 전부 다시 그린다.
 - **다시 그리면 안 되는 순간**이 있다 — 적는 중(키보드)과 전환 애니메이션 중. `typing()` 이 참이면 `reload` 는 `S.renderLater` 로 미루고 입력칸을 떠날 때(`focusout`) 그린다. 부호 버튼·칩처럼 입력줄 안에서 바뀌는 건 `render()` 대신 그 자리만 고친다(`setSign`, `redrawChips`). 새 입력칸을 더하면 이 규칙을 같이 봐야 키보드가 안 내려간다.
 - **저장은 전부 낙관 반영 + 실패하면 직전 값만 되돌리기**(`tryStore(req, undo)`). 새 기록(`submitNew`)만 따로 — 실패하면 치던 것을 입력줄에 돌려준다.
 - **닫기는 전부 `history`** — 열 때 `navOpen(key)` 가 pushState, 닫을 때 `navBack()` 이 `history.back()`, 실제 정리는 `popstate` 한 곳(`navCloseTop`). 안드로이드 뒤로 가기와 같은 길이라 둘이 어긋나지 않는다.
+- **손짓**: 아이 바꾸는 가로 밀기는 `hSwipe`(홈·아이 화면 공용) + 문턱 `SWIPE`/`swipeFar`. 끌어서 닫기(시트·설정)는 `DRAG_CLOSE`, 길게 누르기는 `LONG_PRESS` — 문턱 값은 각 상수 한 곳에.
 - **전환**: 아이를 바꾸면 옛 화면의 복사본(`ghostOut`)이 밀려 나가고 새 화면이 들어온다. `S.ui.homeSlide/kidSlide` 가 방향을 `render` 에 넘긴다.
-- **처음 안내(`tour*`)**: `S.tour.step` 상태기계. 설정 화면에서는 `.card.color / .card.week / .card.export` 와 `.gear / .nav .back` 이 **앵커**다 — 클래스나 순서를 바꾸면 안내가 조용히 틀어진다(tour.test 가 잡는다).
-- **저장소**: `LocalStore`(이 기기 전용) 와 `SupaStore` 가 같은 Promise 인터페이스. `ensureFamily()` 가 부팅·`reload`·온보딩의 한 길이고, 세션이 날아가면 캐시의 가족 코드로 조용히 다시 참여한다.
+- **처음 안내**: 단계 표 `TOUR` 하나에 단계마다 성격(해 보기/보여주기)·곁화면·넘어가는 조건·밝힐 곳이 있다. `tourTick` 이 화면 상태를 보고 넘기고, `tourLayout` 이 막·구멍·카드를 놓는다. 설정 화면에서는 `.card.color / .card.week / .card.export` 와 `.gear / .nav .back` 이 **앵커**다 — 클래스나 순서를 바꾸면 안내가 조용히 틀어진다(tour.test 가 잡는다).
+- **저장소**: `LocalStore`(이 기기 전용) 와 `SupaStore` 가 같은 Promise 인터페이스 — 받은 객체는 건드리지 않고 돌려주는 줄은 복사본이다. 서버에서 기록은 "이 id 다음부터" 1000줄씩 나눠 받는다. `ensureFamily()` 가 부팅·`reload`·온보딩의 한 길이고, 세션이 날아가면 캐시의 가족 코드로 조용히 다시 참여한다.
 - **시트·입력칸은 헬퍼로**: `sheet(title, build)` + `sheetButtons(f, [[글, 클래스, 동작]])` + `field/labeledBox`, 금액칸은 `moneyInput`(숫자 키패드·천 단위 쉼표·엔터 키), 글자칸은 `textInput`. 키보드 동작을 고칠 땐 이 두 곳만 보면 된다.
 - **실패 처리 세 갈래**: 되돌릴 게 있으면 `tryStore`, 없으면 `.catch(failToast("…"))`, 일부러 삼키는 건 `.catch(ignore)`(공유 창 닫기 등). 서버 응답은 `unwrap(r)` 이 `{data, error}` 를 풀어 에러면 던진다. 문구는 `errText`.
 - **색은 CSS 토큰**(`:root` 의 `--ink … --kid-bg`). JS 에서 그리는 그림(돈·돼지)은 `KID_BG`·`COLORS` 를 쓴다.
-- 파일 맨 위 `<script>` 시작에 **목차**가 있다.
-- **자동 용돈**(`ensureAllowances`): 마지막 `auto_key` 날짜 다음 날부터 오늘까지, 400일 바닥. `unique(child_id, auto_key)` 라 두 폰이 같이 열어도 안 겹친다. 건너뛰기는 삭제가 아니라 `skipped` 숨김.
+- 파일 맨 위 `<script>` 시작에 **목차**가 있다. 여러 곳에 쓰는 값은 상수 하나로: `MAX_KIDS`·`ORDINALS`·`LIST_PAGE`·`GONE_MSG`·`THEME_PAPER`.
+- **자동 용돈**(`ensureAllowances`): 마지막 `auto_key` 날짜(`lastAutoDay`) 다음 날과 `weekly_start` 중 늦은 날부터 오늘까지, 400일 바닥. 켜거나 요일을 바꿀 때 첫 날은 부모가 고른다(`firstPayChoices` — 가까운 그 요일·한 주 뒤). `unique(child_id, auto_key)` 라 두 폰이 같이 열어도 안 겹친다. 건너뛰기는 삭제가 아니라 `skipped` 숨김.
 
 ### 파일
 - `index.html` — 앱 전체

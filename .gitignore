@@ -1,2 +1,5 @@
 node_modules/
 .DS_Store
+
+# 스냅샷이 기준과 다를 때 남는 비교용 그림
+tests/snapshots/*.actual.png

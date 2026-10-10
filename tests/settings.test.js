@@ -1,21 +1,17 @@
-const {chromium}=require('playwright');
-const path=require('path');
+// 처음 금액 줄 · 설정 화면 정리 · 색 규칙 · 아이 지우기 · 아이 추가
+const {T, done, launch, localPage, ready, settle, toastLike, idle}=require('./_harness');
 (async()=>{
-const b=await chromium.launch(process.env.PW_CHROMIUM?{executablePath:process.env.PW_CHROMIUM}:{});
-const ctx=await b.newContext({viewport:{width:390,height:844},deviceScaleFactor:2,isMobile:true,hasTouch:true});
-await ctx.addInitScript(require('./_env').LOCAL);
-const p=await ctx.newPage(); require('./_env').guard(p);
-const errs=[];p.on('pageerror',e=>errs.push(e.message));
-p.on('console',m=>{if(m.type()==='error'&&!/ERR_|Failed to load resource/.test(m.text()))errs.push('console: '+m.text());});
-await p.goto('file://'+path.resolve(__dirname,'../index.html'));await p.waitForTimeout(700);
-let pass=0,fail=0;
-const T=(l,c)=>{c?pass++:fail++;console.log((c?'OK  ':'FAIL')+' '+l);};
+const b=await launch();
+const {p}=await localPage(b);                 // 빈 저장소 = 시작 화면
+// 닫기·뒤로는 history.back() → popstate 라 한 박자 늦고, 아이를 바꾸면 옛 화면 복사본(.ghost)이 타이머로 빠진다 — 둘 다 끝날 때까지
+const calm=()=>idle(p);
+const click=async(sel)=>{ await p.click(sel); await calm(); };
 const bal=()=>p.$eval('.bal b',e=>e.textContent);
 
-await p.click('text=새로 시작하기');await p.waitForTimeout(250);
+await click('text=새로 시작하기');
 const opens=await p.$$('.pair input.r');
 await opens[0].fill('10000'); await opens[1].fill('5000');
-await p.click('text=시작');await p.waitForTimeout(600);
+await p.click('text=시작'); await p.waitForFunction(()=>!!document.querySelector('.bal')); await settle(p);
 
 // 1) 처음 금액 줄
 T('빈 통장에도 처음 금액 줄', (await p.$('.row.open'))!==null);
@@ -24,24 +20,24 @@ T('처음 금액 = 시작 잔액', /처음 금액/.test(await p.$eval('.row.open
 
 // 2) 기록을 넣어도 맨 아래에 남는다
 await p.fill('input.memo','젤리'); await p.fill('input.amt','800');
-await p.click('.entry .ok'); await p.waitForTimeout(400);
+await click('.entry .ok');
 const rows=await p.$$eval('.row',es=>es.map(e=>e.className));
 T('처음 금액은 맨 마지막 줄', rows[rows.length-1].includes('open'));
 T('잔액 9,200', (await bal())==='9,200');
 
 // 3) 눌러서 고치기
-await p.click('.row.open'); await p.waitForTimeout(300);
+await click('.row.open');
 T('처음 금액 시트', (await p.$('.sheet h3'))!==null && (await p.$eval('.sheet h3',e=>e.textContent))==='처음 금액');
 T('삭제 버튼 없음', (await p.$('.sheet .btn.danger'))===null);
 await p.fill('.sheet input.r','12000');
-await p.click('.sheet button:has-text("저장")'); await p.waitForTimeout(400);
+await click('.sheet button:has-text("저장")');
 T('고친 뒤 잔액 11,200', (await bal())==='11,200');
 T('줄에도 반영', /12,000/.test(await p.$eval('.row.open',e=>e.textContent)));
-await p.waitForTimeout(150); await p.reload(); await p.waitForTimeout(800);
+await p.reload(); await ready(p);
 T('새로고침 후 유지', (await bal())==='11,200');
 
 // 4) 설정 정리 확인
-await p.click('.gear'); await p.waitForTimeout(400);
+await click('.gear');
 const txt=await p.$eval('.screen.page',e=>e.textContent);
 const heads=await p.$$eval('.sec-h',es=>es.map(e=>e.textContent));
 T('기본 4섹션이 이 순서로', JSON.stringify(heads.filter(h=>h!=='초대'))===JSON.stringify(['아이','매주 용돈','기록','동기화','앱']));
@@ -65,30 +61,30 @@ T('아이 추가는 버전과 같은 톤', await p.$eval('.foot',e=>{
   return a.fontSize===v.fontSize && a.color===v.color;}));
 T('아이 섹션에는 추가 버튼이 없다', !(await p.$('.card + .link.sm')));
 T('로컬은 연결 안 됨 표시', /연결 안 됨/.test(txt));
-await p.click('.nav .back'); await p.waitForTimeout(400);
+await click('.nav .back');
 // 4-b) 색 규칙 — 잔액은 검정, 아이 색은 탭에만
 T('잔액은 검정', (await p.$eval('.bal b',e=>getComputedStyle(e).color))==='rgb(17, 19, 23)');
 const ul=await p.$eval('.bar .k.on',e=>getComputedStyle(e,'::after').backgroundColor);
 T('선택 탭 밑줄이 아이 색', ul==='rgb(30, 136, 229)');
 await p.click('.entry .sign'); await p.fill('input.memo','할머니'); await p.fill('input.amt','5000');
-await p.click('.entry .ok'); await p.waitForTimeout(400);
+await click('.entry .ok');
 T('받은 돈은 초록 유지', (await p.$eval('.row .a.in',e=>getComputedStyle(e).color))==='rgb(27, 122, 90)');
 
 // 5) 아이 지우기
-await p.click('.gear'); await p.waitForTimeout(350);
+await click('.gear');
 T('아이 2명이면 ⋯ 버튼 2개', (await p.$$('.kmore')).length===2);
-await p.click('.kmore >> nth=1'); await p.waitForTimeout(300);
+await click('.kmore >> nth=1');
 T('아이 시트 = 이름', (await p.$eval('.sheet h3',e=>e.textContent))==='둘째');
 T('기록 없음 안내', /기록은 없어요/.test(await p.$eval('.sheet .note',e=>e.textContent)));
-await p.click('.sheet button:has-text("지우기")'); await p.waitForTimeout(150);
+await click('.sheet button:has-text("지우기")');
 T('2단계 확인', (await p.$('.sheet button:has-text("정말 지우기")'))!==null);
-await p.click('.sheet button:has-text("정말 지우기")'); await p.waitForTimeout(400);
+await click('.sheet button:has-text("정말 지우기")');
 T('아이 1명 남음', (await p.$$('.srow .nm')).length===1);
 T('1명이면 ⋯ 사라짐', (await p.$$('.kmore')).length===0);
-await p.waitForTimeout(150); await p.reload(); await p.waitForTimeout(800);
-await p.click('.gear'); await p.waitForTimeout(350);
+await p.reload(); await ready(p);
+await click('.gear');
 T('새로고침해도 안 돌아옴', (await p.$$('.srow .nm')).length===1);
-await p.click('.nav .back'); await p.waitForTimeout(400);
+await click('.nav .back');
 T('홈 탭도 1개', (await p.$$('.bar .k')).length===1);
 
 // 6) 처음 금액 줄 날짜
@@ -96,13 +92,12 @@ T('처음 금액 줄에 날짜', (await p.$eval('.row.open .d',e=>e.textContent)
 T('날짜가 오늘', (await p.$eval('.row.open .d',e=>e.textContent))==='오늘');
 
 // 아이 추가 — 늘어난 줄이 화면 밖일 수 있어 토스트로 알린다 (아이 수를 바꾸므로 맨 끝에서)
-await p.click('.gear'); await p.waitForTimeout(350);
+await click('.gear');
 const before=(await p.$$('.srow .nm')).length;
-await p.click('.foot .addk'); await p.waitForTimeout(700);
+await click('.foot .addk');
+await toastLike(p, /추가했어요/).catch(()=>{});          // 안 뜨면 아래 T 가 실패로 센다
 T('아이가 한 명 늘어난다', (await p.$$('.srow .nm')).length===before+1);
 T('추가하면 알려준다', /추가했어요/.test(await p.textContent('#toast')));
 
-console.log('\n'+pass+' passed, '+fail+' failed');
-console.log('errors:', errs.length?errs.join(' | '):'none');
-await b.close(); process.exit(fail?1:0);
+await done(b);
 })();

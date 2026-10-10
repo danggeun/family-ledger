@@ -3,7 +3,8 @@ const FAKE=(opt)=>{
   try{ Object.defineProperty(window,'APP_CONFIG',{value:{SUPABASE_URL:'https://x.supabase.co/rest/v1/',SUPABASE_ANON_KEY:'k'},writable:false,configurable:false}); }catch(_){}
   try{ localStorage.setItem('yd_tour','done'); }catch(e){}
   const F=window.__fake={
-    mode: opt.mode||'live',                                   // live | dead(데이터 전부 실패) | noinit(가족 확인만 실패)
+    // live | dead(가족 확인은 되고 데이터·참여만 실패 = 붙어 있다가 끊긴 것) | noinit(가족 확인만 실패) | down(전부 실패 = 처음부터 서버가 안 된다)
+    mode: opt.mode||'live',
     session: opt.session===undefined ? {user:{id:'u1'}} : opt.session,
     members: opt.members || [{family_id:'f1',families:{code:'K7PM-3QRA'}}],
     kids: opt.kids || [{id:'k1',family_id:'f1',name:'서윤',color:'pink',sort:0,opening_balance:10000,weekly_on:false,weekly_amount:0,created_at:'2026-07-01T00:00:00Z'},
@@ -11,8 +12,11 @@ const FAKE=(opt)=>{
     ents: opt.ents || [{id:'e1',family_id:'f1',child_id:'k1',entry_date:'2026-09-14',memo:'젤리',amount:-800,auto_key:null,skipped:false,created_by:'u1',updated_by:'u1',created_at:'2026-09-14T09:00:00Z'},
                        {id:'e2',family_id:'f1',child_id:'k1',entry_date:'2026-09-13',memo:'용돈',amount:3000,auto_key:'w:2026-09-13',skipped:false,created_by:'u1',updated_by:'u1',created_at:'2026-09-13T09:00:00Z'}],
     calls:{join:0,create:0,subscribe:0,anon:0,insert:0,update:0,delete:0,upsert:0}, n:100,   // 새 id 는 e101… — 시드(e1·e2)와 겹치지 않게
-    createFail:false, childFail:false, insertDelay:0, insertFail:false, joinError:null, createClientArgs:null, signedOut:false, authCb:null
+    createFail:false, childFail:false, insertDelay:0, insertFail:false, joinError:null, createClientArgs:null, signedOut:false, authCb:null,
+    // insertHold=true 면 기록 저장(insert)이 release() 를 부를 때까지 "저장 중"에 머문다 — 시간(insertDelay) 대신 테스트가 끝을 정한다
+    insertHold:false, held:[], release(){ F.insertHold=false; const h=F.held; F.held=[]; h.forEach(r=>r()); }
   };
+  F.calls.childDone=0;                                        // 아이 고치기(update) 응답이 나간 횟수 — childDelay 가 끝난 뒤를 기다릴 때
   const dead=()=>Promise.reject(new Error('Failed to fetch'));
   const ok=(data)=>Promise.resolve({data,error:null});
   const wait=(ms)=>new Promise(r=>setTimeout(r,ms));
@@ -24,8 +28,8 @@ const FAKE=(opt)=>{
       delete(){st.op='delete';return b;}, upsert(x){st.op='upsert';st.payload=x;return b;},
       then(f,r){return finish().then(f,r);}};
     function finish(){
-      if(table==='family_members') return F.mode==='noinit' ? dead() : ok(F.members);
-      if(F.mode==='dead') return dead();
+      if(table==='family_members') return (F.mode==='noinit' || F.mode==='down') ? dead() : ok(F.members);
+      if(F.mode==='dead' || F.mode==='down') return dead();
       if(F.signedOut) return Promise.resolve({data:null,error:{message:'permission denied for function is_member'}});   // 세션이 지워진 뒤의 요청 = anon 역할
       // 진짜 PostgREST 처럼: familyId 가 없는 채로 .eq("id", null) 이 나가면 uuid 오류 (옛 코드의 H1 이 바로 이것)
       const key = table==='families' ? 'id' : 'family_id';
@@ -44,7 +48,7 @@ const FAKE=(opt)=>{
       }
       if(table==='entries'){
         if(st.op==='insert'){ F.calls.insert++; const e=Object.assign({id:'e'+(++F.n),created_at:new Date().toISOString(),skipped:false},st.payload);
-          return wait(F.insertDelay).then(()=>{
+          return (F.insertHold ? new Promise(r=>F.held.push(r)) : wait(F.insertDelay)).then(()=>{
             if(F.insertFail) return {data:null,error:{message:'Failed to fetch'}};
             F.ents.push(e); return {data:e,error:null}; }); }
         if(st.op==='update'){ F.calls.update++; const e=F.ents.find(x=>x.id===st.filters.id); if(e) Object.assign(e,st.payload); return ok(e?[{id:e.id}]:[]); }   // 고친 줄(.select) — 없으면 빈 배열
@@ -54,7 +58,7 @@ const FAKE=(opt)=>{
       if(table==='children'){
         if(st.op==='insert'){ F.calls.upsert++; if(F.childFail) return Promise.resolve({data:null,error:{message:'boom'}});
           const c=Object.assign({id:'k'+(++F.n),created_at:new Date().toISOString()},st.payload); F.kids.push(c); return ok(c); }
-        if(st.op==='update'){ F.calls.upsert++; const c=F.kids.find(x=>x.id===st.filters.id); return wait(F.childDelay||0).then(()=>{ if(c) Object.assign(c,st.payload); return {data:c,error:null}; }); }
+        if(st.op==='update'){ F.calls.upsert++; const c=F.kids.find(x=>x.id===st.filters.id); return wait(F.childDelay||0).then(()=>{ if(c) Object.assign(c,st.payload); F.calls.childDone++; return {data:c,error:null}; }); }
         if(st.op==='delete'){ F.calls.delete++; F.kids=F.kids.filter(x=>x.id!==st.filters.id); return ok(null); }
       }
       return ok(null);
@@ -67,7 +71,7 @@ const FAKE=(opt)=>{
           onAuthStateChange:(cb)=>{ F.authCb=cb; return {data:{subscription:{unsubscribe(){}}}}; }},
     from:q,
     rpc:(name,args)=>{
-      if(name==='join_family'){ F.calls.join++; if(F.mode==='dead') return dead(); if(F.joinError) return Promise.resolve({data:null,error:{message:F.joinError}}); F.members=[{family_id:'f1',families:{code:args.p_code}}]; return ok('f1'); }
+      if(name==='join_family'){ F.calls.join++; if(F.mode==='dead' || F.mode==='down') return dead(); if(F.joinError) return Promise.resolve({data:null,error:{message:F.joinError}}); F.members=[{family_id:'f1',families:{code:args.p_code}}]; return ok('f1'); }
       if(name==='create_family'){ F.calls.create++; if(F.createFail) return Promise.resolve({data:null,error:{message:'gate'}}); F.members=[{family_id:'f1',families:{code:args.p_code}}]; return ok('f1'); }
       if(name==='gate_state') return ok({is_owner:true,open_until:null});
       return ok(null); },
