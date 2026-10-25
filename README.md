@@ -109,6 +109,7 @@ GitHub 의 main 에 올리면 Actions 가 전체 테스트를 돌린다(`.github
 - `config.example.js` → `config.js` — Supabase 연결 정보
 - `schema.sql` — 테이블 · RLS · RPC · Realtime
 - `manifest.webmanifest`, `sw.js` — PWA
+- `vendor/` — supabase-js(npm 판 그대로, 바깥 CDN 없이). 버전 올리는 법은 `vendor/README.md`
 - `logo/logo-master.png` — 로고 원본. 아이콘 PNG는 전부 여기서 나온다
 - `tests/`
 

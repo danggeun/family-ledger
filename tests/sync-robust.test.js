@@ -2,7 +2,7 @@
 // 서버는 통째로 흉내 낸다(window.__fake). 실행 중에 mode 를 바꿔 "끊겼다 → 돌아왔다"를 만든다.
 const {T, done, errs, launch, fakePage, section, settle, APP, VP, allowConsole, popped, ready, reloaded, toasted, watch}=require('./_harness');
 const {FAKE,CACHE}=require('./_fake');
-const CDN='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js';
+const CDN='https://lib.test/supabase-js.js';   // 라이브러리 주소를 이걸로 돌려(APP_CONFIG.SUPABASE_JS) 막았다·풀었다 한다
 
 
 let b;
@@ -10,7 +10,7 @@ async function open(opt, seedCache, blockCdn){
   if(!blockCdn){ const a=await fakePage(b, opt||{}, {cache:seedCache, wait:false}); await ready(a.p); return a; }
   const ctx=await b.newContext(VP);
   await ctx.route(CDN, r=>r.abort());
-  await ctx.addInitScript(()=>{ Object.defineProperty(window,'APP_CONFIG',{value:{SUPABASE_URL:'https://x.supabase.co',SUPABASE_ANON_KEY:'k'},writable:false,configurable:false}); });
+  await ctx.addInitScript(()=>{ Object.defineProperty(window,'APP_CONFIG',{value:{SUPABASE_URL:'https://x.supabase.co',SUPABASE_ANON_KEY:'k',SUPABASE_JS:'https://lib.test/supabase-js.js'},writable:false,configurable:false}); });
   const p=await ctx.newPage(); watch(p);
   await p.goto(APP); if(seedCache){ await p.evaluate(CACHE); await p.reload(); }
   await ready(p);

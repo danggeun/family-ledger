@@ -57,9 +57,11 @@ T('genCode: ABCD-1234 꼴, I·O·0·1 없음', /^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9
 // 두 곳에 적혀 있어 손으로 맞추는 값 — 어긋나면 여기서 잡는다
 const fs=require('fs'), path=require('path');
 const sw=fs.readFileSync(path.resolve(__dirname,'../sw.js'),'utf8');
-const ver=await p.evaluate(()=>window.__app.APP_VERSION), cdn=await p.evaluate(()=>window.__app.SUPABASE_CDN);
+const ver=await p.evaluate(()=>window.__app.APP_VERSION), lib=await p.evaluate(()=>window.__app.SUPABASE_JS);
 T('sw.js CACHE = "yd-"+APP_VERSION', sw.includes('var CACHE = "yd-'+ver+'";'));
-T('sw.js 가 앱과 같은 supabase-js 를 캐시한다', sw.includes('"'+cdn+'"'));
+T('sw.js 가 앱과 같은 supabase-js 를 캐시한다', sw.includes('"./'+lib+'"'));
+const crypto=require('crypto'), libFile=path.resolve(__dirname,'..',lib);
+T('저장소의 supabase-js 는 npm 판 그대로(sha384 — vendor/README.md)', fs.existsSync(libFile) && crypto.createHash('sha384').update(fs.readFileSync(libFile)).digest('base64')==='0w2KAL2YHP6wKOkUDzkCDGgVvfmHnj02DHeQ6XcHOgTfFsGyonKOpShMH1x6nk9o');
 T('package.json version = APP_VERSION', require('../package.json').version===ver);
 const kidBg=await p.evaluate(()=>getComputedStyle(document.documentElement).getPropertyValue('--kid-bg').trim().toUpperCase());
 T('CSS --kid-bg = JS KID_BG (돈 그림 테두리·바랜 색 기준)', kidBg===(await p.evaluate(()=>window.__app.KID_BG)).toUpperCase());

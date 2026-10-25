@@ -448,7 +448,7 @@ button.srow{width:100%; text-align:left}
           ③ 저장은 낙관 반영 + 실패하면 직전 값만 되돌린다(tryStore). 자세한 지도는 README "코드 지도".
    ───────────────────────────────────────────────────────────────────────────── */
 /* ══════════════════════ 유틸 ══════════════════════ */
-var APP_VERSION = "1.3.5";   // 올릴 때 sw.js 의 CACHE 도 같이
+var APP_VERSION = "1.3.6";   // 올릴 때 sw.js 의 CACHE 도 같이
 
 /* hex = 탭 밑줄·점(면), name = 이름 글자.
    아이들이 "내 색"을 바로 알아보는 게 이 색의 유일한 목적이라 채도를 살린다.
@@ -723,14 +723,15 @@ SupaStore.prototype = {
 
 /* ══════════════════════ 상태 ══════════════════════ */
 var CFG = window.APP_CONFIG || {};
-/* supabase-js 는 설정이 있을 때만, 그때 받는다. 못 받았다고 조용히 로컬 모드로 가면 —
-   지인 새 폰에서 CDN 이 막힌 첫 접속이면 "가족 코드로 참여"가 안 보이고 로컬 가족이 생겨 나중에 기록이 따로 논다.
-   그래서 못 받으면 서버 실패와 같은 길(캐시 있으면 홈+배너, 없으면 "연결이 안 돼요"). 테스트가 미리 심은 window.supabase 는 그대로 쓴다. */
-var SUPABASE_CDN="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js";
+/* supabase-js 는 설정이 있을 때만, 그때 받는다. 저장소에 함께 둔 파일(vendor/ — npm 판 그대로)이라 바깥 CDN 을 믿을 필요가 없다.
+   못 받았다고 조용히 로컬 모드로 가면 "가족 코드로 참여"가 안 보이고 로컬 가족이 생겨 나중에 기록이 따로 논다 —
+   그래서 못 받으면 서버 실패와 같은 길(캐시 있으면 홈+배너, 없으면 "연결이 안 돼요"). 테스트가 미리 심은 window.supabase 는 그대로 쓴다.
+   CFG.SUPABASE_JS 로 주소를 바꿀 수 있다(테스트가 "못 받음"을 흉내 낼 때). */
+var SUPABASE_JS = CFG.SUPABASE_JS || "vendor/supabase-js-2.45.4.js";
 function loadSupabase(){
   if(window.supabase) return Promise.resolve();
   return new Promise(function(ok, no){
-    var sc=document.createElement("script"); sc.src=SUPABASE_CDN; sc.crossOrigin="anonymous";   // CORS 로 받아야 404 가 opaque 로 캐시를 덮지 않는다
+    var sc=document.createElement("script"); sc.src=SUPABASE_JS; sc.crossOrigin="anonymous";   // 다른 주소일 때도 CORS 로 — 404 가 opaque 로 캐시를 덮지 않게
     sc.onload=function(){ window.supabase ? ok() : no(new Error("supabase-js 를 받지 못했어요")); };
     sc.onerror=function(){ no(new Error("supabase-js 를 받지 못했어요")); };
     document.head.appendChild(sc);
@@ -1195,6 +1196,7 @@ var TOUR={
   color: {where:"settings", card:true},
   week:  {do:true, where:"settings", card:true, row:true, view:{open:function(){ return S.editWeek; }, sub:"sheet", key:"weekView"}},
   export:{where:"settings", card:true},
+  sync:  {where:"settings", card:true, only:function(){ return !!store && store.kind==="supabase"; }},   // 이 기기 전용 모드엔 가족 코드가 없다
   back:  {do:true, where:"settings", arrive:"home", next:"done",
            spot:function(){
              if(window.scrollY){ scrollTop0(); tourSettle(); }       // 내보내기까지 내려와 있었으면 ‹ 가 화면 밖이다
@@ -1203,7 +1205,7 @@ var TOUR={
   done:  {spot:function(){ return entrySpot("done", false); },        // 나오면 마지막 한 장 — 이제 진짜로 적어 보라고
            ok:function(){ tourEnd(); render(); }}                    // 그냥 홈 — 키보드까지 띄우는 건 떠미는 느낌이었다
 };
-var TOUR_ORDER=["sign","bal","swipe","press","edit","gear","color","week","export","back"];   // done 은 점 밖의 마지막 한 장
+var TOUR_ORDER=["sign","bal","swipe","press","edit","gear","color","week","export","sync","back"];   // done 은 점 밖의 마지막 한 장
 function tourOrder(){ return TOUR_ORDER.filter(function(k){ return !TOUR[k].only || TOUR[k].only(); }); }
 // 다음 단계 — 따로 적지 않았으면 순서의 다음(밀기 단계는 아이가 하나면 순서에 없어 저절로 건너뛴다)
 function tourNext(step){
@@ -1241,6 +1243,7 @@ function tourText(step){
            week:[first+" 줄을 눌러 보세요","매주 용돈을 정하는 곳이에요"],
            weekView:["매주 용돈","요일과 금액을 정해 두면 그날 기록이 저절로 생겨요. 안 쓰면 꺼 두면 돼요"],
            export:["기록 내보내기","전체 기록을 엑셀로 열 수 있는 파일로 저장해요"],
+           sync:["가족 코드","다른 폰에서 이 코드로 참여하면 같은 기록을 같이 보고 적어요. 누르면 복사돼요"],
            back:["\u2039 를 눌러 나가면 끝이에요","이 안내는 설정의 \u2018처음 안내 다시 보기\u2019에서 언제든 다시 볼 수 있어요"],
            done:["다 됐어요","이제 오늘 쓴 돈부터 적어 보세요"] }[step];
 }
@@ -2289,7 +2292,7 @@ function renderSettings(){
   if(store.kind==="supabase"){
     // 다른 줄과 같은 모양(무엇 · 값 · ›). 연결 상태 점은 안 둔다 — 뜻이 안 닿고, 끊기면 위에 띠가 뜨니 중복. 설명 줄도 안 둔다.
     // 누르면 복사되고 값 자리가 잠깐 "복사했어요"로. 토스트는 안 띄운다 — 삼성은 시스템이 자기 알림을 띄워 둘이 겹쳤다
-    var cCard=el("div","card"), cr=el("button","srow tap code-row");
+    var cCard=el("div","card sync"), cr=el("button","srow tap code-row");   // .card.sync = 처음 안내의 앵커
     cr.appendChild(el("span","grow","가족 코드"));
     var cv=el("span","val code",S.family?S.family.code:"\u2014"); cr.appendChild(cv); cr.appendChild(el("span","chev","\u203A"));
     cr.onclick=function(){
@@ -2542,7 +2545,7 @@ document.addEventListener("visibilitychange", function(){ if(document.visibility
 if("serviceWorker" in navigator){ window.addEventListener("load", function(){ navigator.serviceWorker.register("sw.js").catch(ignore); }); }
 
 // 테스트용 창구 — 계산 함수들을 화면 없이 바로 부를 수 있게(tests/unit.test.js). 앱은 이걸 쓰지 않는다
-window.__app = {S:S, APP_VERSION:APP_VERSION, KID_BG:KID_BG, THEME_PAPER:THEME_PAPER, SUPABASE_CDN:SUPABASE_CDN,
+window.__app = {S:S, APP_VERSION:APP_VERSION, KID_BG:KID_BG, THEME_PAPER:THEME_PAPER, SUPABASE_JS:SUPABASE_JS,
   fmt:fmt, fmtSigned:fmtSigned, digits:digits, addDays:addDays, dowOf:dowOf, localDay:localDay, plainDate:plainDate, shortDate:shortDate,
   splitWon:splitWon, memoBase:memoBase, signForMemo:signForMemo, recentMemos:recentMemos, withTotals:withTotals, balanceOf:balanceOf,
   csvText:csvText, normalizeUrl:normalizeUrl, genCode:genCode, reload:reload,

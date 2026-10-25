@@ -3,14 +3,14 @@
 const path=require('path'), fs=require('fs');
 const {T, done, errs, launch, localPage, fakePage, section, seed, settle, resume, APP, VP, today:todayOf, allowConsole, ready, reloaded, watch}=require('./_harness');
 const {CACHE}=require('./_fake');
-const CDN='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js';
+const CDN='https://lib.test/supabase-js.js';   // 라이브러리 주소를 이걸로 돌려(APP_CONFIG.SUPABASE_JS) 막았다·풀었다 한다
 const today=todayOf();
 const KID=(extra)=>Object.assign({id:'k1',name:'서윤',color:'pink',sort:0,opening_balance:16300,weekly_on:false,weekly_amount:0,created_at:'2026-07-01T09:00:00Z'},extra||{});
 
 async function cdnBlocked(b, cache){
   const ctx=await b.newContext(VP);
   await ctx.route(CDN, r=>r.abort());
-  await ctx.addInitScript(()=>{ Object.defineProperty(window,'APP_CONFIG',{value:{SUPABASE_URL:'https://x.supabase.co',SUPABASE_ANON_KEY:'k'},writable:false,configurable:false}); try{ localStorage.setItem('yd_tour','done'); }catch(e){} });
+  await ctx.addInitScript(()=>{ Object.defineProperty(window,'APP_CONFIG',{value:{SUPABASE_URL:'https://x.supabase.co',SUPABASE_ANON_KEY:'k',SUPABASE_JS:'https://lib.test/supabase-js.js'},writable:false,configurable:false}); try{ localStorage.setItem('yd_tour','done'); }catch(e){} });
   const p=await ctx.newPage(); watch(p);
   await p.goto(APP); if(cache){ await p.evaluate(CACHE); await p.reload(); }
   await ready(p); return {ctx, p};
