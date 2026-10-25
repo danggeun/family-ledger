@@ -445,10 +445,10 @@ button.srow{width:100%; text-align:left}
      → 자동 입금 → 마지막으로 받은 내용(캐시) → 처음 안내(단계 표 TOUR) → 데이터 로드(ensureFamily·reload)
      → 렌더(render → 홈·입력줄·시트들) → 화면 열고 닫기(navStack ↔ history) → 설정 → 시작 화면 → 부팅
    규칙 셋: ① 상태는 S 하나, render() 는 S 만 보고 전부 다시 그린다 ② 적는 중(typing)·전환 중엔 다시 그리지 않는다(S.renderLater)
-          ③ 저장은 낙관 반영 + 실패하면 직전 값만 되돌린다(tryStore). 자세한 지도는 README "코드 지도".
+          ③ 저장은 낙관 반영 + 실패하면 직전 값만 되돌린다(tryStore). 자세한 지도는 docs/ARCHITECTURE.md.
    ───────────────────────────────────────────────────────────────────────────── */
 /* ══════════════════════ 유틸 ══════════════════════ */
-var APP_VERSION = "1.3.6";   // 올릴 때 sw.js 의 CACHE 도 같이
+var APP_VERSION = "1.3.7";   // 올릴 때 sw.js 의 CACHE 도 같이
 
 /* hex = 탭 밑줄·점(면), name = 이름 글자.
    아이들이 "내 색"을 바로 알아보는 게 이 색의 유일한 목적이라 채도를 살린다.
@@ -1421,7 +1421,7 @@ function tourCard(L, key, step, sub, above){
       이 폰은 그 가족이다 — 캐시에 남은 가족 코드로 조용히 다시 참여한다(join_family 는 초대 잠금과 무관). 안 그러면 시작 화면이 뜬다.
    ③ 가족이 확인되면 실시간 구독을 한 번만 건다 — 부팅·온보딩 어느 길로 들어와도. */
 function ensureFamily(){
-  return makeStore().then(function(){                      // CDN 을 못 받아 store 가 아직 없으면 여기서 다시 받는다
+  return makeStore().then(function(){                      // supabase-js 를 못 받아 store 가 아직 없으면 여기서 다시 받는다
     if(store.familyId) return true;
     return store.init().then(function(fam){
       if(fam) return true;
@@ -1817,7 +1817,7 @@ function resetDraft(){ S.draft=newDraft(); }
 function submitNew(){
   var d=S.draft, n=Number(d.amount);
   if(!(n>0)) return;
-  if(!store){ toast("연결이 안 돼요"); return; }   // CDN 을 못 받아 캐시 화면만 뜬 상태 — 그냥 가면 줄은 남고 저장은 안 된다
+  if(!store){ toast("연결이 안 돼요"); return; }   // supabase-js 를 못 받아 캐시 화면만 뜬 상태 — 그냥 가면 줄은 남고 저장은 안 된다
   // 날짜를 손으로 고르지 않았으면 적는 순간의 오늘 — 화면을 켠 채 자정을 넘기면 draft.date 는 어제로 남아 있다
   var e={child_id:S.sel, entry_date:d.dateByHand ? d.date : today(), memo:d.memo.trim(), amount:d.sign*n, auto_key:null};
   // 낙관적 반영
@@ -2528,7 +2528,7 @@ function boot(){
  return ensureFamily().then(function(ok){
   // "가족 없음"과 "실패"는 완전히 다른 일이다.
   // 없음 = 이 기기는 아직 어느 가족에도 안 들어갔다(캐시에 코드도 없다) → 시작 화면.
-  // 실패 = 서버에 못 물어봤다(CDN 포함) → 시작 화면을 보여주면 "기록이 없어졌다"로 읽힌다.
+  // 실패 = 서버에 못 물어봤다(supabase-js 를 못 받은 것 포함) → 시작 화면을 보여주면 "기록이 없어졌다"로 읽힌다.
   if(!ok){ S.screen="onboard"; render(); return; }
   S.screen="home";
   return reload();
