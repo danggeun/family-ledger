@@ -1,6 +1,6 @@
 // 앱 껍데기만 캐시한다. 데이터는 항상 서버에서.
 // 배포 때 index.html 의 APP_VERSION 과 같이 올린다. 이름이 바뀌어야 옛 캐시가 버려진다.
-var CACHE = "yd-1.3.8";
+var CACHE = "yd-1.3.9";
 var ASSETS = ["./", "./index.html", "./config.js", "./manifest.webmanifest", "./icon-192.png", "./logo-pig-t.png", "./logo-pig.png", "./logo-pig-sm.png", "./icon-512.png", "./icon-maskable-192.png", "./icon-maskable-512.png", "./apple-touch-icon.png",
   "./vendor/supabase-js-2.45.4.js"];
 var SLOW = 4000;   // ms. 네트워크가 이보다 늦으면 캐시로(연결만 되고 응답이 없을 때 흰 화면 방지)

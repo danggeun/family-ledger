@@ -187,7 +187,7 @@ T('하다 말고 껐으면(new) 처음부터', (await card())==='− 를 눌러 
 // ── 설정의 "처음 안내 다시 보기"
 await load(KIDS,[E('e1','간식',-800,'2026-10-08')],'done');
 await click('.gear');
-T('앱 섹션에 처음 안내 … [다시 보기] 줄, 맨 아래 줄은 전과 같다', (await p.textContent('.help-link'))==='처음 안내다시 보기›' && await p.$eval('.foot',(e,v)=>/아이 추가하기/.test(e.textContent) && e.textContent.includes('v'+v), require('../package.json').version));
+T('앱 섹션에 처음 안내 … [다시 보기] 줄, 맨 아래 줄은 전과 같다', (await p.textContent('.help-link'))==='처음 안내다시 보기›' && await p.$eval('.foot',(e,v)=>/아이 추가하기/.test(e.textContent) && document.querySelector('.ver').textContent==='v'+v, require('../package.json').version));
 T('사용법 페이지는 없다', !/사용법/.test(await p.textContent('.screen.page')));
 await p.click('.help-link');                                         // history.go(-n) 는 비동기라 설정이 닫힐 때까지 기다린다
 await until(p, ()=>!document.querySelector('.nav h2')); await idle(p);

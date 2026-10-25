@@ -49,13 +49,13 @@ T('며칠 안 열어봐도 문구 없음', !/며칠 안 열어/.test(txt));
 T('두 폰이 같이 보는 중 문구 없음', !/두 폰이 같이/.test(txt));
 T('내보내기 · 엑셀 파일 › — 다른 줄들과 같은 모양', (await p.textContent('.card.export .srow.tap'))==='내보내기엑셀 파일\u203A');
 T('설정에 설명 줄이 없다 (동기화 안내 한 줄 없음)', !/이 코드로 참여/.test(await p.$eval('.screen.page',e=>e.textContent)));
-T('버전 오른정렬', (await p.$eval('.ver',e=>getComputedStyle(e).textAlign))==='right');
-T('아이 추가는 맨 아래 버전 줄 왼쪽에', await p.$eval('.foot',e=>{
-  const a=e.querySelector('.addk'), v=e.querySelector('.ver');
-  return !!a && a.textContent==='아이 추가하기'
-    && a.getBoundingClientRect().left < v.getBoundingClientRect().left;}));
+T('버전은 맨 아래 따로, 가운데', (await p.$eval('.ver',e=>getComputedStyle(e).textAlign))==='center');
+T('아이 추가는 맨 아래 줄 왼쪽, 버전은 그 아래', await p.$eval('.foot',e=>{
+  const a=e.querySelector('.addk'), v=document.querySelector('.ver');
+  return !!a && a.textContent==='아이 추가하기' && !e.contains(v)
+    && a.getBoundingClientRect().bottom <= v.getBoundingClientRect().top;}));
 T('아이 추가는 버전과 같은 톤', await p.$eval('.foot',e=>{
-  const a=getComputedStyle(e.querySelector('.addk')), v=getComputedStyle(e.querySelector('.ver'));
+  const a=getComputedStyle(e.querySelector('.addk')), v=getComputedStyle(document.querySelector('.ver'));
   return a.fontSize===v.fontSize && a.color===v.color;}));
 T('아이 섹션에는 추가 버튼이 없다', !(await p.$('.card + .link.sm')));
 T('로컬은 연결 안 됨 표시', /연결 안 됨/.test(txt));

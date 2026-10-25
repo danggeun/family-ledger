@@ -319,11 +319,8 @@ button.srow{width:100%; text-align:left}
 .srow.tap:active{background:var(--wash)}
 .srow .chev{flex:none; font-size:var(--t5); color:var(--faint); line-height:1; margin-left:var(--s2)}
 .foot{display:flex; align-items:baseline; justify-content:space-between; gap:var(--s4); margin:var(--s6) 0 0}
-.foot.three{display:grid; grid-template-columns:1fr auto 1fr}
-.ver{text-align:right; font-size:var(--t2); color:var(--faint); margin:0}
-.foot.three .ver{text-align:center}
-.foot .addk,.foot .fb{font-size:var(--t2); color:var(--faint); padding:0; text-align:left; justify-self:start}
-.foot .fb{text-align:right; justify-self:end}
+.ver{text-align:center; font-size:var(--t2); color:var(--faint); margin:var(--s4) 0 0}
+.foot .addk,.foot .fb{font-size:var(--t2); color:var(--faint); padding:0}
 .foot .fb.new{color:var(--ink-2); font-weight:600}
 .foot .addk:active,.foot .fb:active{color:var(--ink-2)}
 .f textarea{border:1px solid var(--hair); border-radius:12px; padding:12px 14px; min-height:132px; resize:none; outline:none;
@@ -341,6 +338,7 @@ button.srow{width:100%; text-align:left}
 .fbitem .top{display:flex; align-items:baseline; justify-content:space-between; gap:12px}
 .fbitem .m{font-size:var(--t2); color:var(--faint)}
 .fbitem .done{flex:none; font-size:var(--t2); font-weight:600; color:var(--ink-3); padding:2px 0 2px 8px}
+.fbitem .done.arm{color:var(--danger)}
 .fbitem .b{margin-top:3px; font-size:var(--t4); color:var(--ink); white-space:pre-wrap; overflow-wrap:anywhere}
 .fbitem.err .b{font-size:var(--t3); color:var(--muted)}
 .fbitem .d{margin-top:3px; font-size:var(--t1); color:var(--faint)}
@@ -455,7 +453,7 @@ button.srow{width:100%; text-align:left}
    규칙: S 만 보고 전부 다시 그린다 · 적는 중 · 전환 중엔 안 그린다(S.renderLater) · 저장은 낙관 반영 + 실패 시 직전 값 되돌리기(tryStore)
    코드 지도: docs/ARCHITECTURE.md */
 /* ══════════════════════ 유틸 ══════════════════════ */
-var APP_VERSION = "1.3.8";   // 올릴 때 sw.js 의 CACHE 도 같이
+var APP_VERSION = "1.3.9";   // 올릴 때 sw.js 의 CACHE 도 같이
 
 /* hex = 탭 밑줄 · 점, name = 이름 글자(큰 글자 대비 3.0 이상). 키를 지우면 그 색을 쓰던 아이가 파랑이 된다 */
 var COLORS = {
@@ -765,7 +763,7 @@ var S = {
   gate:null,            // {is_owner, is_reader, open_until} — 설정 화면에서 한 번 물어본다
   fb:null,              // 받은 의견 목록(is_reader 인 폰만)
   fbSend:null,          // 의견 보내기 시트 {text, busy, err}
-  fbView:null,          // 받은 의견 시트
+  fbView:null,          // 받은 의견 시트 {arm: "지울까요?"로 바뀐 의견 id}
   offline:false,        // 서버에서 못 받아온 상태. 마지막으로 받은 내용을 보여주는 중
   renderLater:false,    // 적는 중에 reload 가 끝났다 — 입력칸을 떠날 때 그린다
   onboard:{mode:null, names:ORDINALS.slice(0,2), opens:["",""], code:""},
@@ -1972,7 +1970,7 @@ function fbButton(){
   if(S.gate.is_reader){
     var n=fbNew(), b=el("button","fb"+(n?" new":""), "받은 의견"+(n?" "+n:""));
     b.onclick=function(){
-      navOpen("fbView", function(){ S.fbView=true; });
+      navOpen("fbView", function(){ S.fbView={arm:null}; });
       loadFb().then(function(){ if(S.fb && S.fb.length) store.markFeedbackRead(S.fb[0].id).catch(ignore); });
     };
     return b;
@@ -2019,17 +2017,20 @@ function renderFbSend(){
 }
 function fbDate(iso){ var d=new Date(iso); return listDate(ymd(d))+" "+pad(d.getHours())+":"+pad(d.getMinutes()); }
 function renderFbView(){
-  var rows=S.fb, seen=0;
+  var rows=S.fb, v=S.fbView, seen=0;
   if(rows && rows.length){ seen=rows[0].id; if(+(lsGet("yd_fb_seen")||0)<seen) lsSet("yd_fb_seen", String(seen)); }
   return sheet("받은 의견", function(f){
     if(!rows || !rows.length) f.appendChild(el("p","note", rows ? "아직 없어요." : "불러오는 중…"));
     else {
       var list=el("div","fblist");
+      list.onclick=function(e){ if(v.arm && !e.target.closest(".done")){ v.arm=null; render(); } };
       rows.forEach(function(r){
         var it=el("div","fbitem"+(r.kind==="error"?" err":"")), top=el("div","top");
         top.appendChild(el("div","m", fbDate(r.created_at)+" · "+(r.kids||r.family_code||"")));
-        var ok=el("button","done","완료");
+        var armed=v.arm===r.id, ok=el("button","done"+(armed?" arm":""), armed?"지울까요?":"완료");
         ok.onclick=function(){
+          if(!armed){ v.arm=r.id; render(); return; }   // 두 번 눌러야 한다
+          v.arm=null;
           var i=S.fb.indexOf(r); S.fb.splice(i,1); render();
           tryStore(function(){ return store.closeFeedback(r.id); }, function(){ S.fb.splice(i,0,r); });
         };
@@ -2342,7 +2343,7 @@ function renderSettings(){
     gCard.appendChild(gr); wrap.appendChild(gCard);
   }
 
-  // 아이 추가는 맨 아래 버전 줄에
+  // 맨 아래: 누르는 것(아이 추가 · 의견)은 한 줄 양 끝, 버전은 그 아래 가운데
   var foot=el("div","foot");
   if(S.children.length<MAX_KIDS){
     var add=el("button","addk","아이 추가하기");
@@ -2355,9 +2356,9 @@ function renderSettings(){
     };
     foot.appendChild(add);
   } else foot.appendChild(el("span"));
-  foot.appendChild(el("span","ver","v"+APP_VERSION));
-  var fb=fbButton(); if(fb){ foot.classList.add("three"); foot.appendChild(fb); }
+  var fb=fbButton(); if(fb) foot.appendChild(fb);
   wrap.appendChild(foot);
+  wrap.appendChild(el("p","ver","v"+APP_VERSION));
   return wrap;
 }
 

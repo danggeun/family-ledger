@@ -2,8 +2,9 @@
 const {T, done, launch, localPage, fakePage, section, seed, idle, until, toasted, KID}=require('./_harness');
 
 const open=async(p)=>{ await p.click('.gear'); await idle(p); await until(p, ()=>!!document.querySelector('.foot .fb')); };
-const foot=(p)=>p.$eval('.foot', e=>({three:e.classList.contains('three'), fb:(e.querySelector('.fb')||{}).textContent||null,
-  ver:e.querySelector('.ver').getBoundingClientRect(), w:e.getBoundingClientRect()}));
+const foot=(p)=>p.$eval('.foot', e=>({fb:(e.querySelector('.fb')||{}).textContent||null, fbr:(e.querySelector('.fb')||e).getBoundingClientRect(),
+  ver:document.querySelector('.ver').getBoundingClientRect(), w:e.getBoundingClientRect()}));
+const centered=(f)=>Math.abs((f.ver.left+f.ver.right)/2-(f.w.left+f.w.right)/2)<2 && f.ver.top>=f.w.bottom;
 
 (async()=>{
 const b=await launch();
@@ -13,8 +14,8 @@ await section('이 기기 전용 모드: 의견 줄 없음, 버전은 오른쪽'
   await seed(p, [KID('k1','서윤','pink',0,10000)], [], 'k1');
   await p.click('.gear'); await idle(p);
   const f=await foot(p);
-  T('의견 줄이 없다', f.fb===null && !f.three);
-  T('버전이 오른쪽 끝', Math.abs(f.ver.right-f.w.right)<1);
+  T('의견 줄이 없다', f.fb===null);
+  T('버전은 맨 아래 줄 밑 가운데', centered(f));
   await ctx.close();
 });
 
@@ -22,7 +23,7 @@ await section('지인: 의견 보내기', async()=>{
   const a=await fakePage(b, {owner:false});
   await open(a.p);
   const f=await foot(a.p);
-  T('맨 아래 가운데 버전 · 오른쪽 "의견 보내기"', f.three && f.fb==='의견 보내기' && Math.abs((f.ver.left+f.ver.right)/2-(f.w.left+f.w.right)/2)<2);
+  T('맨 아래 줄 오른쪽 끝 "의견 보내기", 버전은 그 밑 가운데', f.fb==='의견 보내기' && Math.abs(f.fbr.right-f.w.right)<1 && centered(f));
   await a.p.click('.foot .fb'); await idle(a.p);
   T('주인 가족이 아니면 "이 폰에서 보기" 줄이 없다', !(await a.p.$('.sheet .linkbtn')));
   await a.p.click('.sheet .btn.pri'); await idle(a.p);
@@ -66,6 +67,11 @@ await section('운영자: 이 폰을 받는 폰으로 → 받은 의견', async(
   T('어느 집 · 버전 · 기종', items[1].m.indexOf('지우 · v1.3.8 · iPhone iOS 17.4')>0);
   await until(a.p, ()=>window.__fake.feedback.every(f=>!!f.read_at));
   T('목록을 열면 서버에 읽음으로 남는다', await a.p.evaluate(()=>window.__fake.feedback.every(f=>!!f.read_at)));
+  await a.p.click('.fbitem >> nth=1 >> .done'); await idle(a.p);
+  T('완료는 한 번 누르면 "지울까요?"로만 바뀐다', (await a.p.$$('.fbitem')).length===2 && (await a.p.textContent('.fbitem >> nth=1 >> .done'))==='지울까요?');
+  await a.p.click('.fbitem >> nth=0 >> .b'); await idle(a.p);
+  T('다른 곳을 누르면 원래대로', (await a.p.textContent('.fbitem >> nth=1 >> .done'))==='완료');
+  await a.p.click('.fbitem >> nth=1 >> .done'); await idle(a.p);
   await a.p.click('.fbitem >> nth=1 >> .done'); await idle(a.p);
   T('완료하면 목록에서 빠지고 서버에선 숨김', (await a.p.$$('.fbitem')).length===1 && (await a.p.evaluate(()=>window.__fake.feedback.find(f=>f.id===1).done)));
   await a.p.goBack(); await idle(a.p);
