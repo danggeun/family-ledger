@@ -1,11 +1,10 @@
-// 아이에게 보여주기 — 잔액을 누르면 돼지저금통과 지폐·동전 그림
+// 아이 화면: 잔액을 누르면 돼지저금통과 지폐·동전 그림
 const {T, done, launch, localPage, seed, settle, touch, KID, idle}=require('./_harness');
 (async()=>{
 const b=await launch();
 const {p}=await localPage(b);
-// 두 아이(서윤 a원 · 하준 b원), 기록 없음, 서윤을 고른 채로
+// load(서윤 잔액, 하준 잔액): 기록 없음, 서윤 선택
 const load=(a,c)=>seed(p, [KID('k1','서윤','pink',0,a,{created_at:'2026-07-01'}), KID('k2','하준','yellow',1,c,{created_at:'2026-07-01'})], []);
-// 닫기는 history.back() → popstate 라 한 박자 늦고, 옆 아이로 밀면 옛 화면 복사본(.ghost)이 타이머로 빠진다 — 둘 다 끝날 때까지
 const calm=()=>idle(p);
 const click=async(sel)=>{ await p.click(sel); await calm(); };
 await load(16300,0);
@@ -23,7 +22,7 @@ T('이름 22px', await p.$eval('.kid .kn',e=>getComputedStyle(e).fontSize==='22p
 let r=await rows();
 T('16,300 = 10000·5000·1000·100×3', r.length===4 && r[0].t==='10000'&&r[0].n===1 && r[1].t==='5000' && r[2].t==='1000' && r[3].t==='100'&&r[3].n===3);
 T('×n 없음', r.every(x=>x.x===''));
-// 숫자의 세로 위치는 글꼴에 맡기지 않는다 — dominant-baseline 은 기기 글꼴마다 위아래로 밀린다
+// dominant-baseline 은 기기 글꼴마다 위아래로 밀리므로 dy 로 직접 놓는다
 T('숫자는 밑줄을 직접 놓는다', await p.$$eval('.kid .money svg text',es=>
   es.length>0 && es.every(e=>e.getAttribute('dy')==='.35em' && !e.getAttribute('dominant-baseline'))));
 T('문구·버튼 없음(닫기만)', (await p.$$('.kid button')).length===1);
@@ -44,7 +43,6 @@ await click('.balbtn'); r=await rows();
 T('30만 = 50000 한 장 + ×6 (다섯 장 넘으면 세지 않는다)', r.length===1 && r[0].n===1 && r[0].x==='×6');
 await click('.kid');
 
-// 줄이 많으면 돼지를 줄여서라도 한 화면에
 await load(99990,0);
 await click('.balbtn');
 T('99,990 = 8줄, 돼지를 줄여 한 화면에', (await rows()).length===8
@@ -61,11 +59,11 @@ T('노랑 아이 이름색 (금색)', await p.$eval('.kid .kn',e=>getComputedSty
 await click('.kid .x');
 
 
-// ── 빌린 돈(마이너스 잔액)은 "빈 자리" — 텅 빈 0원과 달라야 하고, 가진 돈처럼 보이면 안 된다 ──
+// ── 빌린 돈(마이너스 잔액)은 "빈 자리": 0원과도, 가진 돈과도 달라 보여야 한다
 const marks=()=>p.$$eval('.kid .money svg',es=>es.map(e=>{const n=e.querySelector('rect,circle'), t=e.querySelector('text');
   return {fill:n.getAttribute('fill'), stroke:n.getAttribute('stroke'), dash:n.getAttribute('stroke-dasharray')||'',
           parts:e.querySelectorAll('rect,circle,path').length, tf:t.getAttribute('fill')};}));
-await load(-2000,-12500);                     // 앞 구간이 하준을 골라둔 상태는 seed 가 서윤으로 되돌린다
+await load(-2000,-12500);                     // seed 가 선택을 서윤으로 되돌린다
 await click('.balbtn');
 T('마이너스 숫자는 −2,000', (await p.textContent('.kid .ka b'))==='−2,000');
 T('숫자는 그대로 검정 (빨강·옅은 색 아님)', await p.$eval('.kid .ka b',e=>getComputedStyle(e).color==='rgb(43, 29, 20)'));
@@ -89,8 +87,7 @@ T('빈 자리의 ×n 은 옅은 톤', await p.$eval('.kid .money .xn',e=>getComp
 await click('.kid .x');
 
 
-// ── 좌우로 밀어 다른 아이 보여주기 (보여주기일 뿐, 고른 아이는 안 바뀐다) ──
-// 하네스 손가락(이벤트 시각을 찍는다) — 놓은 뒤 전환이 끝나고 옛 화면 복사본(.ghost)이 빠질 때까지
+// ── 좌우로 밀어 다른 아이 보여주기(고른 아이는 안 바뀐다)
 const drag=await touch(p);
 const swipe=async(x0,y0,x1,y1)=>{ await drag(x0,y0,x1,y1); await calm(); };
 const who=()=>p.textContent('.kid .kn');
@@ -113,16 +110,15 @@ await click('.kid .x');
 T('닫으면 고르고 있던 아이 그대로', (await p.textContent('.bar .k.on'))==='서윤');
 await click('.balbtn');
 T('다시 열면 원래 아이', (await who())==='서윤');
-// 가장자리에서 시작한 것은 무시한다. (실기기에서는 그 전에 안드로이드 제스처가 먼저 가져가 화면이 닫힐 수 있는데, 그건 우리가 못 막고 닫히는 건 무해하다)
+// 실기기에선 가장자리 끌기를 안드로이드 제스처가 먼저 가져가 화면이 닫힐 수 있다(무해)
 await swipe(20,500,300,500);
 T('가장자리에서 시작하면 안 바뀐다', (await who())==='서윤' && !!(await p.$('.kid')));
 await click('.kid .x');
-// 아이가 한 명이면 아무 일도 없다
 await seed(p, [KID('k1','서윤','pink',0,16300,{created_at:'2026-07-01'})], []);
 await click('.balbtn');
 await swipe(300,500,90,500);
 T('아이가 한 명이면 그대로', (await who())==='서윤' && !!(await p.$('.kid')));
-// 끌고 나면 폰은 그 터치로 click 을 하나 만든다(크로미움 CDP 는 안 만들어서 직접 보낸다) — 그 click 은 닫기가 아니다. 다음 탭은 닫는다
+// 폰은 끌기 뒤 click 을 하나 만든다. CDP 는 안 만들어서 직접 보낸다
 await swipe(300,500,90,500);
 await p.evaluate(()=>document.querySelector('.kid').click()); await calm();
 T('끌기가 만든 click 하나는 화면을 닫지 않는다', !!(await p.$('.kid')));

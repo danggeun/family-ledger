@@ -1,5 +1,4 @@
-// 1.3.4 — 날짜 칩이 열린 채 밀면 옆 아이로 안 넘어가던 것(날짜 칩도 "적는 중"으로 읽었다), 달력 칩이 오늘 날짜를 한 번 더 보여주던 것,
-// 달력을 좌우로 밀어도 달이 안 바뀌던 것.
+// 회귀: 날짜 칩이 열린 채 밀기, 달력 칩 문구, 달력 좌우 밀기
 const {T, done, launch, localPage, section, seed, idle, touch, KID, E}=require('./_harness');
 
 (async()=>{
@@ -36,9 +35,9 @@ await section('달력 밀기', async()=>{
   T('이번 달 뒤로는 안 간다(화살표와 같다)', (await title())==='2026년 10월' && !!(await p.$('.sheet')));
   await swipe(g.l+60,g.y,g.l+80,g.y);
   T('살짝 민 것은 그대로', (await title())==='2026년 10월');
-  // 사람 손: 빠르게 옆으로 밀며 아래로 60px 흐른다 — 달만 바뀌고 시트는 그대로(1.3.5. 전엔 시트가 같이 끌려 내려가 닫혔다)
+  // 사람 손: 빠르게 옆으로 밀며 아래로 60px 흐른다(달만 바뀌고 시트는 그대로)
   await swipe(g.l,g.y,g.r,g.y+60,100);
-  await p.waitForTimeout(400);                                          // 진짜 시간: 시트 닫기는 끌기 뒤 0.17초 타이머로 온다 — 그 뒤까지 본다
+  await p.waitForTimeout(400);                                          // 진짜 시간: 시트 닫기는 끌기 뒤 0.17초 타이머로 온다
   await idle(p);
   T('대각선으로 빠르게 밀어도 시트는 안 닫히고 달만 바뀐다', !!(await p.$('.sheet .calg')) && (await title())==='2026년 9월');
   // 아래로 끌면 여전히 닫힌다

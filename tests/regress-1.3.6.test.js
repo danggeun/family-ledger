@@ -1,4 +1,4 @@
-// 1.3.6 — 처음 안내에 가족 코드(동기화) 단계가 없던 것 · supabase-js 를 바깥 CDN 대신 저장소에서(vendor/).
+// 처음 안내의 가족 코드(동기화) 단계, supabase-js 를 저장소(vendor/)에서 받기
 const {T, done, launch, localPage, fakePage, section, seed, idle, resume, KID}=require('./_harness');
 const path=require('path'), http=require('http'), fs=require('fs');
 
@@ -30,14 +30,14 @@ await section('이 기기 전용 모드엔 그 단계가 없다', async()=>{
 });
 
 await section('저장소의 supabase-js 가 진짜로 뜬다', async()=>{
-  // http 로 열어(파일 주소로는 상대 경로 스크립트가 다르게 돈다) 설정만 준 페이지 — 서버는 없어도 라이브러리는 와야 한다
+  // file:// 에선 상대 경로 스크립트가 다르게 돌아 http 로 연다. 서버는 없어도 라이브러리는 와야 한다
   const root=path.resolve(__dirname,'..');
   const srv=http.createServer((q,r)=>{ const f=path.join(root, decodeURIComponent(q.url.split('?')[0]).replace(/^\/+/,'') || 'index.html');
     if(!f.startsWith(root) || !fs.existsSync(f) || fs.statSync(f).isDirectory()){ r.writeHead(404); return r.end(); }
     r.writeHead(200,{'content-type': f.endsWith('.js') ? 'application/javascript' : f.endsWith('.html') ? 'text/html; charset=utf-8' : 'application/octet-stream'}); fs.createReadStream(f).pipe(r); });
   await new Promise(r=>srv.listen(0,r)); const port=srv.address().port;
   const ctx=await b.newContext();
-  await ctx.route('https://x.supabase.co/**', r=>r.abort());                        // 서버는 없다 — 라이브러리만 본다
+  await ctx.route('https://x.supabase.co/**', r=>r.abort());                        // 서버 없음, 라이브러리만 본다
   await ctx.addInitScript(()=>{ Object.defineProperty(window,'APP_CONFIG',{value:{SUPABASE_URL:'https://x.supabase.co',SUPABASE_ANON_KEY:'k'},writable:false,configurable:false}); });
   const p=await ctx.newPage(); await p.goto('http://localhost:'+port+'/index.html');
   const ok=await p.waitForFunction(()=>window.supabase && typeof window.supabase.createClient==='function', null, {timeout:8000}).then(()=>true,()=>false);

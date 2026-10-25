@@ -1,11 +1,11 @@
-// 화면 스냅샷 — 리팩터(1.3.0)의 통과 조건. 열 화면을 고정 날짜·고정 시드로 찍어 tests/snapshots/ 의 기준과 픽셀 단위로 비교한다.
-// 기준을 다시 찍으려면 SNAP=update. 화면을 일부러 바꾼 버전에서만 기준을 갱신한다.
+// 화면 스냅샷: 열 화면을 고정 날짜·시드로 찍어 tests/snapshots/ 기준과 픽셀 비교.
+// SNAP=update 면 기준을 다시 찍는다(화면을 일부러 바꿨을 때만).
 const {T, done, launch, localPage, seed, settle}=require('./_harness');
 const path=require('path'); const fs=require('fs');
 const DIR=path.resolve(__dirname,'snapshots'); fs.mkdirSync(DIR,{recursive:true});
 const UPDATE=process.env.SNAP==='update';
-// 기준 그림은 한 기계(우분투 24.04 · 크로미움 1194(= Playwright 1.56.0, package.json 에 고정) · Noto CJK/Inter 글꼴)에서 찍었다. GitHub Actions 처럼 다른 기계에선
-// 글꼴·안티에일리어싱이 한두 픽셀 달라질 수 있어 "참고"로만 센다(다르면 경고 + .actual.png). SNAP_STRICT=1 이면 그래도 실패로
+// 기준은 우분투 24.04, 크로미움 1194(Playwright 1.56.0 고정), Noto CJK/Inter 에서 찍었다. CI 같은 다른 기계에선
+// 한두 픽셀 달라질 수 있어 참고로만 센다(경고 + .actual.png). SNAP_STRICT=1 이면 실패로 센다.
 const SOFT=!!process.env.CI && !process.env.SNAP_STRICT;
 const FIXED='2026-10-10T12:00:00+09:00';                      // "오늘"이 바뀌어도 화면이 같게
 
@@ -19,7 +19,7 @@ const ENTRIES=[
   E('e4','k1','2026-09-28','아이스크림',-1200), E('e5','k1','2026-09-22','문구점 (연필·지우개)',-2300), E('e6','k1','2026-09-15','',-500), E('e7','k1','2026-09-12','심부름',1000),
   E('e8','k2','2026-10-08','젤리',-700), E('e9','k2','2026-09-30','용돈(큰아빠)',10000)];
 
-// 찍기 전 — 화면이 멈추고(전환·popstate·안내의 자리 잡기) 그림(돼지)까지 다 받아 그린 뒤
+// 찍기 전: 화면이 멈추고 이미지까지 다 그려질 때까지
 async function still(p){
   await settle(p);
   await p.waitForFunction(()=>{ const u=window.__app.S.ui, d=((history.state&&history.state.d)||0)-u.navBase;

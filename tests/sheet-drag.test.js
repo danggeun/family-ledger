@@ -1,6 +1,5 @@
-// 시트를 아래로 밀어 닫기 · 누가 적었는지
+// 시트: 밀어 닫기, 누가 적었는지, 받은/쓴 돈 구분, Enter 순서
 const {T, done, launch, localPage, seed, ready, settle, touch, back: backOnce, idle, until}=require('./_harness');
-// 앱 타이머(0.1~0.5초)·popstate 로 오는 결과를 기다린다. 2초 안에 안 오면 안 온 것 — 던지지 않고 판정은 뒤의 T 가 한다
 (async()=>{
 const b=await launch();
 const {p}=await localPage(b);
@@ -9,7 +8,7 @@ await seed(p, [{id:'k1',name:'서윤',color:'pink',sort:0,opening_balance:10000,
   [{id:'e1',child_id:'k1',entry_date:t,memo:'젤리',amount:-800,auto_key:null,created_by:'me',created_at:t+'T09:00:00Z'},
    {id:'e2',child_id:'k1',entry_date:t,memo:'할머니',amount:5000,auto_key:null,created_by:'other',created_at:t+'T10:00:00Z'}]);
 const swipe=await touch(p);
-// 세로로 끌기. 이벤트 시각을 직접 찍어 속도가 기계 부하와 상관없이 ms 대로다. 손을 뗀 직후 돌아온다
+// 세로로 끌기(손을 뗀 직후 돌아온다)
 const drag=(from,to,steps,ms)=>swipe(195,from,195,to,ms,false,steps);
 const click=async(sel)=>{ await p.click(sel); await idle(p); };
 const back=()=>backOnce(p);
@@ -22,10 +21,8 @@ await until(p, ()=>!document.querySelector('.sheet')); await idle(p);      // �
 T('아래로 밀면 닫힌다', !(await p.$('.sheet')));
 await click('.row >> nth=0');
 T('다른 기기가 적은 줄', /다른 기기에서 적었어요/.test(await p.textContent('.sheet .f')));
-// 조금만 밀면 제자리
-await drag(top+40, top+80, 8, 400); await idle(p);                           // 제자리로 돌아오는 0.2초 + (잘못 닫혔다면) 닫힘까지
+await drag(top+40, top+80, 8, 400); await idle(p);                           // 제자리 복귀(0.2초)나 잘못된 닫힘까지
 T('조금 밀면 안 닫힌다', !!(await p.$('.sheet')) && await p.$eval('.sheet',e=>e.style.transform===''));
-// 위로 밀면 무시
 await drag(top+120, top+40, 8, 200); await idle(p);
 T('위로 밀면 무시', !!(await p.$('.sheet')));
 await back();
@@ -36,7 +33,7 @@ await p.evaluate((t)=>{const d=JSON.parse(localStorage.getItem('yd_local_v1'));
 await p.reload(); await ready(p);
 await click('.row.auto');
 T('자동 줄에는 누가 적었는지 안 붙는다', !/적었어요/.test(await p.textContent('.sheet .f')));
-// 받은 돈 / 쓴 돈이 시트 안에서도 구분된다
+// 받은 돈 / 쓴 돈 구분
 await back();
 await click('.row >> nth=1');   // 받은 돈 줄
 T('받은 돈이면 고른 칸이 초록', (await p.$eval('.sheet .tabs button.on',e=>getComputedStyle(e).color))==='rgb(27, 122, 90)');
@@ -45,7 +42,7 @@ await click('.sheet .tabs button:has-text("쓴 돈")');
 T('쓴 돈으로 바꾸면 검정', (await p.$eval('.sheet .tabs button.on',e=>getComputedStyle(e).color))==='rgb(17, 19, 23)'
   && (await p.$eval('.sheet input.r',e=>getComputedStyle(e).color))==='rgb(17, 19, 23)');
 
-// ── 시트 안 Enter: 금액 → 용도, 용도 → 저장 (홈 입력줄과 같은 순서). 키보드의 "다음/완료"가 이것 ──
+// ── 시트 안 Enter: 금액 → 용도, 용도 → 저장(키보드의 "다음/완료")
 await click('.sheet button:has-text("취소")');
 await click('.row:not(.auto) >> nth=0');
 T('시트 순서는 입력줄과 같다: 날짜 → 용도 → 금액 (1.2.6)', (await p.$$eval('.sheet .f label',es=>es.map(e=>e.textContent).join(' '))).startsWith('날짜 용도 금액'));

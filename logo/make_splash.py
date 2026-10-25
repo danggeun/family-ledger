@@ -1,7 +1,5 @@
-# iOS 실행 화면(홈 화면 앱을 열 때 잠깐 뜨는 화면)을 기종별로 만든다.
-# iOS 는 device-width/height/pixel-ratio 가 정확히 맞는 한 장만 쓰고 나머지는 무시한다 — 한 장(1320×2868)만 두면
-# 16 Pro Max 에서만 뜨고 다른 폰은 흰 화면이었다. 크림 바탕에 돼지 하나라 기종이 늘어도 그림은 같다.
-# 실행: python logo/make_splash.py  →  splash/*.png 와 index.html 에 넣을 <link> 줄을 출력한다.
+# iOS 실행 화면을 기종별로 만든다(iOS 는 크기 · 배율이 정확히 맞는 한 장만 쓴다).
+# 실행: python logo/make_splash.py → splash/*.png 와 index.html 에 넣을 <link> 줄
 import os
 from PIL import Image
 
@@ -31,7 +29,7 @@ links = []
 for w, h, r in DEVICES:
     W, H = w * r, h * r
     im = Image.new("RGB", (W, H), CREAM)
-    pw = int(W * 0.34); ph = int(pw * pig.height / pig.width)          # 폭의 34% — 한 장짜리 splash.png 와 같은 비율
+    pw = int(W * 0.34); ph = int(pw * pig.height / pig.width)          # 폭의 34%
     im.paste(pig.resize((pw, ph), Image.LANCZOS), ((W - pw) // 2, (H - ph) // 2))
     name = "%dx%d@%d.png" % (w, h, r)
     im.save(os.path.join(OUT, name), optimize=True)

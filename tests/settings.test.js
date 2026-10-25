@@ -1,9 +1,8 @@
-// 처음 금액 줄 · 설정 화면 정리 · 색 규칙 · 아이 지우기 · 아이 추가
+// 설정: 처음 금액 줄, 설정 화면 구성, 색 규칙, 아이 지우기·추가
 const {T, done, launch, localPage, ready, settle, toastLike, idle}=require('./_harness');
 (async()=>{
 const b=await launch();
 const {p}=await localPage(b);                 // 빈 저장소 = 시작 화면
-// 닫기·뒤로는 history.back() → popstate 라 한 박자 늦고, 아이를 바꾸면 옛 화면 복사본(.ghost)이 타이머로 빠진다 — 둘 다 끝날 때까지
 const calm=()=>idle(p);
 const click=async(sel)=>{ await p.click(sel); await calm(); };
 const bal=()=>p.$eval('.bal b',e=>e.textContent);
@@ -49,7 +48,6 @@ T('붙여넣어 두면 안심 문구 없음', !/안심이에요/.test(txt));
 T('며칠 안 열어봐도 문구 없음', !/며칠 안 열어/.test(txt));
 T('두 폰이 같이 보는 중 문구 없음', !/두 폰이 같이/.test(txt));
 T('내보내기 · 엑셀 파일 › — 다른 줄들과 같은 모양', (await p.textContent('.card.export .srow.tap'))==='내보내기엑셀 파일\u203A');
-// 1.2.1 — 가족 코드 줄은 글자와 코드만 (로컬 모드라 여기선 없음). 내보내기는 한 번 누르면 바로 파일
 T('설정에 설명 줄이 없다 (동기화 안내 한 줄 없음)', !/이 코드로 참여/.test(await p.$eval('.screen.page',e=>e.textContent)));
 T('버전 오른정렬', (await p.$eval('.ver',e=>getComputedStyle(e).textAlign))==='right');
 T('아이 추가는 맨 아래 버전 줄 왼쪽에', await p.$eval('.foot',e=>{
@@ -62,7 +60,7 @@ T('아이 추가는 버전과 같은 톤', await p.$eval('.foot',e=>{
 T('아이 섹션에는 추가 버튼이 없다', !(await p.$('.card + .link.sm')));
 T('로컬은 연결 안 됨 표시', /연결 안 됨/.test(txt));
 await click('.nav .back');
-// 4-b) 색 규칙 — 잔액은 검정, 아이 색은 탭에만
+// 4-b) 색 규칙: 잔액은 검정, 아이 색은 탭에만
 T('잔액은 검정', (await p.$eval('.bal b',e=>getComputedStyle(e).color))==='rgb(17, 19, 23)');
 const ul=await p.$eval('.bar .k.on',e=>getComputedStyle(e,'::after').backgroundColor);
 T('선택 탭 밑줄이 아이 색', ul==='rgb(30, 136, 229)');
@@ -91,11 +89,11 @@ T('홈 탭도 1개', (await p.$$('.bar .k')).length===1);
 T('처음 금액 줄에 날짜', (await p.$eval('.row.open .d',e=>e.textContent)).length>0);
 T('날짜가 오늘', (await p.$eval('.row.open .d',e=>e.textContent))==='오늘');
 
-// 아이 추가 — 늘어난 줄이 화면 밖일 수 있어 토스트로 알린다 (아이 수를 바꾸므로 맨 끝에서)
+// 아이 추가(아이 수를 바꾸므로 맨 끝에서)
 await click('.gear');
 const before=(await p.$$('.srow .nm')).length;
 await click('.foot .addk');
-await toastLike(p, /추가했어요/).catch(()=>{});          // 안 뜨면 아래 T 가 실패로 센다
+await toastLike(p, /추가했어요/).catch(()=>{});          // 판정은 아래 T
 T('아이가 한 명 늘어난다', (await p.$$('.srow .nm')).length===before+1);
 T('추가하면 알려준다', /추가했어요/.test(await p.textContent('#toast')));
 

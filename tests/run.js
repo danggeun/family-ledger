@@ -1,8 +1,8 @@
-// 모든 테스트를 돌린다. 파일마다 따로 브라우저를 띄우므로 몇 개씩 동시에 — 결과는 파일 이름 순으로 모아 찍는다.
-// 하나라도 실패하면 종료 코드 1.   npm test            (동시 실행 = CPU 수, 최대 4)
-//                                  npm test -- -j1     (하나씩 — 무엇이 느린지 볼 때)
-//                                  npm test -- tour    (이름에 tour 가 든 파일만)
-// 실행 전 한 번: npm install && npx playwright install chromium
+// 테스트 파일을 몇 개씩 동시에 돌리고 결과는 파일 이름 순으로 찍는다. 실패가 있으면 종료 코드 1.
+//   npm test            동시 실행 = CPU 수(최대 4)
+//   npm test -- -j1     하나씩
+//   npm test -- tour    이름에 tour 가 든 파일만
+// 처음 한 번: npm install && npx playwright install chromium
 const {spawn}=require('child_process'); const path=require('path'); const fs=require('fs'); const os=require('os');
 
 const args=process.argv.slice(2);
@@ -28,7 +28,7 @@ function runOne(f){
   for(const r of results){
     const m=r.out.match(/(\d+) passed, (\d+) failed/); const n=m?Number(m[1])+Number(m[2]):0; total+=n;
     console.log(`\n== ${r.f}  (${(r.ms/1000).toFixed(1)}s${n?', '+n+'개':''})`);
-    if(r.code){ failed++; console.log(r.out.trimEnd()); }                       // 실패한 파일은 전부 보여준다
+    if(r.code){ failed++; console.log(r.out.trimEnd()); }
     else console.log(r.out.split('\n').filter(l=>/^FAIL|passed, /.test(l)).join('\n'));
   }
   console.log(`\n${total}개 · ${files.length}개 파일 · ${((Date.now()-t0)/1000).toFixed(0)}초 (동시 ${jobs})`);

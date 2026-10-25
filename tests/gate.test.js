@@ -1,4 +1,4 @@
-// 잠깐 열어두기 잠금 — 주인 가족만 보이고, 열면 시간이 지나 저절로 잠긴다
+// 잠깐 열어두기: 주인 가족만 보이고, 열면 시간이 지나 저절로 잠긴다
 const {T, done, launch, localPage, section, seed, settle, ready, toastLike, KID}=require('./_harness');
 
 (async()=>{
@@ -8,9 +8,9 @@ await seed(p, [KID('k1','서윤','pink',0,10000)], []);
 const row=()=>p.$('.srow.tap:has-text("잠깐 열어두기")');
 const rowVal=()=>p.$eval('.srow.tap:has-text("잠깐 열어두기") .val',e=>e.textContent);
 const until=()=>p.evaluate(()=>JSON.parse(localStorage.getItem('yd_local_v1')).openUntil||null);
-// 설정을 연다 — 주인인지(gateState)는 열고 나서 따로 물어보고 다시 그린다. 새 페이지라 S.gate 는 비어 있다 — 답이 올 때까지
+// gateState 는 설정을 연 뒤 따로 물어 다시 그리므로 S.gate 가 찰 때까지
 const gear=async()=>{ await p.click('.gear'); await p.waitForFunction(()=>window.__app.S.gate!==null); await settle(p); };
-// 시트의 단추 → 저장되면 알림(토스트) + navBack(history.back → popstate, 비동기)으로 닫힌다. 그 popstate 까지 처리된 뒤
+// 저장되면 토스트 뒤 navBack(popstate, 비동기)으로 닫힌다
 const press=async(sel, re)=>{ await p.click(sel); await toastLike(p, re); await p.waitForFunction(()=>!window.__app.S.ui.backing); await settle(p); };
 
 await section('열고 잠그기', async()=>{

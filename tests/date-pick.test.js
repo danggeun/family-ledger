@@ -1,13 +1,11 @@
-// 날짜 고르기 — 기기 기본 달력 대신 앱 안에서
+// 날짜 고르기: 기기 기본 달력 대신 앱 안 달력
 const {T, done, launch, localPage, seed, settle, KID, E, back: backOnce, idle}=require('./_harness');
 const pad=n=>String(n).padStart(2,'0');
 (async()=>{
 const b=await launch();
 const {p}=await localPage(b);
-// 닫기·뒤로는 history.back() → popstate 라 한 박자 늦다 — 그 처리까지 끝날 때까지
 const calm=()=>idle(p);
 const click=async(sel)=>{ await p.click(sel); await calm(); };
-// 브라우저 뒤로 가기 — 열린 화면 하나가 닫힐(방문 기록 칸이 하나 줄) 때까지
 const back=()=>backOnce(p);
 
 await seed(p, [KID('k1','서윤','pink',0,10000,{created_at:'2026-01-01'})],

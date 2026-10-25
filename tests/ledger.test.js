@@ -1,9 +1,8 @@
-// 통장 목록 — 월 구분선(합계) · 처음엔 60줄 · 더 보기 · 색
+// 통장 목록: 월 구분선(합계), 처음 60줄, 더 보기, 색
 const {T, done, launch, localPage, seed, settle, idle}=require('./_harness');
 (async()=>{
 const b=await launch();
 const {p}=await localPage(b);
-// 닫기·뒤로는 history.back() → popstate 라 한 박자 늦고, 아이를 바꾸면 옛 화면 복사본(.ghost)이 타이머로 빠진다 — 둘 다 끝날 때까지
 const calm=()=>idle(p);
 
 // 여러 달·많은 줄을 미리 심어서 월 구분선과 더 보기를 확인

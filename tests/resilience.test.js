@@ -1,5 +1,4 @@
-// 서버가 안 될 때 / 아주 오래 썼을 때 — 정상 경로 밖의 완전함
-// 서버는 tests/_fake.js 로 흉내 낸다: live(정상) / dead(가족 확인은 되고 데이터만 실패) / down(처음부터 전부 실패)
+// 서버가 안 될 때, 아주 오래 썼을 때. 서버는 _fake.js 의 live / dead / down 모드로 흉내 낸다
 const {T, done, errs, launch, localPage, fakePage, section, settle, ready, allowConsole}=require('./_harness');
 
 const KIDS=[{id:'k1',family_id:'f1',name:'서윤',color:'pink',sort:0,opening_balance:10000,weekly_on:false,weekly_amount:0,created_at:'2026-07-01'}];
@@ -24,7 +23,7 @@ await section('정상', async()=>{
   await a.ctx.close();
 });
 
-// 2) 쓰던 기기인데 서버가 안 될 때 → 마지막 화면 + 배너 (시작 화면이 뜨면 안 된다)
+// 2) 쓰던 기기 + 서버 안 됨 → 마지막 화면 + 배너(시작 화면 아님)
 await section('서버 안 됨', async()=>{
   a=await open('dead',true);
   T('서버 안 됨: 시작 화면이 뜨지 않는다', !(await a.p.$('button:has-text("새로 시작하기")')));
@@ -48,7 +47,7 @@ await section('캐시 없음', async()=>{
   allowConsole(/^console: Error: Failed to fetch/);
 });
 
-// 4) 매주 용돈 — 아주 오래된 시작일이어도 최근 주까지 채운다
+// 4) 매주 용돈: 아주 오래된 시작일이어도 최근 주까지 채운다
 await section('매주 용돈', async()=>{
   const {ctx, p}=await localPage(b);
   const lastSat=()=>{const d=new Date(); d.setDate(d.getDate()-((d.getDay()+1)%7));

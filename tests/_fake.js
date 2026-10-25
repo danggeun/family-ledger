@@ -1,9 +1,9 @@
-// 가짜 Supabase(window.supabase) — sync-robust·regress-1.2.3·regress-1.2.5 등이 같이 쓴다. addInitScript 로 심는 함수라 바깥을 참조하지 않는다.
+// 가짜 Supabase(window.supabase). addInitScript 로 심는 함수라 바깥 변수를 참조하면 안 된다.
 const FAKE=(opt)=>{
   try{ Object.defineProperty(window,'APP_CONFIG',{value:{SUPABASE_URL:'https://x.supabase.co/rest/v1/',SUPABASE_ANON_KEY:'k'},writable:false,configurable:false}); }catch(_){}
   try{ localStorage.setItem('yd_tour','done'); }catch(e){}
   const F=window.__fake={
-    // live | dead(가족 확인은 되고 데이터·참여만 실패 = 붙어 있다가 끊긴 것) | noinit(가족 확인만 실패) | down(전부 실패 = 처음부터 서버가 안 된다)
+    // live | dead(가족 확인만 성공: 붙었다 끊김) | noinit(가족 확인만 실패) | down(전부 실패)
     mode: opt.mode||'live',
     session: opt.session===undefined ? {user:{id:'u1'}} : opt.session,
     members: opt.members || [{family_id:'f1',families:{code:'K7PM-3QRA'}}],
@@ -11,12 +11,14 @@ const FAKE=(opt)=>{
                        {id:'k2',family_id:'f1',name:'하준',color:'yellow',sort:1,opening_balance:5000,weekly_on:false,weekly_amount:0,created_at:'2026-07-02T00:00:00Z'}],
     ents: opt.ents || [{id:'e1',family_id:'f1',child_id:'k1',entry_date:'2026-09-14',memo:'젤리',amount:-800,auto_key:null,skipped:false,created_by:'u1',updated_by:'u1',created_at:'2026-09-14T09:00:00Z'},
                        {id:'e2',family_id:'f1',child_id:'k1',entry_date:'2026-09-13',memo:'용돈',amount:3000,auto_key:'w:2026-09-13',skipped:false,created_by:'u1',updated_by:'u1',created_at:'2026-09-13T09:00:00Z'}],
-    calls:{join:0,create:0,subscribe:0,anon:0,insert:0,update:0,delete:0,upsert:0}, n:100,   // 새 id 는 e101… — 시드(e1·e2)와 겹치지 않게
+    calls:{join:0,create:0,subscribe:0,anon:0,insert:0,update:0,delete:0,upsert:0}, n:100,   // 새 id 는 e101부터(시드와 안 겹치게)
     createFail:false, childFail:false, insertDelay:0, insertFail:false, joinError:null, createClientArgs:null, signedOut:false, authCb:null,
-    // insertHold=true 면 기록 저장(insert)이 release() 를 부를 때까지 "저장 중"에 머문다 — 시간(insertDelay) 대신 테스트가 끝을 정한다
-    insertHold:false, held:[], release(){ F.insertHold=false; const h=F.held; F.held=[]; h.forEach(r=>r()); }
+    // insertHold=true 면 insert 가 release() 전까지 끝나지 않는다
+    insertHold:false, held:[], release(){ F.insertHold=false; const h=F.held; F.held=[]; h.forEach(r=>r()); },
+    // 의견: 보낸 것은 feedback 에 쌓인다. reader=의견 읽는 기기, owner=주인 가족
+    feedback: opt.feedback || [], reader: !!opt.reader, owner: opt.owner!==false, fbFail:false
   };
-  F.calls.childDone=0;                                        // 아이 고치기(update) 응답이 나간 횟수 — childDelay 가 끝난 뒤를 기다릴 때
+  F.calls.childDone=0;                                        // 아이 update 응답 횟수(childDelay 뒤를 기다릴 때)
   const dead=()=>Promise.reject(new Error('Failed to fetch'));
   const ok=(data)=>Promise.resolve({data,error:null});
   const wait=(ms)=>new Promise(r=>setTimeout(r,ms));
@@ -31,14 +33,14 @@ const FAKE=(opt)=>{
       if(table==='family_members') return (F.mode==='noinit' || F.mode==='down') ? dead() : ok(F.members);
       if(F.mode==='dead' || F.mode==='down') return dead();
       if(F.signedOut) return Promise.resolve({data:null,error:{message:'permission denied for function is_member'}});   // 세션이 지워진 뒤의 요청 = anon 역할
-      // 진짜 PostgREST 처럼: familyId 가 없는 채로 .eq("id", null) 이 나가면 uuid 오류 (옛 코드의 H1 이 바로 이것)
+      // 진짜 PostgREST 처럼 .eq(key, null) 이면 uuid 오류
       const key = table==='families' ? 'id' : 'family_id';
       if(st.op==='select' && (st.filters[key]===null || st.filters[key]===undefined))
         return Promise.resolve({data:null,error:{message:'invalid input syntax for type uuid: "null"'}});
       if(st.op==='select'){
         if(table==='families') return ok({id:'f1',code:'K7PM-3QRA'});
         if(table==='children') return ok(F.kids.slice());
-        if(table==='entries'){                                   // 진짜 PostgREST 처럼 id 순 · gt · 범위 — 페이징을 흉내 낸다
+        if(table==='entries'){                                   // PostgREST 페이징 흉내: id 순, gt, 범위
           let rows=F.ents.slice().sort((x,y)=>x.id<y.id?-1:x.id>y.id?1:0);
           if(st.gt) rows=rows.filter(x=>x[st.gt[0]]>st.gt[1]);
           if(st.to!=null) rows=rows.slice(st.from, st.to+1);
@@ -51,7 +53,7 @@ const FAKE=(opt)=>{
           return (F.insertHold ? new Promise(r=>F.held.push(r)) : wait(F.insertDelay)).then(()=>{
             if(F.insertFail) return {data:null,error:{message:'Failed to fetch'}};
             F.ents.push(e); return {data:e,error:null}; }); }
-        if(st.op==='update'){ F.calls.update++; const e=F.ents.find(x=>x.id===st.filters.id); if(e) Object.assign(e,st.payload); return ok(e?[{id:e.id}]:[]); }   // 고친 줄(.select) — 없으면 빈 배열
+        if(st.op==='update'){ F.calls.update++; const e=F.ents.find(x=>x.id===st.filters.id); if(e) Object.assign(e,st.payload); return ok(e?[{id:e.id}]:[]); }   // .select 결과: 고친 줄, 없으면 빈 배열
         if(st.op==='delete'){ F.calls.delete++; F.ents=F.ents.filter(x=>x.id!==st.filters.id); return ok(null); }
         if(st.op==='upsert'){ F.calls.upsertRows=(F.calls.upsertRows||0)+(st.payload||[]).length; F.lastUpsert=st.payload; return ok([]); }
       }
@@ -73,7 +75,15 @@ const FAKE=(opt)=>{
     rpc:(name,args)=>{
       if(name==='join_family'){ F.calls.join++; if(F.mode==='dead' || F.mode==='down') return dead(); if(F.joinError) return Promise.resolve({data:null,error:{message:F.joinError}}); F.members=[{family_id:'f1',families:{code:args.p_code}}]; return ok('f1'); }
       if(name==='create_family'){ F.calls.create++; if(F.createFail) return Promise.resolve({data:null,error:{message:'gate'}}); F.members=[{family_id:'f1',families:{code:args.p_code}}]; return ok('f1'); }
-      if(name==='gate_state') return ok({is_owner:true,open_until:null});
+      if(name==='gate_state') return ok({is_owner:F.owner,is_reader:F.reader,open_until:null});
+      if(name==='send_feedback'){ if(F.fbFail || F.mode!=='live') return Promise.resolve({data:null,error:{message:'fb'}});
+        F.feedback.unshift({id:F.feedback.length+1,kind:args.p_kind,body:args.p_body,app_version:args.p_version,device:args.p_device,
+          created_at:new Date().toISOString(),family_code:'K7PM-3QRA',kids:'서윤·하준'}); return ok(null); }
+      if(name==='read_feedback') return ok(F.reader ? F.feedback.filter(f=>!f.done) : []);
+      if(name==='close_feedback'){ const f=F.feedback.find(x=>x.id===args.p_id); if(f){ f.done=true; f.read_at=f.read_at||new Date().toISOString(); } return ok(null); }
+      if(name==='mark_feedback_read'){ F.feedback.forEach(f=>{ if(!f.read_at && f.id<=args.p_upto) f.read_at=new Date().toISOString(); }); return ok(null); }
+      if(name==='my_feedback') return ok(F.feedback.filter(f=>f.kind==='note').slice(0,5));
+      if(name==='claim_feedback_reader'){ if(!F.owner) return Promise.resolve({data:null,error:{message:'권한이 없어요'}}); F.reader=true; return ok(null); }
       return ok(null); },
     channel:()=>({on(){return this;},subscribe(){ F.calls.subscribe++; return this; }}),
     removeChannel:()=>{ F.calls.removeChannel=(F.calls.removeChannel||0)+1; return Promise.resolve('ok'); }

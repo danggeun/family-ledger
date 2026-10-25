@@ -1,6 +1,5 @@
-// 1.3.2 — 1.3.0 독립 평가에서 나온 결함. 각각 옛 코드에서 실패한다.
-// 저장 실패가 다른 아이 입력줄로 돌아오던 것 · 다른 폰이 지운 줄을 고치면 성공처럼 보이던 것 · 나눠 받는 중 삭제로 한 줄 빠지던 것 ·
-// 열어 둔 매주 용돈 시트의 아이가 지워지면 에러 · 요일을 바꾸면 한 주에 두 번 · 긴 금액 앞자리가 말없이 잘리던 것 · 같은 시각 줄의 순서.
+// 회귀: 저장 실패와 아이 전환, 다른 폰이 지운 줄 고치기, 나눠 받는 중 삭제, 열린 시트의 아이 삭제,
+// 요일 변경 시 첫 용돈 날, 긴 금액 글자 크기, 같은 시각 줄 순서, sw 설치 캐시
 const {T, done, launch, localPage, fakePage, section, seed, idle, KID, E}=require('./_harness');
 const fs=require('fs'), path=require('path');
 
@@ -14,7 +13,6 @@ const b=await launch();
 let a, p;
 
 
-// ── 1. 저장이 늦게 실패하는 사이 다른 아이로 넘어가면, 치던 건 그 아이 입력줄로 돌아오지 않는다 ──
 await section('저장이 늦게 실패하는 사이 다른 아이로 넘어가면, 치던 건 그 아이 입력줄로 돌아오지 않는다', async()=>{
   a=await fakePage(b, {});
   await a.p.evaluate(()=>{ window.__fake.insertFail=true; window.__fake.insertDelay=700; });
@@ -24,7 +22,7 @@ await section('저장이 늦게 실패하는 사이 다른 아이로 넘어가�
   await a.p.waitForFunction(()=>/저장 실패/.test(document.getElementById('toast').textContent));
   T('하준 입력줄은 비어 있다 (전엔 서윤 것이 돌아와 ✓ 한 번에 하준 기록이 됐다)', (await a.p.$eval('.memo',e=>e.value))==='' && (await a.p.$eval('.amt',e=>e.value))==='');
   T('누구 것이 실패했는지 알린다', /서윤 저장 실패/.test(await toast(a.p)));
-  // 같은 아이에 머물면 그대로 돌려준다(1.2.5)
+  // 같은 아이에 머물면 그대로 돌려준다
   await a.p.evaluate(()=>{ window.__fake.insertDelay=0; });
   await a.p.click('.memo'); await a.p.keyboard.type('젤리'); await a.p.click('.amt'); await a.p.keyboard.type('500');
   await a.p.click('.entry .ok');
@@ -33,7 +31,6 @@ await section('저장이 늦게 실패하는 사이 다른 아이로 넘어가�
   await a.ctx.close();
 });
 
-// ── 2. 다른 폰이 지운 줄을 고치면 실패로 알리고 되돌린다 ──
 await section('다른 폰이 지운 줄을 고치면 실패로 알리고 되돌린다', async()=>{
   a=await fakePage(b, {});
   await a.p.click('.row:has-text("젤리")'); await a.p.waitForSelector('.sheet');
@@ -46,7 +43,6 @@ await section('다른 폰이 지운 줄을 고치면 실패로 알리고 되돌�
   await a.ctx.close();
 });
 
-// ── 3. 1000줄 넘게 나눠 받는 사이 다른 폰이 지워도 한 줄도 빠지지 않는다 ──
 await section('1000줄 넘게 나눠 받는 사이 다른 폰이 지워도 한 줄도 빠지지 않는다', async()=>{
   const many=[]; for(let i=0;i<2500;i++){ const id='e'+String(i).padStart(5,'0'); many.push({id,family_id:'f1',child_id:'k1',entry_date:'2026-09-01',memo:'m'+i,amount:-1,auto_key:null,skipped:false,created_at:'2026-09-01T09:00:00Z'}); }
   a=await fakePage(b, {ents:many});
@@ -56,14 +52,13 @@ await section('1000줄 넘게 나눠 받는 사이 다른 폰이 지워도 한 �
   await resume(a.p);
   await a.p.waitForFunction(()=>window.__fake.calls.pages>=3);
   await a.p.waitForFunction(()=>window.__app.S.entries.length>=2499 && !window.__app.S.ui.loading);
-  // 지워진 줄(e00010)은 이미 받은 첫 쪽에 있었으니 이번엔 남아 있다 — 실시간 삭제 알림이 다음 reload 로 걷어낸다. 중요한 건 남아 있는 줄이 하나도 안 빠지는 것
+  // e00010 은 이미 받은 첫 쪽에 있어 남는다(실시간 삭제가 나중에 걷어낸다). 보는 건 남은 줄의 누락
   const got=await a.p.evaluate(()=>{ const ids=window.__app.S.entries.map(e=>e.id), set=new Set(ids); return {n:ids.length, dup:ids.length-set.size, missing:window.__fake.ents.filter(e=>!set.has(e.id)).map(e=>e.id)}; });
   T('서버에 남은 2,499줄이 하나도 안 빠졌다 (빠짐 '+got.missing.length+') — 전엔 "몇 번째부터"라 경계 줄(e01000)이 밀려 빠졌다', got.missing.length===0);
   T('두 번 온 줄도 없다', got.dup===0);
   await a.ctx.close();
 });
 
-// ── 4. 매주 용돈 시트를 연 채 다른 폰이 그 아이를 지우면 — 에러 없이 시트가 닫힌다 ──
 await section('매주 용돈 시트를 연 채 다른 폰이 그 아이를 지우면 — 에러 없이 시트가 닫힌다', async()=>{
   a=await fakePage(b, {});
   await a.p.click('.gear'); await a.p.waitForSelector('.card.week');
@@ -76,7 +71,6 @@ await section('매주 용돈 시트를 연 채 다른 폰이 그 아이를 지�
   await a.ctx.close();
 });
 
-// ── 5. 매주 용돈을 켜거나 요일을 바꾸면 첫 용돈 날을 부모가 고른다 — 미리 골라 둔 쪽은 한 주에 두 번이 없다 (1.3.2 규칙 → 1.3.3 고르기) ──
 await section('매주 용돈을 켜거나 요일을 바꾸면 첫 용돈 날을 고른다', async()=>{
   ({p}=await localPage(b, {clock:SAT}));
   await seed(p, [KID('k1','서윤','pink',0,10000,{weekly_on:true,weekly_dow:6,weekly_amount:3000,weekly_start:'2026-09-19'})], []);
@@ -97,7 +91,7 @@ await section('매주 용돈을 켜거나 요일을 바꾸면 첫 용돈 날을 
   await p.waitForFunction(()=>window.__app.S.children[0].weekly_dow===1 && !window.__app.S.ui.loading); await idle(p);
   T('고른 날부터: weekly_start = 10.12', await p.evaluate(()=>window.__app.S.children[0].weekly_start)==='2026-10-12');
   T('오늘 새로 생긴 자동 줄 없음', (await auto()).filter(d=>d>'2026-10-10').length===0);
-  // 처음 켤 때 — 오늘이 그 요일이면 "오늘"이 미리 골라져 있다(전과 같게 바로 들어간다)
+  // 처음 켤 때: 오늘이 그 요일이면 "오늘"이 미리 골라져 있다
   await seed(p, [KID('k1','서윤','pink',0,10000)], []);
   await p.click('.gear'); await idle(p);
   await p.click('.card.week .srow >> nth=0'); await idle(p);
@@ -106,7 +100,6 @@ await section('매주 용돈을 켜거나 요일을 바꾸면 첫 용돈 날을 
   T('처음 켜면 토요일 기본: 오늘 10.10 (토)* · 10.17 (토)', opts2.join(' | ')==='오늘 10.10 (토)* | 10.17 (토)');
 });
 
-// ── 6. 긴 금액은 글자를 줄여 다 보인다 · 보통 금액은 그대로 ──
 await section('긴 금액은 글자를 줄여 다 보인다 · 보통 금액은 그대로', async()=>{
   await seed(p, [KID('k1','서윤','pink',0,10000)], []);
   await p.click('.amt'); await p.keyboard.type('3000');
@@ -118,14 +111,12 @@ await section('긴 금액은 글자를 줄여 다 보인다 · 보통 금액은 
   T('다시 짧아지면 원래 크기로', await p.$eval('.amt',e=>e.style.fontSize)==='');
 });
 
-// ── 7. 같은 날·같은 시각 줄은 id 순 — 폰마다 누적 금액 순서가 같다 ──
 await section('같은 날·같은 시각 줄은 id 순 — 폰마다 누적 금액 순서가 같다', async()=>{
   const ord=await p.evaluate(()=>{ const f=window.__app.byDateThenCreated, x={entry_date:'2026-10-10',created_at:'t',id:'b'}, y={entry_date:'2026-10-10',created_at:'t',id:'a'};
     return [f(x,y), f(y,x), f(x,x)]; });
   T('정렬이 대칭이고 같은 줄은 0 (전엔 늘 1이라 순서가 폰마다 달랐다)', ord[0]===1 && ord[1]===-1 && ord[2]===0);
 });
 
-// ── 8. 서비스워커 설치는 HTTP 캐시를 건너뛴다(배포 직후 옛 파일을 담지 않게) ──
 await section('서비스워커 설치는 HTTP 캐시를 건너뛴다(배포 직후 옛 파일을 담지 않게)', async()=>{
   T('sw.js 설치가 cache:"reload"', /new Request\(a, \{cache:"reload"\}\)/.test(fs.readFileSync(path.resolve(__dirname,'../sw.js'),'utf8')));
 });

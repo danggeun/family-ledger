@@ -1,10 +1,9 @@
-// 한 바퀴 — 첫 시작 · 적기 · 날짜 칩 · 용도 칩 · 고치기 · 지우기 · 매주 용돈 · 새로고침 · 건너뛰기
+// 한 바퀴: 첫 시작, 적기, 날짜·용도 칩, 고치기, 지우기, 매주 용돈, 새로고침, 건너뛰기
 const {T, done, launch, localPage, ready, settle, idle}=require('./_harness');
 (async()=>{
 const b=await launch();
 const {p}=await localPage(b);                 // 빈 저장소 = 시작 화면
 
-// 닫기·뒤로는 history.back() → popstate 라 한 박자 늦고, 아이를 바꾸면 옛 화면 복사본(.ghost)이 타이머로 빠진다 — 둘 다 끝날 때까지
 const calm=()=>idle(p);
 const click=async(sel)=>{ await p.click(sel); await calm(); };
 const curBal=()=>p.$eval('.bal b',e=>e.textContent);
@@ -82,7 +81,6 @@ T('딴 데를 누르면 날짜 칩도 닫힌다', (await p.$$('.chips.dates butt
 // 8) 자동 용돈
 await click('.gear');
 T('설정 화면', (await p.$('h2:has-text("설정")'))!==null);
-// 매주 용돈: 요약 행 → 시트 (안 함/매주 · 요일 · 금액 · 저장)
 await click('.srow.tap >> nth=0');
 await click('.sheet .tabs button:has-text("매주")');
 const DOW=["일","월","화","수","목","금","토"];

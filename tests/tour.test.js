@@ -1,14 +1,13 @@
-// 1.2.0 — 처음 안내(어두운 막 + 눌러볼 곳) · 사용법 페이지 · 안드로이드 설치 버튼
+// 처음 안내(어두운 막 + 눌러볼 곳), 설정의 다시 보기, 안드로이드 설치 버튼
 const {T, done, launch, localPage, ready, settle, touch, until, idle}=require('./_harness');
 const KIDS=[{id:'k1',name:'서윤',color:'pink',sort:0,opening_balance:16300,weekly_on:false,weekly_amount:0,created_at:'2026-07-01'},
             {id:'k2',name:'하준',color:'yellow',sort:1,opening_balance:5000,weekly_on:false,weekly_amount:0,created_at:'2026-07-01'}];
 const E=(id,memo,amount,date)=>({id,child_id:'k1',entry_date:date,memo,amount,auto_key:null,created_by:'me',updated_by:'me',created_at:date+'T09:00:00Z'});
-// 앱 타이머(0.1~0.5초)·popstate 로 오는 결과를 기다린다. 2초 안에 안 오면 안 온 것 — 던지지 않고 판정은 뒤의 T 가 한다
 const gone=(p)=>until(p, ()=>!document.querySelector('.tour'));      // 끝난 안내 레이어는 흐려진 뒤(0.26초 타이머) 치워진다
 (async()=>{
 const b=await launch();
-// 길게 누르기는 손 뗀 뒤 다음 click 하나를 삼킨다(문서에 capture click 리스너를 걸었다가 0.5초 뒤 스스로 푼다).
-// 그 리스너 수를 세어 두고 "풀렸다"를 조건으로 기다린다 — 앱 동작은 그대로(세기만 하고 그대로 넘긴다)
+// 길게 누르기는 손 뗀 뒤 click 하나를 삼킨다(capture click 리스너를 0.5초 뒤 푼다).
+// 그 리스너 수만 세어 "풀렸다"를 기다린다(앱 동작은 그대로).
 const SWALLOW=()=>{ const add=document.addEventListener.bind(document), rm=document.removeEventListener.bind(document), cap=o=>o===true||!!(o&&o.capture);
   window.__swallow=0;
   document.addEventListener=function(t,f,o){ if(t==='click'&&cap(o)) window.__swallow++; return add(t,f,o); };
@@ -16,7 +15,7 @@ const SWALLOW=()=>{ const add=document.addEventListener.bind(document), rm=docum
 const {ctx, p}=await localPage(b, {tour:true, init:SWALLOW});         // 안내를 끄지 않는 환경
 const cdp=await ctx.newCDPSession(p);
 const swipe=await touch(p);
-// tour: undefined 면 yd_tour 를 지운다(= 이 판을 처음 여는 기기), 문자열이면 그대로
+// tour: 없으면 yd_tour 없음(처음 여는 기기), 문자열이면 그 값
 const load=async(kids,entries,tour)=>{ await p.evaluate(({kids,entries,tour})=>{
     localStorage.clear();
     localStorage.setItem('yd_local_v1',JSON.stringify({family:{id:'f1',code:'K7PM-3QRA'},children:kids,entries})); localStorage.setItem('yd_sel','k1');
@@ -26,7 +25,7 @@ const load=async(kids,entries,tour)=>{ await p.evaluate(({kids,entries,tour})=>{
 const card=()=>p.$eval('.tour:not(.hide) .tour-card',e=>{ const d=[...e.querySelectorAll('.dots i')], on=d.findIndex(x=>x.classList.contains('on'));
   return e.querySelector('.tc-title').childNodes[0].textContent+'|'+(e.querySelector('.dots').style.visibility==='hidden'?'':(on+1)+' / '+d.length); }).catch(()=>null);
 const tour=()=>p.evaluate(()=>localStorage.getItem('yd_tour'));
-// 막혀서 못 누르면(안내 막이 가로챔) 그때 자리를 찍어 두고 실패한다 — CI 처럼 손으로 볼 수 없는 곳에서 원인을 남기려고
+// 안내 막에 막혀 못 누르면 자리를 DIAG 로 찍고 실패한다(CI 에서 원인을 남기려고)
 const click=async(sel)=>{
   try{ await p.click(sel); }
   catch(e){
@@ -42,25 +41,24 @@ const click=async(sel)=>{
 };
 const tapAt=async(x,y)=>{ await p.mouse.click(x,y); await idle(p); };
 const center=(sel)=>p.$eval(sel,e=>{const r=e.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2};});
-// 막 밖의 버튼을 눌러 본다. 그 자리 맨 위가 막(tour-block)이면 실제로 누르고, 안내 카드가 덮고 있으면 누르지 않는다 —
-// 글꼴이 큰 기기(CI 의 글꼴)에선 카드가 길어져 그 자리를 덮는다. 그때 누르면 카드의 "이전"이 눌려 단계가 돌아갔다(테스트 쪽 가정의 잘못).
-// 어느 쪽이든 그 버튼엔 손이 안 닿는다는 게 요점. 돌려주는 값: "block" | "card" | 그 밖(= 손이 닿는다, 실패)
+// 막 밖의 버튼 누르기. 맨 위가 막(tour-block)이면 누르고, 카드가 덮으면 누르지 않는다(큰 글꼴에선 카드가 덮어 "이전"이 눌린다).
+// 돌려주는 값: "block" | "card" | 그 밖(손이 닿음 = 실패)
 const tapOutside=async(sel)=>{ const c=await center(sel);
   const top=await p.evaluate(({x,y})=>{ const e=document.elementFromPoint(x,y); return !e ? 'none' : e.closest('.tour-block') ? 'block' : e.closest('.tour-card') ? 'card' : 'reachable'; }, c);
   if(top==='block') await tapAt(c.x,c.y);
   return top; };
 const press=async(sel,ms)=>{ const box=await center(sel);
   await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:box.x,y:box.y}]});
-  await p.waitForTimeout(ms);                                          // 진짜 시간: 길게 누르기 — 문턱(0.5초)을 넘겨 누르고 있는 시간이 곧 동작이다
+  await p.waitForTimeout(ms);                                          // 진짜 시간: 누르고 있는 시간(문턱 0.5초)이 곧 동작이다
   await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]}); await idle(p); };
-// 1·2단계를 해 보고 다음 단계로: 부호 → 다음 → 잔액 → 그림 닫기
+// 1·2단계 통과: 부호 → 다음 → 잔액 → 그림 닫기
 const pastBal=async()=>{ await click('.entry .sign'); await click('.tour-card .ok'); await click('.balbtn'); await click('.kid .x'); };
 
-// ── 기존 사용자(이 판을 처음 여는데 이미 기록이 있다) → 안내 없음 ──
+// ── 기존 사용자(yd_tour 없이 기록이 있다) → 안내 없음
 await load(KIDS,[E('e1','간식',-800,'2026-10-08')]);
 T('기존 사용자: 안내가 안 뜬다', !(await p.$('.tour-card')) && (await tour())==='done');
 
-// ── 새 기기 → 1단계 잔액. 막이 다른 곳을 막는다 ──
+// ── 새 기기 → 1단계 잔액. 막이 다른 곳을 막는다
 await load(KIDS,[]);
 T('새 기기: 1단계 "− 를 눌러 받은 돈으로" (1 / 10)', (await card())==='− 를 눌러 받은 돈으로 바꿔 보세요|1 / 10' && (await tour())==='new');
 T('첫 카드엔 × 위에 "언제든 그만두기" 말풍선', (await p.textContent('.tour-card .skip-hint'))==='언제든 그만두기' && await p.$eval('.tour-card .skip-hint',e=>e.style.display!=='none'));
@@ -89,7 +87,7 @@ T('닫으면 3단계 밀기', (await card())==='좌우로 밀어 보세요|3 / 1
 T('2단계 제목에 방향 화살표', (await p.$$('.tour-card .tc-chev i')).length===3);
 T('레이어는 하나뿐 (단계가 바뀌어도 새로 만들지 않는다)', (await p.$$('.tour')).length===1);
 
-// ── 2단계: 밝은 띠에서 밀거나, 이름을 누르거나, 어두운 데서 밀어도 ──
+// ── 2단계: 밝은 띠에서 밀거나, 이름을 누르거나, 어두운 데서 밀어도
 await swipe(300,100,90,100); await idle(p);
 T('밀면 4단계 길게 누르기', (await card())==='이 줄을 길게 눌러 보세요|4 / 10' && (await p.textContent('.bar .k.on'))==='하준');
 await load(KIDS,[]); await pastBal();
@@ -99,7 +97,7 @@ await load(KIDS,[]); await pastBal();
 await swipe(300,600,90,600); await idle(p);                           // 아래쪽 아무 데나
 T('아무 데서나 밀어도 4단계', (await card())==='이 줄을 길게 눌러 보세요|4 / 10');
 
-// ── 3단계: 예시 줄을 길게 누르면 그 금액 그림. 기록은 안 생긴다 ──
+// ── 3단계: 예시 줄을 길게 누르면 그 금액 그림. 기록은 안 생긴다
 T('예시 줄이 있다 (오늘 · 젤리 · −800)', await p.$eval('.tour-sample.on .row.sample',e=>/젤리/.test(e.textContent) && /800/.test(e.textContent)));
 await click('.row.sample');
 T('예시 줄을 짧게 누르면 아무 일 없다', !(await p.$('.sheet')) && !!(await p.$('.tour-card')));
@@ -107,7 +105,7 @@ await press('.row.sample', 700);
 T('길게 누르면 한 줄 그림 (젤리 −800)', !!(await p.$('.kid.one')) && (await p.textContent('.kid.one .ka b'))==='−800' && (await p.textContent('.kid.one .kn'))==='젤리');
 T('그 위에도 한 줄 — 아무 데나 누르면 닫혀요, 예시 줄은 안 보인다', (await p.textContent('.tour-card.hint .tc-title'))==='아무 데나 누르면 닫혀요' && !(await p.$('.tour-sample.on')));
 T('진짜 기록은 하나도 안 생겼다', await p.evaluate(()=>JSON.parse(localStorage.getItem('yd_local_v1')).entries.length===0));
-await until(p, ()=>window.__swallow===0);                                 // 손 뗀 뒤 0.5초는 다음 click 을 삼킨다(길게 누르기 규칙) — 풀릴 때까지
+await until(p, ()=>window.__swallow===0);                                 // 길게 누른 뒤 0.5초는 click 을 삼키므로 풀릴 때까지
 await click('.kid.one .x');
 T('닫으면 5단계 "이번엔 짧게 눌러 보세요"', (await card())==='이번엔 짧게 눌러 보세요|5 / 10' && !!(await p.$('.tour-sample.on')));
 await click('.row.sample');
@@ -120,7 +118,7 @@ T('다음 → 시트가 닫히고 6단계 "⚙ 를 눌러 설정으로"', !(awai
 const sg0=await p.textContent('.entry .sign');
 const signAt=await tapOutside('.entry .sign');
 T('막 밖(부호)은 안 눌린다 ('+signAt+'), 단계도 그대로', /block|card/.test(signAt) && (await p.textContent('.entry .sign'))===sg0 && (await card())==='오른쪽 위 톱니를 눌러 설정으로 가 볼게요|6 / 10');
-// 톱니가 밝은 구멍 안에 있어야 누를 수 있다 — 아니면 그때의 자리를 전부 찍어 둔다(CI 에서 한 번 막혔던 자리)
+// 톱니가 구멍 안에 있어야 누를 수 있다. 아니면 자리를 찍어 둔다
 const gearDiag=await p.evaluate(()=>{ const R=e=>{ const r=e.getBoundingClientRect(); return [Math.round(r.left),Math.round(r.top),Math.round(r.width),Math.round(r.height)]; };
   const g=document.querySelector('.gear').getBoundingClientRect(), cx=g.left+g.width/2, cy=g.top+g.height/2, hit=document.elementFromPoint(cx,cy);
   return {ok: !!hit && !!hit.closest('.gear'), hit: hit ? hit.className : null, gear:R(document.querySelector('.gear')), spot:R(document.querySelector('.tour-spot')),
@@ -156,7 +154,6 @@ await click('.tour-card .ok'); await gone(p);
 T('시작 → 끝, 레이어가 치워지고 done, 키보드는 안 뜬다', !(await p.$('.tour')) && (await tour())==='done' && await p.evaluate(()=>document.activeElement!==document.querySelector('input.memo')));
 T('밀어서 하준으로 갔었어도 끝나면 시작하던 서윤 홈', (await p.textContent('.bar .k.on'))==='서윤' && await p.evaluate(()=>localStorage.getItem('yd_sel')==='k1'));
 T('안내에서 바꾼 부호는 되돌아온다 (−)', await p.$eval('.entry .sign',e=>e.textContent==='−'));
-// 설정 단계 중간에 뒤로 가기로 나가도 끝
 await load(KIDS,[]); for(let i=0;i<5;i++) await click('.tour-card .ok'); await click('.gear');
 T('(중간) 7단계', (await card())==='아이 이름과 색|7 / 10');
 await p.goBack(); await idle(p); await gone(p);
@@ -175,28 +172,28 @@ T('× 로도 끝', !(await p.$('.tour')) && (await tour())==='done');
 await p.reload(); await ready(p); await idle(p);
 T('다시는 안 뜬다', !(await p.$('.tour-card')));
 
-// ── 아이가 하나면 밀기 단계가 없다 (1 / 2 → 2 / 2) ──
+// ── 아이가 하나면 밀기 단계가 없다
 await load([KIDS[0]],[]);
 T('아이 하나: 1 / 9', (await card())==='− 를 눌러 받은 돈으로 바꿔 보세요|1 / 9');
 await pastBal();
 T('바로 길게 누르기 (3 / 8)', (await card())==='이 줄을 길게 눌러 보세요|3 / 9');
 
-// ── 그만하기 · 하다 말고 끄면 처음부터 ──
+// ── 그만하기 · 하다 말고 끄면 처음부터
 await click('.tour-card .skip'); await gone(p);
 T('그만하기 → 끝, done', !(await p.$('.tour')) && (await tour())==='done');
 await load(KIDS,[],'new');
 T('하다 말고 껐으면(new) 처음부터', (await card())==='− 를 눌러 받은 돈으로 바꿔 보세요|1 / 10');
 
-// ── 설정의 "처음 안내 다시 보기" (글로 된 사용법은 없다) ──
+// ── 설정의 "처음 안내 다시 보기"
 await load(KIDS,[E('e1','간식',-800,'2026-10-08')],'done');
 await click('.gear');
 T('앱 섹션에 처음 안내 … [다시 보기] 줄, 맨 아래 줄은 전과 같다', (await p.textContent('.help-link'))==='처음 안내다시 보기›' && await p.$eval('.foot',(e,v)=>/아이 추가하기/.test(e.textContent) && e.textContent.includes('v'+v), require('../package.json').version));
 T('사용법 페이지는 없다', !/사용법/.test(await p.textContent('.screen.page')));
-await p.click('.help-link');                                         // history.go(-n) 는 비동기 — 설정이 닫힐 때까지
+await p.click('.help-link');                                         // history.go(-n) 는 비동기라 설정이 닫힐 때까지 기다린다
 await until(p, ()=>!document.querySelector('.nav h2')); await idle(p);
 T('누르면 설정이 닫히고 홈에서 1단계', !(await p.$('.nav h2')) && (await card())==='− 를 눌러 받은 돈으로 바꿔 보세요|1 / 10' && (await tour())==='new');
 
-// ── 안드로이드 설치 버튼 (시작 화면) ──
+// ── 안드로이드 설치 버튼 (시작 화면)
 await p.evaluate(()=>localStorage.clear()); await p.reload(); await ready(p);
 T('시작 화면: 이벤트가 없으면 설치 버튼 없음', !!(await p.$('button:has-text("새로 시작하기")')) && !(await p.$('button:has-text("홈 화면에 추가")')));
 await p.evaluate(()=>{ window.__prompted=0; const e=new Event('beforeinstallprompt',{cancelable:true}); e.prompt=()=>{ window.__prompted++; }; e.userChoice=Promise.resolve({outcome:'accepted'}); window.dispatchEvent(e); });
@@ -205,7 +202,7 @@ T('beforeinstallprompt 가 오면 "홈 화면에 추가"', !!(await p.$('button:
 await p.click('button:has-text("홈 화면에 추가")'); await settle(p);
 T('누르면 prompt() 하고 버튼은 사라진다', (await p.evaluate(()=>window.__prompted))===1 && !(await p.$('button:has-text("홈 화면에 추가")')));
 
-// ── 온보딩으로 시작하면 바로 안내 ──
+// ── 온보딩으로 시작하면 바로 안내
 await p.click('button:has-text("새로 시작하기")'); await settle(p);
 await p.fill('.pair input[placeholder="이름"]','서윤'); await p.click('button:has-text("시작")');
 await until(p, ()=>window.__app.S.screen==='home' && !window.__app.S.ui.loading && !!document.querySelector('.tour .tour-card')); await idle(p);

@@ -1,9 +1,9 @@
-// 1.2.3 — 1.2.2 점검에서 남은 것. 쓰는 중 세션이 날아갔을 때, CDN 없이 캐시만 뜬 화면, 이름 고치기 중 다시 그리기,
-// 자정 넘김, 금액 자릿수, 톱니 그림, 인앱 브라우저 경고, 글자 크기를 키운 폰의 표, 기종별 실행 화면. 각각 옛 코드에서 실패하던 것.
+// 회귀: 쓰는 중 세션 소실, CDN 없이 캐시 화면, 이름 고치기 중 다시 그리기, 자정 넘김,
+// 금액 자릿수, 톱니 그림, 표 칸 크기, iOS 실행 화면, 인앱 브라우저 경고
 const path=require('path'), fs=require('fs');
 const {T, done, errs, launch, localPage, fakePage, section, seed, settle, resume, APP, VP, today:todayOf, allowConsole, ready, reloaded, watch}=require('./_harness');
 const {CACHE}=require('./_fake');
-const CDN='https://lib.test/supabase-js.js';   // 라이브러리 주소를 이걸로 돌려(APP_CONFIG.SUPABASE_JS) 막았다·풀었다 한다
+const CDN='https://lib.test/supabase-js.js';   // APP_CONFIG.SUPABASE_JS 로 돌려 막는 주소
 const today=todayOf();
 const KID=(extra)=>Object.assign({id:'k1',name:'서윤',color:'pink',sort:0,opening_balance:16300,weekly_on:false,weekly_amount:0,created_at:'2026-07-01T09:00:00Z'},extra||{});
 
@@ -23,12 +23,12 @@ const toastText=(p)=>p.textContent('#toast');
 const b=await launch();
 let a;
 
-// ── 1. 쓰는 중에 세션이 날아가면(SIGNED_OUT) 다음 reload 가 init 부터 — 캐시의 코드로 다시 참여해 복구 ──
+// ── 1. 쓰는 중 SIGNED_OUT: 다음 reload 가 init 부터 돌아 캐시의 코드로 다시 참여
 await section('SIGNED_OUT', async()=>{
   a=await fakePage(b, {}, {cache:true, wait:false}); await ready(a.p);
   T('정상 시작: 배너 없음, 12,200', !(await a.p.$('.offbar')) && (await bal(a.p))==='12,200');
   const c0=await calls(a.p);
-  await a.p.evaluate(()=>{ const F=window.__fake; F.session=null; F.signedOut=true; F.members=[]; F.authCb && F.authCb('SIGNED_OUT', null); });   // supabase-js 가 세션을 지웠다 — 새 익명 유저는 어느 가족에도 없다
+  await a.p.evaluate(()=>{ const F=window.__fake; F.session=null; F.signedOut=true; F.members=[]; F.authCb && F.authCb('SIGNED_OUT', null); });   // supabase-js 가 세션을 지운 상태. 새 익명 유저는 가족이 없다
   await reloaded(a.p, ()=>resume(a.p));
   const c1=await calls(a.p);
   T('SIGNED_OUT 뒤 복귀: 배너 없이 복구(익명 로그인 1회 · 캐시 코드로 join 1회)', !(await a.p.$('.offbar')) && (await bal(a.p))==='12,200' && c1.anon===c0.anon+1 && c1.join===c0.join+1);
@@ -36,7 +36,7 @@ await section('SIGNED_OUT', async()=>{
   await a.ctx.close();
 });
 
-// ── 2. CDN 못 받음 + 캐시 → store 없는 홈. 전엔 ⚙ 가 흰 화면, ✓ 는 줄만 남고 유실 ──
+// ── 2. CDN 못 받음 + 캐시 → store 없는 홈
 await section('CDN 없이 캐시 화면', async()=>{
   a=await cdnBlocked(b, true);
   T('캐시 화면+배너', !!(await a.p.$('.offbar')) && (await bal(a.p))==='9,200');
@@ -46,17 +46,17 @@ await section('CDN 없이 캐시 화면', async()=>{
   await a.p.click('.entry .ok'); await settle(a.p);
   const rows=await a.p.$$eval('.row:not(.open)',es=>es.length);
   T('✓: 토스트, 줄이 안 생기고 치던 금액은 남는다', rows===1 && (await a.p.$eval('.amt',e=>e.value))==='500' && (await bal(a.p))==='9,200');
-  await a.p.click('.amt'); await a.p.keyboard.press('Control+A'); await a.p.keyboard.press('Backspace'); await a.p.click('.row:not(.open) >> nth=0'); await settle(a.p);   // 적는 중이면 목록 탭은 나가기만 — 금액을 비우고
+  await a.p.click('.amt'); await a.p.keyboard.press('Control+A'); await a.p.keyboard.press('Backspace'); await a.p.click('.row:not(.open) >> nth=0'); await settle(a.p);   // 적는 중엔 목록 탭이 나가기만 한다(금액을 비우고 나간다)
   await a.p.click('.row:not(.open) >> nth=0'); await settle(a.p);
   T('기록 줄을 눌러도 시트가 열린다 (store.userId 가드)', !!(await a.p.$('.sheet')));
   await a.p.click('.sheet button:has-text("삭제")'); await settle(a.p);
-  await reloaded(a.p, ()=>a.p.click('.sheet button:has-text("정말 삭제")'));   // 되돌린 뒤 다시 받아 보는 reload(CDN 이 안 되니 실패)까지
+  await reloaded(a.p, ()=>a.p.click('.sheet button:has-text("정말 삭제")'));   // 되돌린 뒤의 reload(실패)까지
   T('삭제: tryStore 가 동기 throw 도 받아 되돌린다 — 줄 그대로, 잔액 그대로', (await a.p.$$eval('.row:not(.open)',es=>es.length))===1 && (await bal(a.p))==='9,200');
   await a.ctx.close();
   allowConsole(/^console: Error: supabase-js 를 받지 못했어요/);
 });
 
-// ── 3. 이름 고치기 성공 뒤에도 다른 칸을 치는 중이면 다시 그리지 않는다 (서버 응답이 치는 도중에 온다) ──
+// ── 3. 이름 저장 응답이 다른 칸을 치는 도중에 와도 다시 그리지 않는다
 await section('이름 고치기 중 다시 그리기', async()=>{
   a=await fakePage(b, {}, {wait:false}); await ready(a.p);
   await a.p.evaluate(()=>{ window.__fake.childDelay=400; });
@@ -64,7 +64,7 @@ await section('이름 고치기 중 다시 그리기', async()=>{
   const d0=(await calls(a.p)).childDone;
   await a.p.click('.card.color input.nm >> nth=0'); await a.p.keyboard.press('End'); await a.p.keyboard.type('이');
   await a.p.click('.card.color input.nm >> nth=1'); await a.p.keyboard.press('End'); await a.p.keyboard.type('아');
-  await a.p.waitForFunction((d)=>window.__fake.calls.childDone>d, d0); await settle(a.p);   // 첫 칸 onchange → 저장 → 0.4초 뒤 응답 → (전엔) render
+  await a.p.waitForFunction((d)=>window.__fake.calls.childDone>d, d0); await settle(a.p);   // 첫 칸 onchange → 저장 → 0.4초 뒤 응답
   T('첫째 이름 저장됨', await a.p.evaluate(()=>window.__fake.kids[0].name==='서윤이'));
   T('둘째 칸에 치던 글과 포커스가 그대로', (await a.p.$eval('.card.color input.nm >> nth=1',e=>e.value))==='하준아' && await a.p.evaluate(()=>document.activeElement===document.querySelectorAll('.card.color input.nm')[1]));
   await a.p.click('.nav h2');
@@ -73,13 +73,13 @@ await section('이름 고치기 중 다시 그리기', async()=>{
   await a.ctx.close();
 });
 
-// ── 로컬 모드 (나머지) ──
+// ── 로컬 모드
 const {ctx, p}=await localPage(b);
 
-// ── 4. 화면을 켠 채 자정을 넘기고 적으면 그 순간의 오늘로 — 날짜를 손으로 골랐으면 그대로 ──
+// ── 4. 자정을 넘겨 적으면 그 순간의 오늘로(손으로 고른 날짜는 그대로)
 await section('자정 넘김', async()=>{
   await seed(p, [KID()], []);
-  await p.evaluate(()=>{ const R=Date; const D=86400000;   // 페이지의 시계를 하루 앞으로 — draft.date 는 이미 "어제"로 잡혀 있다
+  await p.evaluate(()=>{ const R=Date; const D=86400000;   // 시계를 하루 앞으로. draft.date 는 이미 "어제"가 된다
     window.Date=class extends R{ constructor(...a){ if(a.length) super(...a); else super(R.now()+D); } static now(){ return R.now()+D; } }; });
   const tomorrow=await p.evaluate(()=>{ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); });
   await p.click('.amt'); await p.keyboard.type('700'); await p.click('.entry .ok'); await settle(p);
@@ -92,18 +92,18 @@ await section('자정 넘김', async()=>{
   T('손으로 고른 날짜는 그대로('+today+')', saved.length===2 && saved.includes(today));
 });
 
-// ── 5. 금액은 9자리까지 ──
+// ── 5. 금액은 9자리까지
 await section('금액 자릿수', async()=>{
   await seed(p, [KID()], []);
   await p.click('.amt'); await p.keyboard.type('123456789012');
   T('금액 12자리를 쳐도 9자리(123,456,789)', (await p.$eval('.amt',e=>e.value))==='123,456,789');
 
-  // ── 6. 톱니는 글자가 아니라 선 그림 · theme-color 는 종이색 ──
+  // ── 6. 톱니는 선 그림, theme-color 는 종이색
   T('⚙ 버튼 안에 svg, 글자 없음', !!(await p.$('.gear svg')) && (await p.$eval('.gear',e=>e.textContent.trim()))==='');
   T('theme-color = --paper (#FDFCFA)', (await p.$eval('meta[name=theme-color]',e=>e.content)).toUpperCase()==='#FDFCFA');
 });
 
-// ── 7. 표 칸은 em — 기본 글자에선 44·86·78px 그대로, 글자를 키우면 같이 늘어난다 ──
+// ── 7. 표 칸은 em 단위(글자를 키우면 같이 늘어난다)
 await section('표 칸', async()=>{
   await seed(p, [KID()],[{id:'e1',child_id:'k1',entry_date:today,memo:'젤리',amount:-800,auto_key:null,created_by:'me',created_at:today+'T09:00:00Z'}]);
   const cols=async()=>p.$eval('.row:not(.open)',e=>getComputedStyle(e).gridTemplateColumns.split(' ').map(parseFloat));
@@ -115,14 +115,14 @@ await section('표 칸', async()=>{
   const ec=await p.$eval('.entry',e=>getComputedStyle(e).gridTemplateColumns.split(' ').map(parseFloat));
   T('입력줄 칸: 44 · 103 · 36 (1.2.6 부호 30px 만큼)', Math.abs(ec[0]-44)<.1 && Math.abs(ec[2]-103)<.1 && Math.abs(ec[3]-36)<.1);
 
-  // ── 8. iOS 실행 화면은 기종별 — media 가 붙은 link 열두 줄, 파일 실재 ──
+  // ── 8. iOS 실행 화면: 기종별 link 12줄, 파일 실재
   const links=await p.$$eval('link[rel="apple-touch-startup-image"]',ls=>ls.map(l=>({m:l.media,h:l.getAttribute('href')})));
   T('실행 화면 link 12개, 전부 device-width/height/pixel-ratio 조건', links.length===12 && links.every(l=>/device-width.*device-height.*pixel-ratio/.test(l.m)));
   T('실행 화면 파일이 전부 있다', links.every(l=>fs.existsSync(path.resolve(__dirname,'..',l.h))) && !fs.existsSync(path.resolve(__dirname,'../splash.png')));
 });
 await ctx.close();
 
-// ── 9. 다른 앱 안의 브라우저(카톡 등)에서 열면 시작 화면에 경고 — 크롬·사파리는 전처럼 ──
+// ── 9. 인앱 브라우저(카톡 등)면 시작 화면에 경고
 await section('인앱 브라우저 경고', async()=>{
   async function onboardWarn(ua){
     const {ctx:cx, p:q}=await localPage(b, {context:{userAgent:ua}});      // 저장소가 비어 있으니 시작 화면
