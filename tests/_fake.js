@@ -16,7 +16,7 @@ const FAKE=(opt)=>{
     // insertHold=true 면 insert 가 release() 전까지 끝나지 않는다
     insertHold:false, held:[], release(){ F.insertHold=false; const h=F.held; F.held=[]; h.forEach(r=>r()); },
     // 의견: 보낸 것은 feedback 에 쌓인다. reader=의견 읽는 기기, owner=주인 가족
-    feedback: opt.feedback || [], reader: !!opt.reader, owner: opt.owner!==false, fbFail:false
+    feedback: opt.feedback || [], reader: !!opt.reader, otherReader: !!opt.otherReader, owner: opt.owner!==false, fbFail:false
   };
   F.calls.childDone=0;                                        // 아이 update 응답 횟수(childDelay 뒤를 기다릴 때)
   const dead=()=>Promise.reject(new Error('Failed to fetch'));
@@ -75,15 +75,15 @@ const FAKE=(opt)=>{
     rpc:(name,args)=>{
       if(name==='join_family'){ F.calls.join++; if(F.mode==='dead' || F.mode==='down') return dead(); if(F.joinError) return Promise.resolve({data:null,error:{message:F.joinError}}); F.members=[{family_id:'f1',families:{code:args.p_code}}]; return ok('f1'); }
       if(name==='create_family'){ F.calls.create++; if(F.createFail) return Promise.resolve({data:null,error:{message:'gate'}}); F.members=[{family_id:'f1',families:{code:args.p_code}}]; return ok('f1'); }
-      if(name==='gate_state') return ok({is_owner:F.owner,is_reader:F.reader,open_until:null});
+      if(name==='gate_state') return ok({is_owner:F.owner,is_reader:F.reader,has_reader:F.reader||F.otherReader,open_until:null});
       if(name==='send_feedback'){ if(F.fbFail || F.mode!=='live') return Promise.resolve({data:null,error:{message:'fb'}});
-        F.feedback.unshift({id:F.feedback.length+1,kind:args.p_kind,body:args.p_body,app_version:args.p_version,device:args.p_device,
+        F.feedback.unshift({id:F.feedback.length+1,user_id:F.session&&F.session.user.id,kind:args.p_kind,body:args.p_body,app_version:args.p_version,device:args.p_device,
           created_at:new Date().toISOString(),family_code:'K7PM-3QRA',kids:'서윤·하준'}); return ok(null); }
       if(name==='read_feedback') return ok(F.reader ? F.feedback.filter(f=>!f.done) : []);
       if(name==='close_feedback'){ const f=F.feedback.find(x=>x.id===args.p_id); if(f){ f.done=true; f.read_at=f.read_at||new Date().toISOString(); } return ok(null); }
       if(name==='mark_feedback_read'){ F.feedback.forEach(f=>{ if(!f.read_at && f.id<=args.p_upto) f.read_at=new Date().toISOString(); }); return ok(null); }
-      if(name==='my_feedback') return ok(F.feedback.filter(f=>f.kind==='note').slice(0,5));
-      if(name==='claim_feedback_reader'){ if(!F.owner) return Promise.resolve({data:null,error:{message:'권한이 없어요'}}); F.reader=true; return ok(null); }
+      if(name==='my_feedback') return ok(F.feedback.filter(f=>f.kind==='note' && f.user_id===(F.session&&F.session.user.id)).slice(0,5));
+      if(name==='claim_feedback_reader'){ if(!F.owner || F.otherReader) return Promise.resolve({data:null,error:{message:'권한이 없어요'}}); F.reader=true; return ok(null); }
       return ok(null); },
     channel:()=>({on(){return this;},subscribe(){ F.calls.subscribe++; return this; }}),
     removeChannel:()=>{ F.calls.removeChannel=(F.calls.removeChannel||0)+1; return Promise.resolve('ok'); }

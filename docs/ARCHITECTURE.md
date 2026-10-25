@@ -69,8 +69,8 @@
 ## 9. 의견 · 오류 보고
 
 - 설정 맨 아래 오른쪽 `fbButton()`: 읽는 폰(`gate_state().is_reader`)이면 "받은 의견 n", 아니면 "의견 보내기". 이 기기 전용 모드엔 없다.
-- 보내기는 `send_feedback`(가족 기기 누구나), 읽기 · 읽음 · 완료는 `read_feedback` · `mark_feedback_read` · `close_feedback`(읽는 폰만). 읽는 폰은 주인 가족의 기기가 `claim_feedback_reader` 로 스스로 정한다(`app_gate.reader_user_id`, 한 대).
-- 보낸 집은 `my_feedback`(자기 가족의 최근 의견 5개와 `read_at`)으로 "전달됨" / "읽음"을 본다. 목록을 열면 보이는 것까지 읽음, "완료"도 읽음.
+- 보내기는 `send_feedback`(가족 기기 누구나), 읽기 · 읽음 · 완료는 `read_feedback` · `mark_feedback_read` · `close_feedback`(읽는 폰만). 읽는 폰은 주인 가족의 기기가 `claim_feedback_reader` 로 스스로 정한다(`app_gate.reader_user_id`, 한 대). 이미 정해져 있으면(`has_reader`) 다른 폰은 못 가져간다.
+- 보낸 기기는 `my_feedback`(그 기기의 최근 의견 5개와 `read_at`)으로 "전달됨" / "읽음"을 본다. 목록을 열면 보이는 것까지 읽음, "완료"도 읽음.
 - `report(where, err)`: 오류 문장 · 화면 · 버전 · 기종만 보낸다. 같은 문장은 하루 한 번, 기기당 하루 20개(`yd_report`), 오프라인이면 안 보낸다. 서버도 기기당 하루 50개에서 자른다.
 - 새 것 수는 마지막으로 본 id(`yd_fb_seen`) 기준.
 
@@ -120,7 +120,7 @@
 - 하네스(`tests/_harness.js`): 고정 시간으로 기다리지 않고 `ready` · `settle` · `idle` · `back` · `popped/reloaded/toasted` · `until` 로 결과를 기다린다. 진짜 시간이 조건인 곳만 예외.
 - 터치는 `touch(p)`(CDP, 이벤트 시각을 직접 찍는다). 폰처럼 버튼에 포커스가 남는 탭도 이걸로 재현한다.
 - `localPage(b, {clock})` 는 로컬 모드 + 시계 고정, `fakePage` 는 가짜 Supabase(`tests/_fake.js`, 모드 live · dead · noinit · down).
-- 스냅샷은 화면을 일부러 바꾼 버전에서만 `SNAP=update`. 06 · 11 에는 버전 글자가 찍힌다. CI 에서는 달라도 경고만.
+- 스냅샷은 화면을 일부러 바꾼 버전에서만 `SNAP=update`. 버전 글자는 화면 밖이라 버전만 올리면 안 바뀐다. CI 에서는 달라도 경고만.
 - 결함을 고치면 `regress-x.y.z` 에 테스트를 넣고 고치기 전 코드에서 실패하는 걸 확인한다.
 
 ## 14. 버전 올리기
@@ -128,8 +128,7 @@
 1. `index.html` `APP_VERSION` · `sw.js` `CACHE` · `package.json` version 을 같이 바꾼다(`unit` 이 확인).
 2. `CHANGELOG.md` 맨 위. SQL · 재설치가 필요하면 첫 줄에.
 3. SQL 이 바뀌면 `schema.sql` 본문에, 그리고 맨 아래 "쓰던 프로젝트 올리기"에 한 줄.
-4. 스냅샷 06 · 11 은 버전 글자만 바뀐 걸 확인하고 기준을 바꾼다.
-5. 새 파일이나 지운 파일이 있으면 모든 파일을 한 번에 올린다.
+4. 새 파일이나 지운 파일이 있으면 모든 파일을 한 번에 올린다.
 
 커밋 메시지는 영어 한 줄, 저장소 안의 글은 한국어.
 

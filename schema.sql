@@ -143,6 +143,7 @@ language sql security definer set search_path = public as $$
     'is_owner', exists (select 1 from family_members m, app_gate g
                         where g.id = 1 and m.family_id = g.owner_family_id and m.user_id = auth.uid()),
     'is_reader', exists (select 1 from app_gate g where g.id = 1 and g.reader_user_id = auth.uid()),
+    'has_reader', exists (select 1 from app_gate g where g.id = 1 and g.reader_user_id is not null),
     'open_until', (select g.open_until from app_gate g
                    where g.id = 1 and exists (select 1 from family_members m
                                               where m.family_id = g.owner_family_id and m.user_id = auth.uid())));
@@ -199,6 +200,10 @@ begin
                  where g.id = 1 and m.family_id = g.owner_family_id and m.user_id = auth.uid()) then
     raise exception '권한이 없어요';
   end if;
+  -- 한 대로 고정. 바꾸려면 SQL Editor 에서 update app_gate set reader_user_id = null; 뒤 새 폰에서 다시 지정
+  if exists (select 1 from app_gate g where g.id = 1 and g.reader_user_id is not null and g.reader_user_id <> auth.uid()) then
+    raise exception '이미 다른 폰이 받고 있어요';
+  end if;
   update app_gate set reader_user_id = auth.uid() where id = 1;
 end $$;
 
@@ -231,11 +236,11 @@ begin
   update feedback set read_at = now() where read_at is null and id <= p_upto;
 end $$;
 
--- 보낸 집이 보는 자기 집 의견(최근 5개)과 읽음 여부
+-- 이 기기가 보낸 의견(최근 5개)과 읽음 여부
 create or replace function my_feedback() returns table (id bigint, body text, created_at timestamptz, read_at timestamptz)
 language sql security definer set search_path = public as $$
   select f.id, f.body, f.created_at, f.read_at from feedback f
-  where f.kind = 'note' and f.family_id in (select family_id from family_members where user_id = auth.uid())
+  where f.kind = 'note' and f.user_id = auth.uid()
   order by f.id desc
   limit 5;
 $$;
@@ -290,3 +295,4 @@ alter table children replica identity full;
 -- 1.2.0 함수 권한, 1.2.3 gate_state: 본문의 create or replace / revoke / grant
 -- 1.3.2 기록↔아이 같은 가족 제약: 본문의 "기록의 아이는 그 기록과 같은 가족" 두 블록
 -- 1.3.8 의견 · 오류 보고: 본문의 app_gate.reader_user_id, "의견 · 오류 보고" 절, gate_state, 권한 줄
+-- 1.3.10 받는 폰 한 대 고정 · 보낸 의견은 그 기기 것만: 본문의 gate_state · claim_feedback_reader · my_feedback
